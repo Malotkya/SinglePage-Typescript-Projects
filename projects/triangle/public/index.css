@@ -1,0 +1,22 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    display: flex;
+    flex-flow: row nowrap;
+}
+
+#form {
+    width: 25%;
+    flex-grow: 0;
+    padding: .3em;
+}
+
+#target {
+    flex-grow: 1;
+}
+
+label, input {
+    width: 100%;
+}

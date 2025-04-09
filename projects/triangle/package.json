@@ -1,0 +1,17 @@
+{
+  "name": "triangle",
+  "version": "1.0.0",
+  "description": "Midpoint Therom Triangle",
+  "license": "ISC",
+  "author": "Alex Malotky",
+  "type": "commonjs",
+  "scripts": {
+    "watch": "npx webpack-cli --watch",
+    "build": "npx webpack-cli"
+  },
+  "dependencies": {
+    "ts-loader": "^9.5.2",
+    "webpack": "^5.99.5",
+    "webpack-cli": "^6.0.1"
+  }
+}
