@@ -1,4 +1,4 @@
-import {ViewTemplate} from "./Bios.wait";
+import {ViewTemplate} from "./Bios";
 
 export default class View {
     private _ctx: CanvasRenderingContext2D;

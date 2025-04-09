@@ -1,5 +1,4 @@
-import App from "../App";
-import System from "../System";
+import System, {App} from "./Terminal";
 
 export default class About extends App {
     constructor(){

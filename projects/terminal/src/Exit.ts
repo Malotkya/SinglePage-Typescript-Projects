@@ -1,5 +1,4 @@
-import App from "../App";
-import System from "../System/index";
+import System, {App} from "./Terminal";
 
 export default class Exit extends App {
     constructor(){

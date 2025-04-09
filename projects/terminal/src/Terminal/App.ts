@@ -1,4 +1,4 @@
-import System from "./System"
+import System from "."
 
 interface History{
     list: Array<string>,

@@ -1,8 +1,10 @@
-import Bios from "./System/Bios.wait";
-import { reportKeyDown } from "./System/Keyboard";
+import System from "./Terminal";
+import Help from "./Help";
+import About from "./About";
+import Clear from "./Clear";
+import Exit from "./Exit";
 
-window.onload = () => {
-    const input = document.createElement("input");
-    input.addEventListener("keydown", reportKeyDown);
-    document.body.appendChild(input);
-}
+System.addApp(new Help());
+System.addApp(new About());
+System.addApp(new Clear());
+System.addApp(new Exit());

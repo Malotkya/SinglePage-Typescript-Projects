@@ -1,7 +1,7 @@
 /** Stream.ts
  * 
  */
-import Bios from "./Bios.wait";
+import {sleep} from "./Bios";
 
 /** Stream Class
  * 
@@ -56,9 +56,11 @@ export class InputStream extends Stream {
         this._print = "";
     }
 
-    public set(s: string){
-        this._print = s;
-        this._buffer = s;
+    public set(s: string|undefined){
+        if(s) {
+            this._print = s;
+            this._buffer = s;
+        }
     }
 
     public add(s: string){
@@ -81,7 +83,7 @@ export class InputStream extends Stream {
             if(output !== null)
                 return output;
 
-            //await Bios.sleep();
+            await sleep();
         }
     }
 
@@ -102,7 +104,7 @@ export class InputStream extends Stream {
                 return temp;
             }
 
-            //await Bios.sleep();
+            sleep();
         }
     }
 

@@ -1,13 +1,13 @@
-import App from '../App';
-import System from "../System"
-import Bios from '../System/Bios.wait';
-import * as Default from '../System/Defaults';
+import App from './Terminal/App';
+import System from "./Terminal"
+import {BiosType} from './Terminal/Bios';
+import * as Default from './Terminal/Defaults';
 
 class Settings extends App {
-    private _bios: any;
+    private _bios: BiosType;
     private _loop: boolean;
 
-    constructor(bios: any) {
+    constructor(bios: BiosType) {
         super("settings", "Changes things like screen dimensions or colors");
 
         this._bios = bios;
@@ -88,7 +88,6 @@ class Settings extends App {
             break;
         case "screen-width":
             this._bios.width = Number(value);
-            this._bios.grow(true);
             break;
         case "screen-height":
             this._bios.height = Number(value);
