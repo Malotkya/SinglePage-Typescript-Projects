@@ -15,7 +15,7 @@ const json5 = require("json5");
 function getAliases(configPath, alias = {}){
     const {paths} = json5.parse(fs.readFileSync(configPath).toString()).compilerOptions;
 
-    const dir = path.normalize(configPath, "..")
+    const dir = path.dirname(configPath, "..")
 
     for(const item in paths) {
         const key = item.replace("/*", "");
@@ -60,6 +60,60 @@ function SingleEntry(opts){
     };
 }
 
+/** Multiple Entry
+ * 
+ * @param {{
+*      mode: "development"|"production",
+*      entry: string[]|string,
+*      style?: string,
+*      output: {
+*          filename: string,
+*          path: string
+*      },
+*      alias?: Record<string, string>
+* }} opts 
+* @returns {import("webpack").Configuration}
+*/
+function MultipleEntry(opts){
+   const {mode, entry, output, style, alias} = opts
+   const rules = [
+        {
+            test: /\.tsx?$/,
+            use: 'ts-loader',
+            exclude: /node_modules/
+        }
+   ];
+
+   if(style) {
+        if(typeof entry === "string")
+            entry = [entry];
+
+        entry.push(style)
+        rules.push({
+            test: /\.scss$/,
+            use: [
+                {
+                    loader: 'file-loader',
+                    options: { name: 'style.css'}
+                },
+                'sass-loader'
+            ]
+        });
+   }
+
+   return {
+       mode, output,
+       entry: {
+        index: entry
+       },
+       module: { rules },
+       resolve: {
+           extensions: [".ts", ".js"],
+           alias: getAliases(path.join(__dirname, "tsconfig.json"), alias)
+       }
+   };
+}
+
 module.exports = {
-    SingleEntry, getAliases
+    SingleEntry, getAliases, MultipleEntry
 }
