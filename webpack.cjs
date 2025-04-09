@@ -30,7 +30,7 @@ function getAliases(configPath, alias = {}){
 /** Single Entry
  * 
  * @param {{
- *      mode: "development"|"production",
+ *      mode?: "development"|"production",
  *      entry: string,
  *      output: {
  *          filename: string,
@@ -41,7 +41,7 @@ function getAliases(configPath, alias = {}){
  * @returns {import("webpack").Configuration}
  */
 function SingleEntry(opts){
-    const {mode, entry, output, alias} = opts
+    const {mode = "development", entry, output, alias} = opts
     return {
         mode, entry, output,
         module: {
