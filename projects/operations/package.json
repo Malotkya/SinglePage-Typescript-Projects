@@ -1,0 +1,20 @@
+{
+  "name": "operations",
+  "version": "1.0.0",
+  "description": "Order Of Operations",
+  "license": "ISC",
+  "author": "Alex Malotky",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx webpack-cli -d source-map",
+    "watch": "npx webpack-cli --watch",
+    "build": "npx webpack-cli"
+  },
+  "dependencies": {
+    "ts-loader": "^9.5.2",
+    "typescript": "^5.8.3",
+    "webpack": "^5.99.5",
+    "webpack-cli": "^6.0.1"
+  }
+}
