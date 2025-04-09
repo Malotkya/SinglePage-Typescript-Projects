@@ -5,7 +5,6 @@
   "license": "ISC",
   "author": "Alex Malotky",
   "type": "commonjs",
-  "main": "index.js",
   "scripts": {
     "dev": "npx webpack-cli -d source-map",
     "watch": "npx webpack-cli --watch",
