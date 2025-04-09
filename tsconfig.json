@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "noImplicitAny": true,
+        "strict": true,
+        "module": "ESNext",
+        "target": "ES2022",
+        "sourceMap": true,
+        "moduleResolution": "node",
+        "allowSyntheticDefaultImports": true,
+        "lib": ["DOM", "ES2022"],
+        "paths": {
+            "@": ["./util/index"],
+            "@/*": ["./util/*"]
+        }
+    }
+}

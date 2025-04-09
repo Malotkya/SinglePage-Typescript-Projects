@@ -1,0 +1,16 @@
+{
+  "name": "ts-spa-apps",
+  "version": "1.0.0",
+  "description": "Collection of Simple Typescript Apps",
+  "license": "ISC",
+  "author": "Alex Malotky",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "workspaces": [
+    "projects/operations"
+  ],
+  "dependencies": {
+    "json5": "^2.2.3"
+  }
+}
