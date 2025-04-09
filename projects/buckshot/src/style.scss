@@ -1,0 +1,153 @@
+$live-dark: #780202;
+$live-light: #b52424;
+$live-text: #F0DBDB;
+$blank-dark: #023178;
+$blank-light: #2042E9;
+$blank-text: #dbdbf0;
+
+* {
+    box-sizing: border-box;
+}
+
+.live {
+    background-color: $live-dark;
+    color: $live-text;
+}
+button.live {
+    background-color: $live-light;
+
+    &:hover, &:focus {
+        background-color: $live-dark;
+    }
+}
+
+.blank {
+    background-color: $blank-dark;
+    color: $blank-text;
+}
+button.blank {
+    background-color: $blank-light;
+
+    &:hover, &:focus {
+        background-color: $blank-dark;
+    }
+}
+
+body {
+    font-size: 1rem;
+    display: flex;
+    flex-flow: column nowrap;
+    min-height: 100vh;
+    margin: 0;
+    color: #E4D8C3;
+    background-color:  #0f0d0b;
+}
+
+a:link, a:visited {
+    color: #E4D8C3;
+}
+
+header {
+    background-color: #5F4E35;
+    text-align: center;
+}
+
+main {
+    flex-grow: 1;
+    display: flex;
+    flex-flow: column nowrap;
+}
+
+footer {
+    background-color: #515341;
+    text-align: center;
+    padding: .5rem;
+}
+
+#formWrapper {
+    background-color: #5F4E35;
+}
+
+form {
+    display: flex;
+    flex-flow: row wrap;
+    max-width: 600px;
+    margin: 0 auto;
+    padding-bottom: 0.5rem;
+
+    .input {
+        width: 50%;
+
+        label {
+            display: block;
+            text-align: center;
+            width: 100%
+        }
+    
+        input[type="number"] {
+            display: block;
+            width: 6ch;
+            margin: 0 auto;
+        }
+    }
+
+    .button {
+        width: 100%;
+        text-align: center;
+
+        #start {
+            font-size: 1rem;
+        }
+    }
+}
+
+p {
+    background-color: #778390;
+    color: #0f0d0b;
+    padding: .15rem;
+    margin: 0;
+    text-align: center;
+}
+
+shot-list {
+    background-color: #778390;
+    display: flex;
+    flex-grow: 1;
+    gap: .2rem
+}
+
+shot-item {
+    display: flex;
+    flex-flow: column nowrap;
+    align-items: center;
+    justify-content: center;
+    width: 4rem;
+    height: 6rem;
+    background-color: #444;
+    color: lightgray;
+    border-top-left-radius:  1rem;
+    border-top-right-radius: 1rem;
+    font-weight: bold;
+
+    .view, .value {
+        flex-grow: 1;
+        display: flex;
+        flex-flow: column nowrap;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: .1rem;
+        cursor: default;
+    }
+
+    button {
+        width: 100%;
+        flex-grow: 1;
+        font-weight: bolder;
+        outline: none;
+        border: none;
+    }
+}
+
+
+
