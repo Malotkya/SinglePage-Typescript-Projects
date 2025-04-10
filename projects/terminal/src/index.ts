@@ -1,4 +1,4 @@
-import System from "./Terminal";
+import System, {start} from "./Terminal";
 import Help from "./Help";
 import About from "./About";
 import Clear from "./Clear";
@@ -8,3 +8,5 @@ System.addApp(new Help());
 System.addApp(new About());
 System.addApp(new Clear());
 System.addApp(new Exit());
+
+window.onload = () => start();
