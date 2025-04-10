@@ -21,6 +21,8 @@ export interface Process {
 
 const SYSTEM_NAME = "Terminal System";
 const SYSTEM_CALL = SYSTEM_NAME.toLocaleLowerCase();
+const PROMPT = "$ ";
+const CURSOR = "█";
 
 ///// Private Attributes of System ///////
 const apps:Map<string, Process> = new Map();
@@ -222,32 +224,32 @@ class TerminalInterface extends HTMLElement {
          * @param {CustomEvent} Event
          */
         //@ts-ignore
-        this.addEventListener("input", (event:CustomEvent<KeyCodeType>)=>{
+        this.addEventListener("input", (event:CustomEvent<KeyCode>)=>{
             switch(event.detail){
-                case KeyCode.BACK_SPACE:
+                case "Backspace":
                     input.remove();
                     break;
                         
-                case KeyCode.ARROW_UP:
+                case "ArrowUp":
                     System.current.history.index -= 1;
                     input.set(System.current.history.current);
                     break;
             
-                case KeyCode.ARROW_DOWN:
+                case "ArrowDown":
                     System.current.history.index += 1;
                     input.set(System.current.history.current);
                     break;
             
-                case KeyCode.ENTER:
-                    input.add(  String.fromCharCode(event.detail) );
+                case "Enter":
+                    input.add("\n");
                     if(!password && view === null){
-                        output.add(input.buffer);
+                        output.add(PROMPT+input.buffer);
                     }
                     input.clean();
                     break;
             
                 default:
-                    input.add( String.fromCharCode(event.detail) );
+                    input.add( event.detail );
                     break;
             }      
         });
@@ -265,45 +267,15 @@ class TerminalInterface extends HTMLElement {
                 alert("Views are currently not supported!");
                 view = null;
             } else {
-            
-                //Normal Render
-                let x = this.#bios.x;
-                let y = this.#bios.y;
-            
-                const place = (char: string) => {
-                    if(char == '\n' || char == '\r') {
-                        x = 0;
-                        y++;
-                    }  else {
-                        this.#bios.put(x,y,char);
-                        x++;
-                    }
-            
-            
-                    if(x > this.#bios.width) {
-                        x = 0;
-                        y++;
-                    }
-            
-                    if(y > this.#bios.height) {
-                        this.#bios.height += this.#bios.height;
-                        this.#bios.scroll(y);
-                    }
-                }
-            
                 if(output.isReady()) {
-                    for(let char of output.flush()){
-                        place(char);
-                    }
+                    this.#bios.print(output.buffer.padEnd(1, "\n"));
                 }
-            
+                
                 if( !password) {
-                    for(let char of input.buffer){
-                        place(char)
-                    }
+                    this.#bios.print(PROMPT+input.buffer);
                 }
             
-                this.#bios.put(x, y, "█");
+                this.#bios.print(CURSOR);
             }
         });
     }
@@ -323,11 +295,10 @@ export async function start() {
     running = true;
 
     while(running) {
-        System.print("\n$: ");
         let string = await System.getln();
     
         let cmd = string.split(/\s+/gm);
-        System.history.add(string)
+        System.history.add(string);
     
         let app = System.getApp(cmd[0]);
     
