@@ -5,18 +5,32 @@
 import Bios, {BiosType} from "./Bios";
 import View from "./View";
 import {InputStream, OutputStream} from "./Stream";
-import App, {MainFunction} from "./App";
+import App, {HelpFunction, MainFunction} from "./App";
 import { KeyCode } from "./Keyboard";
+import IndexList from "@/IndexList";
 
 export {App};
 
+export interface Process {
+    readonly history: IndexList<string>
+    readonly call: string
+    readonly description?:string
+    readonly help?: HelpFunction
+    readonly run:MainFunction
+}
+
+const SYSTEM_NAME = "Terminal System";
+const SYSTEM_CALL = SYSTEM_NAME.toLocaleLowerCase();
+
 ///// Private Attributes of System ///////
-const apps:Map<string, App> = new Map();
-const callstack: App[] = [];
+const apps:Map<string, Process> = new Map();
+const callstack: Process[] = [];
+const history: IndexList<string> = new IndexList();
 const input = new InputStream();
 const output = new OutputStream();
 let view: View|null = null;
 let password = false;
+let running = false;
 
 /** System Interface
  * 
@@ -47,7 +61,7 @@ const System = {
      */
     addApp(app: App){
         if(app instanceof App){
-            if(apps.has(app.call))
+            if(apps.has(app.call) || app.call === SYSTEM_CALL)
                 throw new Error("Call is already in use");
 
             apps.set(app.call, app);
@@ -72,9 +86,15 @@ const System = {
         if(typeof callback !== "function")
             throw new TypeError("Callback function must be a function!");
 
-        const temp = new App(call, description);
-        temp.main = callback;
-        this.addApp(temp);
+        call = call.toLocaleLowerCase();
+        if(apps.has(call) || call === SYSTEM_CALL)
+            throw new Error("Call is already in use");
+
+        apps.set(call, {
+            call, description,
+            history: new IndexList(),
+            run: callback
+        });
     },
 
     /** Get App
@@ -122,29 +142,57 @@ const System = {
 
     /** Run Arguments
      * 
-     * @param {string[]} args 
-     * @returns 
      */
-    async run(args: string[]){
+    async run(){
+        if(running)
+            throw new Error("System is already running!");
+        
+        callstack.push(System);
         input.clear();
+        running = true;
 
-        await this.current.main(args);
+        while(running) {
+            System.print("\n$: ");
+            let string = await System.getln();
+        
+            let cmd = string.split(/\s+/gm);
+            System.history.add(string)
+        
+            let app = System.getApp(cmd[0]);
+        
+            if(app){
+                callstack.push(app);
+                input.clear();
+                try {
+                    const e = await app.run(cmd);
 
-        if(view !== null){
-            view.delete();
+                    if(view !== null)
+                        view.delete();
+
+                    if(e)
+                        throw e;
+
+                } catch (e:any) {
+                    System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
+                }
+                
+                callstack.pop();
+            } else {
+                System.println("Unknown Command!");
+            }
         }
     },
 
     /** Get Current
      * 
      */
-    get current():App{
+    get current():Process{
         return callstack[callstack.length-1];
     },
 
     /** Loop over Apps
      * 
-     * @returns {MapIterator<[string, App]>} 
+     * @returns {MapIterator<[string, Process]>} 
      */
     [Symbol.iterator](){
         return apps.entries();
@@ -161,7 +209,8 @@ const System = {
     /** Close System
      * 
      */
-    close(){
+    close() {
+        running = false;
         window.location.replace("/");
     },
 
@@ -177,6 +226,14 @@ const System = {
         }
         view = <any>null; //new View(this.#bios.view());
         return view;
+    },
+
+    get history():IndexList<string> {
+        return history;
+    },
+
+    get call() {
+        return SYSTEM_NAME;
     }
 }
 export default System;
@@ -215,11 +272,13 @@ class TerminalInterface extends HTMLElement {
                     break;
                         
                 case KeyCode.ARROW_UP:
-                    input.set(System.current.moveHistory(-1));
+                    System.current.history.index -= 1;
+                    input.set(System.current.history.current);
                     break;
             
                 case KeyCode.ARROW_DOWN:
-                    input.set(System.current.moveHistory(1));
+                    System.current.history.index += 1;
+                    input.set(System.current.history.current);
                     break;
             
                 case KeyCode.ENTER:
