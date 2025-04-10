@@ -49,6 +49,10 @@ export default class Stream {
     public flush(i: number = this._buffer.length){
         return this._buffer.slice(0, i);
     }
+
+    public get buffer(){
+        return this._buffer;
+    }
 }
 
 export class InputStream extends Stream {
@@ -107,11 +111,11 @@ export class InputStream extends Stream {
                 return temp;
             }
 
-            sleep();
+            await sleep();
         }
     }
 
-    public get buffer(){
+    public get buffer() {
         return this._print;
     }
 
