@@ -1,4 +1,4 @@
-/** Keyboard.ts
+/** /Terminal/Keyboard
  * 
  * This file contains all the constants that represent keyboard keys.  It also
  * contains the functions to get the keycode from the even/browser and to check

@@ -1,3 +1,7 @@
+/** /Terminal/View.ts
+ * 
+ * @author Alex Malotky
+ */
 import {ViewTemplate} from "./Bios";
 
 export default class View {

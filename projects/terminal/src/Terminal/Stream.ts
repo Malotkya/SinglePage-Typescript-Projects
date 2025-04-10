@@ -1,7 +1,10 @@
-/** Stream.ts
+/** /Terminal/Stream
  * 
+ * Attempting to mimic streams to handle input and output of strings.
+ * 
+ * @author Alex Malotky
  */
-import {sleep} from "./Bios";
+import {sleep} from ".";
 
 /** Stream Class
  * 
