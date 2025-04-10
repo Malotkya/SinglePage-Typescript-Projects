@@ -16,7 +16,7 @@ export interface Process {
     readonly call: string
     readonly description?:string
     readonly help?: HelpFunction
-    readonly run:MainFunction
+    readonly main:MainFunction
 }
 
 const SYSTEM_NAME = "Terminal System";
@@ -93,7 +93,7 @@ const System = {
         apps.set(call, {
             call, description,
             history: new IndexList(),
-            run: callback
+            main: callback
         });
     },
 
@@ -138,49 +138,6 @@ const System = {
         let output: string = await input.getln();
         password= false;
         return output;
-    },
-
-    /** Run Arguments
-     * 
-     */
-    async run(){
-        if(running)
-            throw new Error("System is already running!");
-        
-        callstack.push(System);
-        input.clear();
-        running = true;
-
-        while(running) {
-            System.print("\n$: ");
-            let string = await System.getln();
-        
-            let cmd = string.split(/\s+/gm);
-            System.history.add(string)
-        
-            let app = System.getApp(cmd[0]);
-        
-            if(app){
-                callstack.push(app);
-                input.clear();
-                try {
-                    const e = await app.run(cmd);
-
-                    if(view !== null)
-                        view.delete();
-
-                    if(e)
-                        throw e;
-
-                } catch (e:any) {
-                    System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
-                }
-                
-                callstack.pop();
-            } else {
-                System.println("Unknown Command!");
-            }
-        }
     },
 
     /** Get Current
@@ -352,4 +309,47 @@ class TerminalInterface extends HTMLElement {
     }
 }
 
-customElements.define("terminal-interface", TerminalInterface)
+customElements.define("terminal-interface", TerminalInterface);
+
+/** Start System
+ * 
+ */
+export async function start() {
+    if(running)
+        throw new Error("System is already running!");
+    
+    callstack.push(<any>System);
+    input.clear();
+    running = true;
+
+    while(running) {
+        System.print("\n$: ");
+        let string = await System.getln();
+    
+        let cmd = string.split(/\s+/gm);
+        System.history.add(string)
+    
+        let app = System.getApp(cmd[0]);
+    
+        if(app){
+            callstack.push(app);
+            input.clear();
+            try {
+                const e = await app.main(cmd);
+
+                if(view !== null)
+                    view.delete();
+
+                if(e)
+                    throw e;
+
+            } catch (e:any) {
+                System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
+            }
+            
+            callstack.pop();
+        } else {
+            System.println("Unknown Command!");
+        }
+    }
+}

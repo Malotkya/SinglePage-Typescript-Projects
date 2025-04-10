@@ -12,56 +12,55 @@ class Settings extends App {
 
         this._bios = bios;
         this._loop = false;
-    }
 
-    help(system:System){
-        system.println("Comming Soon!");
-    }
-
-    async main(system:System, args: Array<string>){
-
-        if(args[1] === undefined) {
-            this._loop = true;
-        } else {
-            switch(args[1].toLowerCase()) {
-            case "set":
-                system.println( this.change(args[2], args[3]) );
-                break;
-            case "reset":
-                this.reset();
-                system.println("Success!");
-                break;
-            default:
-                system.println("Unknown command: " + args[1]);
-            }
+        this.help = () => {
+            System.println("Comming Soon!");
         }
 
-        if(this._loop)
-            await this.run(system);
-
-        this._loop = false;
+        this.main = async(args) => {
+            if(args[1] === undefined) {
+                this._loop = true;
+            } else {
+                switch(args[1].toLowerCase()) {
+                case "set":
+                    System.println( this.change(args[2], args[3]) );
+                    break;
+                case "reset":
+                    this.reset();
+                    System.println("Success!");
+                    break;
+                default:
+                    System.println("Unknown command: " + args[1]);
+                }
+            }
+    
+            if(this._loop)
+                await this.run();
+    
+            this._loop = false;
+        }
     }
 
-    async run(system:System) {
-        let input = (await system.get()).toLowerCase();
+    async run() {
+        let input = (await System.get("\s")).toLowerCase();
         while(input !== "exit") {
             switch (input) {
                 case "reset":
                     this.reset();
-                    system.println( "Success!" );
+                    System.println( "Success!" );
                 break;
 
                 case "set":
-                let attribute = (await system.get()).toLowerCase();
-                let value = (await system.get()).toLowerCase();
-                system.println( this.change(attribute, value) );
+                let attribute = (await System.get("\s")).toLowerCase();
+                let value = (await System.get("\s")).toLowerCase();
+                System.println( this.change(attribute, value) );
                 break;
 
                 default:
-                    system.println("Unknown command: " + input);
+                    System.println("Unknown command: " + input);
             }
 
-            input = (await system.get()).toLowerCase();
+            input = (await System.get("\s")).toLowerCase();
         }
     }
 
