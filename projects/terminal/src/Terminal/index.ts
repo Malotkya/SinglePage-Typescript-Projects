@@ -1,41 +1,205 @@
-/** System.ts
+/** /Terminal
  * 
  * @author Alex Malotky
  */
-import Bios, {BiosType, sleep} from "./Bios";
+import Bios, {BiosType} from "./Bios";
 import View from "./View";
 import {InputStream, OutputStream} from "./Stream";
-import App from "./App";
-import Settings from "../Settings";
-import { KeyCode, KeyCodeType } from "./Keyboard";
+import App, {MainFunction} from "./App";
+import { KeyCode } from "./Keyboard";
 
 export {App};
 
+///// Private Attributes of System ///////
 const apps:Map<string, App> = new Map();
+const callstack: App[] = [];
+const input = new InputStream();
+const output = new OutputStream();
+let view: View|null = null;
+let password = false;
 
-/** System Class
+/** System Interface
+ * 
+ * The main way for applications to interact with the terminal.
  * 
  */
-export default class System extends HTMLElement{
-    #bios: BiosType;
-    #callstack: App[];
-    #input: InputStream;
-    #output: OutputStream;
-    #view: View | null;
+const System = {
+    /** Print String
+     * 
+     * @param {string} s 
+     */
+    print(s:string){
+        output.add(s);
+        input.clear();
+    },
 
-    protected: boolean;
-    
+    /** Print Line
+     * 
+     * @param {string} s 
+     */
+    println(s:string) {
+        this.print(s+'\n');
+    },
+
+    /** Add App 
+     * 
+     * @param {App} app 
+     */
+    addApp(app: App){
+        if(app instanceof App){
+            if(apps.has(app.call))
+                throw new Error("Call is already in use");
+
+            apps.set(app.call, app);
+        } else {
+            throw new Error("Not an App!");
+        }
+    },
+
+    /** Add Function
+     * 
+     * @param {string} call 
+     * @param {string} description 
+     * @param {MainFunction} callback 
+     */
+    addFunction(call:string, description: string, callback:MainFunction){
+        if(typeof call !== "string")
+            throw new TypeError("Function call must be a string!");
+
+        if(typeof description !== "string")
+            throw new TypeError("Function description must be a string!");
+
+        if(typeof callback !== "function")
+            throw new TypeError("Callback function must be a function!");
+
+        const temp = new App(call, description);
+        temp.main = callback;
+        this.addApp(temp);
+    },
+
+    /** Get App
+     * 
+     * @param {string} name 
+     * @returns {App|null}
+     */
+    getApp(name:string) {
+        return apps.get(name) || null
+    },
+
+    /** Get String
+     * 
+     * Will get a single char or until matched string
+     * 
+     * @param {string} char 
+     * @returns {string}
+     */
+    get(char?:string){
+        return input.get(char);
+    },
+
+    /** Get Line
+     * 
+     * Will get a stirng up to newline.
+     * 
+     * @returns {string}
+     */
+    getln(){
+        return input.getln();
+    },
+
+    /** Get Password
+     * 
+     * Calls getLn and blocks printing of characters.
+     * 
+     * @returns {string}
+     */
+    async getPassord(){
+        password = true;
+        let output: string = await input.getln();
+        password= false;
+        return output;
+    },
+
+    /** Run Arguments
+     * 
+     * @param {string[]} args 
+     * @returns 
+     */
+    async run(args: string[]){
+        input.clear();
+
+        await this.current.main(args);
+
+        if(view !== null){
+            view.delete();
+        }
+    },
+
+    /** Get Current
+     * 
+     */
+    get current():App{
+        return callstack[callstack.length-1];
+    },
+
+    /** Loop over Apps
+     * 
+     * @returns {MapIterator<[string, App]>} 
+     */
+    [Symbol.iterator](){
+        return apps.entries();
+    },
+
+    /** Reset System
+     * 
+     */
+    reset(){
+        input.clear();
+        output.clear();
+    },
+
+    /** Close System
+     * 
+     */
+    close(){
+        window.location.replace("/");
+    },
+
+    /** Get View
+     * 
+     * @returns {View}
+     */
+    async getView(){
+        output.clear();
+
+        while(!output.isReady()){
+            await sleep();
+        }
+        view = <any>null; //new View(this.#bios.view());
+        return view;
+    }
+}
+export default System;
+
+/** Sleep
+ *  
+ * @param s 
+ * @returns nothing
+ */
+export function sleep(s:number = 100): Promise<void>{
+    return new Promise((r)=>window.setTimeout(r,s));
+}
+
+/** Terminal Interface
+ * 
+ * Acts as the interface between the User and the System through the Bios.
+ */
+class TerminalInterface extends HTMLElement {
+    #bios: BiosType;
 
     constructor(){
         super();
         this.#bios = Bios(this);
-        this.#callstack = [];
-        this.#input = new InputStream();
-        this.#output = new OutputStream();
-        this.#view = null;
-        this.protected = false;
-        
-        ///////////////////////////// Bios Event Listeners ///////////////////////////////////
 
         /** Input Event Listener
          * 
@@ -47,48 +211,50 @@ export default class System extends HTMLElement{
         this.addEventListener("input", (event:CustomEvent<KeyCodeType>)=>{
             switch(event.detail){
                 case KeyCode.BACK_SPACE:
-                    this.#input.remove();
+                    input.remove();
                     break;
-                
+                        
                 case KeyCode.ARROW_UP:
-                    this.#input.set(this.current.moveHistory(-1));
+                    input.set(System.current.moveHistory(-1));
                     break;
-    
+            
                 case KeyCode.ARROW_DOWN:
-                    this.#input.set(this.current.moveHistory(1));
+                    input.set(System.current.moveHistory(1));
                     break;
-    
+            
                 case KeyCode.ENTER:
-                    this.#input.add(  String.fromCharCode(event.detail) );
-                    if(!this.protected && this.#view === null){
-                        this.#output.add(this.#input.buffer);
+                    input.add(  String.fromCharCode(event.detail) );
+                    if(!password && view === null){
+                        output.add(input.buffer);
                     }
-                    this.#input.clean();
+                    input.clean();
                     break;
-    
+            
                 default:
-                    this.#input.add( String.fromCharCode(event.detail) );
+                    input.add( String.fromCharCode(event.detail) );
                     break;
             }      
         });
-
+        
         /** Render Event Listener
          * 
          * Handles the render event
          */
         this.addEventListener("render", ()=>{
-            if(this.#view !== null){
-                //this.#bios.render(this.#view);
-    
+            if(view !== null){
+                /*this.#bios.render(this.#view);
+            
                 if(!this.#view.running)
-                    this.#view = null;
+                    this.#view = null; */
+                alert("Views are currently not supported!");
+                view = null;
             } else {
-    
+            
                 //Normal Render
                 let x = this.#bios.x;
                 let y = this.#bios.y;
-    
-                const output = (char: string) => {
+            
+                const place = (char: string) => {
                     if(char == '\n' || char == '\r') {
                         x = 0;
                         y++;
@@ -96,127 +262,35 @@ export default class System extends HTMLElement{
                         this.#bios.put(x,y,char);
                         x++;
                     }
-    
-    
+            
+            
                     if(x > this.#bios.width) {
                         x = 0;
                         y++;
                     }
-    
+            
                     if(y > this.#bios.height) {
                         this.#bios.height += this.#bios.height;
                         this.#bios.scroll(y);
                     }
                 }
-    
-                if(this.#output.isReady()) {
-                    for(let char of this.#output.flush()){
-                        output(char);
+            
+                if(output.isReady()) {
+                    for(let char of output.flush()){
+                        place(char);
                     }
                 }
-    
-                if( !this.protected) {
-                    for(let char of this.#input.buffer){
-                        output(char)
+            
+                if( !password) {
+                    for(let char of input.buffer){
+                        place(char)
                     }
                 }
-    
+            
                 this.#bios.put(x, y, "█");
             }
-        })
+        });
     }
-
-    public println(s:string){
-        this.print(s+'\n');
-    }
-
-    public print(s:string){
-        this.#output.add(s);
-        this.#input.clear();
-    }
-
-    static addFunction(call:string, description: string, callback: (s:System, a:any)=>Promise<void>){
-        if(typeof call !== "string")
-            throw new TypeError("Function call must be a string!");
-
-        if(typeof description !== "string")
-            throw new TypeError("Function description must be a string!");
-
-        if(typeof callback !== "function" || callback.length < 2)
-            throw new TypeError("Callback function must be a function that accepts two arguments!");
-
-        const temp = new App(call, description);
-        temp.main = callback;
-        System.addApp(temp);
-    }
-
-    static addApp(app: App){
-        if(app instanceof App){
-            if(apps.has(app.call))
-                throw new Error("Call is already in use");
-
-            apps.set(app.call, app);
-        } else {
-            throw new Error("Not an App!");
-        }
-    }
-
-    static getApp(name:string) {
-        return apps.get(name) || null
-    }
-
-    public async run(args: Array<string>){
-        this.#input.clear();
-
-        let p = await this.current.main(this, args);
-        if(this.#view !== null){
-            this.#view?.delete();
-        }
-        
-        return p;
-    }
-
-    get current():App{
-        return this.#callstack[this.#callstack.length-1];
-    }
-
-    [Symbol.iterator](){
-        return apps.keys();
-    }
-
-    reset(){
-        this.#input.clear();
-        this.#output.clear();
-    }
-
-    close(){
-        this.#bios.shutdown();
-    }
-
-    get(char: string = '/s'){
-        return this.#input.get(char);
-    }
-
-    getln(){
-        return this.#input.getln();
-    }
-
-    async getPassord(){
-        this.protected = true;
-        let output: string = await this.#input.getln();
-        this.protected = false;
-        return output;
-    }
-
-    /*async getView(){
-        this.#output.clear();
-
-        while(!this.#output.isReady()){
-            await sleep();
-        }
-        this.#view = new View(this.#bios.view());
-        return this._view;
-    }*/
-
-    
 }
+
+customElements.define("terminal-interface", TerminalInterface)
