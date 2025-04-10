@@ -324,3 +324,10 @@ export async function start() {
         }
     }
 }
+
+/** Clear Output
+ * 
+ */
+export function clear() {
+    output.clear();
+}
