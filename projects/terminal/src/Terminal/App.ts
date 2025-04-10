@@ -2,47 +2,23 @@
  * 
  * @author Alex Malotky
  */
+import IndexList from "@/IndexList";
+import { Process } from ".";
 
-
-export type MainFunction = (args:string[])=>Promise<void>|void;
+export type MainFunction = (args:string[])=>Promise<unknown>|unknown;
 export type HelpFunction = ()=>Promise<void>|void;
 
-export default class App{
+export default class App implements Process{
     private _call: string;
     private _description: string;
-    private _history: string[];
-    private _location:number;
     #main: MainFunction|undefined;
     #help: HelpFunction|undefined;
+    readonly history: IndexList<string>;
 
     constructor(call: string, description: string){
         this._call = call.toLowerCase();
         this._description = description;
-        this._history = [];
-        this._location = -1;
-    }
-
-    public moveHistory(it: number){
-        if(this._history.length > 0) {
-            this._location += it;
-
-            if(this._location < 0) {
-                this._location = 0;
-            }
-
-            if(this._location >= this._history.length) {
-                this._location = this._history.length-1;
-            }
-
-            return this._history[this._location];
-        }
-
-        return undefined;
-    }
-
-    protected addToHistory(s:string){
-        this._history.push(s);
-        this._location = this._history.length;
+        this.history = new IndexList();
     }
 
     set main(value:MainFunction){
@@ -78,5 +54,9 @@ export default class App{
     }
     get description(){
         return this._description;
+    }
+
+    run(args:string[]) {
+        return this.main(args);
     }
 }
