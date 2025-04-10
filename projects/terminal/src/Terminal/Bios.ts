@@ -1,12 +1,10 @@
-/** Bios.ts
+/** /Terminal/Bios
  * 
  * @author Alex Malotky
  */
 import * as Keyboard from "./Keyboard";
 import * as Mouse from './Mouse';
 import * as Default from './Defaults';
-//import System from '.';
-//import View from "./View";
 
 const RATIO = 0.6;
 
@@ -207,14 +205,6 @@ export default function Bios(target:HTMLElement) {
             window.setTimeout(()=>target.scrollTop = (targetHeight + 2) * charHeight, 10);
         },
 
-        /** Shutdown
-         * 
-         * Pretends to stop the system
-         */
-        shutdown(){
-            window.location.replace("/");
-        }
-
         /** Makes sure their is enough height for a new viewport
          * 
          * @returns y-axis top of view
@@ -262,16 +252,4 @@ export default function Bios(target:HTMLElement) {
             this._gl.putImageData(v.render(), 0, v.top);
         }*/
     }
-}
-
-
-/////////////////////////////// Static Functions /////////////////////////////////////////
-
-/** Sleep
- *  
- * @param s 
- * @returns nothing
- */
-export function sleep(s:number = 100): Promise<void>{
-    return new Promise((r)=>window.setTimeout(r,s));
 }
