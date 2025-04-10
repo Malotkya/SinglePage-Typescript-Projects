@@ -3,27 +3,27 @@ import System, {App} from "./Terminal";
 export default class Clear extends App {
     constructor(){
         super("clear", "Clears the terminal");
-    }
-
-    async main(system:System, args: Array<string>){
-        switch (args[1]) {
-            case "-h":
-                this.help(system);
-                break;
-
-            case "-r":
-                system.reset();
-                break;
-
-            default:
-                for(let i=0; i<10; i++)
-                    system.println("\n");
+        
+        this.main = (args) => {
+            switch (args[1]) {
+                case "-h":
+                    this.help();
+                    break;
+    
+                case "-r":
+                    System.reset();
+                    break;
+    
+                default:
+                    for(let i=0; i<10; i++)
+                        System.println("\n");
+            }
         }
-    }
 
-    help(system:System){
-        system.println("clear : Clears the terminal");
-        system.println("   -h : displays helpful information");
-        system.println("   -r : instead of clearing the screen will reset the whole terminal.");
+        this.help = () => {
+            System.println("clear : Clears the terminal");
+            System.println("   -h : displays helpful information");
+            System.println("   -r : instead of clearing the screen will reset the whole terminal.");
+        }
     }
 };
