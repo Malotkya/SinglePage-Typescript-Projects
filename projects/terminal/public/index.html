@@ -4,7 +4,8 @@
         <title>Terminal Emulator</title>
         <script src="index.js" defer></script>
         <style>
-            #terminal {
+            terminal-interface {
+                display: block;
                 margin: 0 auto;
                 max-height: 75vh;
                 overflow-y: hidden;
@@ -13,10 +14,9 @@
         </style>
     </head>
     <main>
-        <div id="terminal">
-            <noscript>
-                Javascript needs to be enabled to view this app.
-            </noscript>
-        </div>
+        <noscript>
+            Javascript needs to be enabled to view this app.
+        </noscript>
+        <terminal-interface></terminal-interface>
     </main>
 </html>
