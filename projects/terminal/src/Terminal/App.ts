@@ -55,8 +55,4 @@ export default class App implements Process{
     get description(){
         return this._description;
     }
-
-    run(args:string[]) {
-        return this.main(args);
-    }
 }
