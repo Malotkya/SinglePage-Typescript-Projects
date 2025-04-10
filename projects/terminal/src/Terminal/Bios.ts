@@ -18,19 +18,17 @@ export interface ViewTemplate {
         width: number
         height: number
         color: string
-        size: number
-        string: string
+        size: string
     },
     background: {
         color: string
     }
 }
 
-const overrideKeys:Keyboard.KeyCodeType[] = [
-    Keyboard.KeyCode.BACK_SPACE,
-    Keyboard.KeyCode.SPACE_BAR,
-    Keyboard.KeyCode.ARROW_UP,
-    Keyboard.KeyCode.ARROW_DOWN,
+const OverrideKeys:Keyboard.KeyCode[] = [
+    "Backspace",
+    "ArrowUp", 
+    "ArrowDown",
 ]
 
 export type BiosType = ReturnType<typeof Bios>;
@@ -38,6 +36,7 @@ export default function Bios(target:HTMLElement) {
 
     /////// Elements that interact with bios ///////
     const canvas = document.createElement("canvas");
+    canvas.tabIndex = 1;
     const gl = canvas.getContext("2d", {alpha: false})!;
     if(gl === null)
         throw new Error("Unable to Initalize 2D Context!");
@@ -46,52 +45,64 @@ export default function Bios(target:HTMLElement) {
     /////// Environment Variables modified by user. ///////
     let backgroundColor: string = Default.COLOR_BACKGROUND;
     let fontColor:string = Default.COLOR_FONT;
-    let size:number = Default.FONT_SIZE;
     let width:number = Default.SCREEN_WIDTH;
     let height:number = Default.SCREEN_HEIGHT;
 
     ////// Environment Variable modified by bios. ///////
-    let charWidth:number = 0;
-    let charHeight:number = 0;
-    let fontFace:string = "monospace";
-    let x:number = 0
+    let charWidth:number = Default.FONT_SIZE * RATIO;
+    let charHeight:number = Default.FONT_SIZE;
+    let fontFace:string = `${Default.FONT_SIZE}px monospace`;
+    let x:number = 0;
     let y:number = 0;
+    let growHeight:number = height;
+
+    //////////////// Modify Environment ///////////////////
+    target.setAttribute("width",  (width * charWidth).toString());
+    target.setAttribute("height", (height * charHeight).toString());
+    target.style.width  = `${width * charWidth}px`;
+    target.style.height = `${height * charHeight}px`;
+    canvas.width  = width * charWidth;
+    canvas.height = height * charHeight;
 
     //////////////// Event Listeners ////////////////////
+    canvas.addEventListener("keyup", async(e)=>Keyboard.reportKeyUp(e));
     canvas.addEventListener("keydown", async(e)=>{
         const code = Keyboard.reportKeyDown(e);
-        if(overrideKeys.includes(code)) {
+        if(OverrideKeys.includes(code)) {
             e.preventDefault();
-            e.stopPropagation();
             target.dispatchEvent(new CustomEvent("input", {detail: code}));
         }
     });
 
-    canvas.addEventListener("keyup", async(e)=>{
-        Keyboard.reportKeyUp(e);
+    canvas.addEventListener("keypress", async(e)=>{
+        target.dispatchEvent(new CustomEvent("input", {detail: e.key}));
     });
 
     ///////////////// Private Functions //////////////////
 
     /** Clear Canvas for Redraw
      * 
-     * @returns {ImageData} Old Save Data
      */
-    function clear(): ImageData {
-        const buffer = gl.getImageData(0, 0, canvas.width, canvas.height);
-
+    function clear(): void {
         gl.fillStyle = backgroundColor;
         gl.fillRect( 0, 0, canvas.width, canvas.height);
+        x = 0;
+        y = 0;
+    }
 
-        return buffer;
+    function grow(): void {
+        if(y > growHeight) {
+            growHeight += height;
+            canvas.height = growHeight * charHeight;
+        }
     }
 
     /** Render Function Loop
      * 
      */
     function render() {
-        gl.putImageData(clear(), 0, 0);
-        target.dispatchEvent(new CustomEvent("update"));
+        clear();
+        target.dispatchEvent(new CustomEvent("render"));
         requestAnimationFrame(render);
     }
     requestAnimationFrame(render);
@@ -116,15 +127,10 @@ export default function Bios(target:HTMLElement) {
          * 
          */
         set width(value:number) {
-            let buffer = clear();
-
             width = value;
             value *= charWidth;
             target.setAttribute("width", value.toString());
             target.style.width = `${value}px`;
-            canvas.width = value;
-
-            gl.putImageData(buffer, 0, 0);
 
         },
         get width():number {
@@ -135,15 +141,10 @@ export default function Bios(target:HTMLElement) {
          * 
          */
         set height(value:number){
-            let buffer = clear();
-
             height = value;
             value *= charHeight;
             target.setAttribute("height", value.toString());
             target.style.height = `${value}px`
-            canvas.height = value;
-
-            gl.putImageData(buffer, 0, 0);
         },
         get height():number {
             return height;
@@ -167,7 +168,7 @@ export default function Bios(target:HTMLElement) {
         put(x:number, y:number, c:string) {
             gl.fillStyle = fontColor;
             gl.font = fontFace;
-            gl.fillText(c.charAt(1), (x+1)*charWidth, (y+2)*charHeight)
+            gl.fillText(c.charAt(0), (x+1)*charWidth, (y+2)*charHeight)
         },
 
         /** Print String
@@ -190,9 +191,7 @@ export default function Bios(target:HTMLElement) {
                         y++;
                     }
     
-                    if(y > height) {
-                        this.height += height;
-                    }
+                    grow();
                 }
             }
         },
