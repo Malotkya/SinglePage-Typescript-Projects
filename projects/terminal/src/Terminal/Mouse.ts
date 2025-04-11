@@ -5,6 +5,8 @@
  * 
  * @author Alex Malotky
  */
+import { Y_OFFSET } from "./Bios";
+
 const MOUSE_BUTTONS = [
     "Main", "Center", "Secondary", "Fourth", 
 ] as const;
@@ -21,13 +23,13 @@ export interface Dimensions {
 }
 
 function getPostion(event:MouseEvent, dim:Dimensions):Position {
-    const x = Math.floor(event.clientX / dim.width);
-    const y = Math.floor(event.clientY / dim.height);
+    const x = Math.floor(event.offsetX / dim.width);
+    const y = Math.floor((event.offsetY - Y_OFFSET) / dim.height);
 
     return {x, y};
 }
 
-function orderPostions(lhs:Position, rhs:Position):[Position, Position] {
+function orderPostions(lhs:Position, rhs:Position):[Position, Position]|null {
     if(lhs.y < rhs.y) {
         return [lhs, rhs];
     } else if (lhs.y > rhs.y) {
@@ -38,7 +40,7 @@ function orderPostions(lhs:Position, rhs:Position):[Position, Position] {
         return [rhs, lhs];
     }
 
-    return [lhs, rhs];
+    return null;
 }
 
 export function getButton(value:number):MouseButton {
@@ -59,7 +61,8 @@ export default function Mouse(dim:Dimensions) {
          */
         reportMouseDown(event:MouseEvent):Position {
             button = event.button;
-            const start = getPostion(event, dim);
+            start = getPostion(event, dim);
+            console.debug(start);
             return start;
         },
 
@@ -68,13 +71,14 @@ export default function Mouse(dim:Dimensions) {
          * @param {MouseEvent} event 
          * @returns {Position[]}
          */
-        reportMouseMove(event:MouseEvent):[Position, Position]|[] {
+        reportMouseMove(event:MouseEvent):[Position, Position]|null {
             pos = getPostion(event, dim);
             if(start){
+                console.debug(start, pos);
                 return orderPostions(start, pos);
             }
         
-            return [];
+            return null;
         },
 
         /** Report Mouse Click Up
@@ -82,18 +86,18 @@ export default function Mouse(dim:Dimensions) {
          * @param {MouseEvent} event
          * @returns {Postion[]}
          */
-        reportMouseUp(event:MouseEvent):[Position, Position]|[] {
-            let output:[Position, Position]|[] = [];
+        reportMouseUp(event:MouseEvent):[Position, Position]|null {
             button = -1;
             if(start){
-                output = orderPostions(
+                const output = orderPostions(
                     start,
                     getPostion(event, dim)
                 );
                 start = null;
+                return output;
             }
         
-            return output;
+            return null;
         },
 
         /** Current Mouse Position
