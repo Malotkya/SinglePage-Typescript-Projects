@@ -7,6 +7,7 @@ import Mouse, {Position, Dimensions, getButton, MouseType} from './Mouse';
 import * as Default from './Defaults';
 
 const RATIO = 0.6;
+const Y_OFFSET = 5;
 
 export interface ViewTemplate {
     top: number,
@@ -61,9 +62,9 @@ export default function Bios(target:HTMLElement) {
 
     //////////////// Modify Environment ///////////////////
     target.style.width  = `${width * char.width}px`;
-    target.style.height = `${(height * char.height)+10}px`;
+    target.style.height = `${(height * char.height)+Y_OFFSET+10}px`;
     canvas.width  = width * char.width;
-    canvas.height = height * char.height;
+    canvas.height = (height * char.height)+Y_OFFSET;
 
     //////////////// UI Helpers ///////////////////////////
     const keyboard = Keyboard();
@@ -106,9 +107,28 @@ export default function Bios(target:HTMLElement) {
     }
 
     function grow(): void {
-        if(y > growHeight) {
+        if(y >= growHeight) {
             growHeight += height;
             canvas.height = growHeight * char.height;
+            scroll();
+        }
+    }
+
+    /** Scroll to y-axis
+    * 
+    * @param {number} targetHeight 
+    */
+    function scroll(targetHeight:number = y){
+        if(targetHeight < 0 || targetHeight >= growHeight)
+            return;
+
+        const top    = Math.floor((target.scrollTop) / char.height);
+        const bottom = Math.floor((target.scrollTop + target.clientHeight) / char.height);
+        console.debug(top, bottom);
+        if(targetHeight < top || targetHeight > bottom){
+            window.setTimeout(()=>{
+                target.scrollTop = ((targetHeight - height + 1) * char.height) + Y_OFFSET;
+            }, 10);
         }
     }
 
@@ -191,7 +211,7 @@ export default function Bios(target:HTMLElement) {
         put(x:number, y:number, c:string) {
             gl.fillStyle = fontColor;
             gl.font = fontFace;
-            gl.fillText(c.charAt(0), (x+1)*char.width, (y+2)*char.height)
+            gl.fillText(c.charAt(0), (x+1)*char.width, ((y+1)*char.height)+Y_OFFSET)
         },
 
         /** Print String
@@ -213,19 +233,12 @@ export default function Bios(target:HTMLElement) {
                         x = 0;
                         y++;
                     }
-    
-                    grow();
                 }
             }
+            grow();
         },
 
-        /** Scroll to y-axis
-         * 
-         * @param targetHeight 
-         */
-        scroll(targetHeight:number){
-            window.setTimeout(()=>target.scrollTop = (targetHeight + 2) * char.height, 10);
-        },
+        scroll,
 
         /** Makes sure their is enough height for a new viewport
          * 
