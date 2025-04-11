@@ -5,9 +5,11 @@
 import Keyboard, {KeyCode, KeyboardType} from "./Keyboard";
 import Mouse, {Position, Dimensions, getButton, MouseType} from './Mouse';
 import * as Default from './Defaults';
+import Color from "@/Color";
 
 const RATIO = 0.6;
-const Y_OFFSET = 5;
+export const Y_OFFSET = 5;
+const HIGHLIGHT_OFFSET = 1;
 
 export interface ViewTemplate {
     top: number,
@@ -42,10 +44,11 @@ export default function Bios(target:HTMLElement) {
     if(gl === null)
         throw new Error("Unable to Initalize 2D Context!");
     target.appendChild(canvas);
+    canvas.focus();
 
     /////// Environment Variables modified by user. ///////
-    let backgroundColor: string = Default.COLOR_BACKGROUND;
-    let fontColor:string = Default.COLOR_FONT;
+    let background:Color = Default.COLOR_BACKGROUND;
+    let font:Color = Default.COLOR_FONT;
     let width:number = Default.SCREEN_WIDTH;
     let height:number = Default.SCREEN_HEIGHT;
 
@@ -58,7 +61,8 @@ export default function Bios(target:HTMLElement) {
     let x:number = 0;
     let y:number = 0;
     let growHeight:number = height;
-    let highlightMap:[Position, Position]|[] = [];
+    let highlightMap:[Position, Position]|null = null;
+    let scrollLocked:boolean = true;
 
     //////////////// Modify Environment ///////////////////
     target.style.width  = `${width * char.width}px`;
@@ -88,11 +92,18 @@ export default function Bios(target:HTMLElement) {
         target.dispatchEvent(new CustomEvent("mouse", {detail: getButton(e.button)}))
     });
     canvas.addEventListener("mousemove", (e)=>{
-        highlightMap = mouse.reportMouseMove(e);
+        const update = mouse.reportMouseMove(e);
+        if(update)
+            highlightMap = update;
     });
     canvas.addEventListener("mouseup", (e)=>{
         highlightMap = mouse.reportMouseUp(e);
-    })
+    });
+
+    target.addEventListener("scrollend", ()=>{
+        scrollLocked = false;
+        canvas.focus();
+    });
 
     ///////////////// Private Functions //////////////////
 
@@ -100,17 +111,19 @@ export default function Bios(target:HTMLElement) {
      * 
      */
     function clear(): void {
-        gl.fillStyle = backgroundColor;
+        gl.fillStyle = background.toString();
         gl.fillRect( 0, 0, canvas.width, canvas.height);
         x = 0;
         y = 0;
     }
 
+    /** Grow Canvas
+     * 
+     */
     function grow(): void {
         if(y >= growHeight) {
             growHeight += height;
             canvas.height = growHeight * char.height;
-            scroll();
         }
     }
 
@@ -118,17 +131,71 @@ export default function Bios(target:HTMLElement) {
     * 
     * @param {number} targetHeight 
     */
-    function scroll(targetHeight:number = y){
-        if(targetHeight < 0 || targetHeight >= growHeight)
+    function scroll(targetHeight:number = y, override:boolean = scrollLocked){
+        if(targetHeight < 0 || targetHeight >= growHeight || override === false)
             return;
 
         const top    = Math.floor((target.scrollTop) / char.height);
         const bottom = Math.floor((target.scrollTop + target.clientHeight) / char.height);
-        console.debug(top, bottom);
         if(targetHeight < top || targetHeight > bottom){
             window.setTimeout(()=>{
                 target.scrollTop = ((targetHeight - height + 1) * char.height) + Y_OFFSET;
             }, 10);
+        }
+        scrollLocked = true;
+    }
+
+    /** Inverse Section
+     * 
+     * @param {number} x
+     * @param {number} y
+     */
+    function inverse(x:number, y:number, stretch:boolean = true) {
+        x = ((x+1)*char.width) - HIGHLIGHT_OFFSET;
+        y = (y+1)*(char.height+1)-Y_OFFSET - HIGHLIGHT_OFFSET;
+
+        const image = gl.getImageData(x, y, char.width, char.height+<any>stretch);
+
+        for(let i=0; i<image.data.length; i+=4){
+            if(background.equals(image.data[i], image.data[i+1], image.data[i+2])) {
+                image.data[i]   = font.red;
+                image.data[i+1] = font.green;
+                image.data[i+2] = font.blue;
+            } else {
+                image.data[i]   = background.red;
+                image.data[i+1] = background.green;
+                image.data[i+2] = background.blue;
+            }
+        }
+
+        gl.putImageData(image, x, y);
+    }
+
+    /** Highlight Based on Map
+     * 
+     */
+    function highlight(){
+        if(highlightMap === null)
+            return;
+
+        const [start, end] = highlightMap;
+        let y = start.y;
+        if(y === end.y){
+            for(let x = start.x; x<end.x; x++) {
+                inverse(x, y);
+            }
+        } else {
+            for(let x = start.x; x < width; x++) {
+                inverse(x, y);
+            }
+            while(++y < end.y) {
+                for(let x = 0; x< width; x++){
+                    inverse(x, y);
+                }
+            }
+            for(let x = 0; x<end.x; x++) {
+                inverse(x, y);
+            }
         }
     }
 
@@ -137,7 +204,9 @@ export default function Bios(target:HTMLElement) {
      */
     function render() {
         clear();
-        target.dispatchEvent(new CustomEvent("render"));
+        if(target.dispatchEvent(new CustomEvent("render"))){
+            highlight();
+        }
         requestAnimationFrame(render);
     }
     requestAnimationFrame(render);
@@ -209,9 +278,9 @@ export default function Bios(target:HTMLElement) {
          * @param {string} c 
          */
         put(x:number, y:number, c:string) {
-            gl.fillStyle = fontColor;
+            gl.fillStyle = font.toString();
             gl.font = fontFace;
-            gl.fillText(c.charAt(0), (x+1)*char.width, ((y+1)*char.height)+Y_OFFSET)
+            gl.fillText(c.charAt(0), (x+1)*char.width, ((y+1)*(char.height+1))+Y_OFFSET)
         },
 
         /** Print String
@@ -236,6 +305,10 @@ export default function Bios(target:HTMLElement) {
                 }
             }
             grow();
+        },
+
+        cursor() {
+            inverse(x, y, false);
         },
 
         scroll,
