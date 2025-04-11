@@ -22,6 +22,12 @@ export interface Dimensions {
     height: number
 }
 
+/** Get Position
+ * 
+ * @param {MouseEvent} event 
+ * @param {Dimensions} dim 
+ * @returns {Position}
+ */
 function getPostion(event:MouseEvent, dim:Dimensions):Position {
     const x = Math.floor(event.offsetX / dim.width);
     const y = Math.floor((event.offsetY - Y_OFFSET) / dim.height);
@@ -29,18 +35,50 @@ function getPostion(event:MouseEvent, dim:Dimensions):Position {
     return {x, y};
 }
 
-function orderPostions(lhs:Position, rhs:Position):[Position, Position]|null {
-    if(lhs.y < rhs.y) {
-        return [lhs, rhs];
-    } else if (lhs.y > rhs.y) {
-        return [rhs, lhs];
-    } if(lhs.x < rhs.x) {
-        return [lhs, rhs];
-    } else if (lhs.x > rhs.x) {
-        return [rhs, lhs];
+/** Compare Positions
+ * 
+ * @param {Position} lhs 
+ * @param {Position} rhs 
+ * @returns {number}
+ */
+function comparePositions(lhs:Position, rhs:Position):number {
+    const test = lhs.y - rhs.y;
+    if(test !== 0)
+        return test;
+
+    return lhs.x = rhs.x;
+}
+
+export function normalizePositions(map:[Position, Position]|null, max:Position):[Position, Position]|null {
+    if(map === null)
+        return map;
+
+    //Quit if same position
+    const compare = comparePositions(...map)
+    if( compare === 0)
+        return null;
+
+    const lhs = comparePositions(map[0], max);
+    const rhs = comparePositions(map[1], max);
+    //Quit if both are out of bounds
+    if(lhs > 0 && rhs > 0) {
+        return null;
+
+    //First Position out of bounds
+    } else if(lhs > 0) {
+        return [map[1], max];
+
+    //Second Position out of bounds
+    } else if(rhs > 0) {
+        return [map[0], max];
+
+    //Both are in bounds and out of order
+    } else if(compare > 0){
+        return [map[1], map[0]]
     }
 
-    return null;
+    //Already in proper order.
+    return map;
 }
 
 export function getButton(value:number):MouseButton {
@@ -62,7 +100,6 @@ export default function Mouse(dim:Dimensions) {
         reportMouseDown(event:MouseEvent):Position {
             button = event.button;
             start = getPostion(event, dim);
-            console.debug(start);
             return start;
         },
 
@@ -74,8 +111,7 @@ export default function Mouse(dim:Dimensions) {
         reportMouseMove(event:MouseEvent):[Position, Position]|null {
             pos = getPostion(event, dim);
             if(start){
-                console.debug(start, pos);
-                return orderPostions(start, pos);
+                return [start, pos];
             }
         
             return null;
@@ -89,10 +125,10 @@ export default function Mouse(dim:Dimensions) {
         reportMouseUp(event:MouseEvent):[Position, Position]|null {
             button = -1;
             if(start){
-                const output = orderPostions(
+                const output = [
                     start,
                     getPostion(event, dim)
-                );
+                ] satisfies[Position, Position];
                 start = null;
                 return output;
             }
