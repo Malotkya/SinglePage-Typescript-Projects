@@ -23,7 +23,6 @@ export interface Process {
 const SYSTEM_NAME = "Terminal System";
 const SYSTEM_CALL = SYSTEM_NAME.toLocaleLowerCase();
 const PROMPT = "$ ";
-const CURSOR = "█";
 
 ///// Private Attributes of System ///////
 const apps:Map<string, Process> = new Map();
@@ -252,6 +251,7 @@ class TerminalInterface extends HTMLElement implements View{
      * @param {CustomEvent} Event
      */
     keyboard(event:CustomEventInit<KeyCode>) {
+        this.#bios.scroll(undefined, true);
         switch(event.detail){
             case "Backspace":
                 input.remove();
@@ -302,7 +302,8 @@ class TerminalInterface extends HTMLElement implements View{
             this.#bios.print(PROMPT+input.buffer);
         }
     
-        this.#bios.print(CURSOR);
+        this.#bios.cursor();
+        this.#bios.scroll();
     }
 }
 
