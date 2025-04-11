@@ -2,13 +2,13 @@
  * 
  * @author Alex Malotky
  */
-import Bios, {BiosType} from "./Bios";
+import Bios, {BiosType, HighlighMap} from "./Bios";
 import View from "./View";
-import {InputStream, OutputStream} from "./Stream";
+import {InputStream, OutputStream, getHighlighted} from "./Stream";
 import App, {HelpFunction, MainFunction} from "./App";
 import { KeyCode } from "./Keyboard";
 import History from "./History";
-import { MouseButton } from "./Mouse";
+import { MouseButton, comparePositions } from "./Mouse";
 
 export {App};
 
@@ -203,6 +203,28 @@ export function sleep(s:number = 100): Promise<void>{
     return new Promise((r)=>window.setTimeout(r,s));
 }
 
+/** Get Highlight String
+ * 
+ * @param {HighlighMap} map 
+ * @param {number} width 
+ * @returns {string}
+ */
+function getSystemHighlighted(map:HighlighMap, width:number):string {
+    const [_, end] = map;
+    const pos = {x:0, y:0};
+    let buffer = output.pull(map, pos, width);
+
+    if(comparePositions(pos, end) < 0){
+        buffer += getHighlighted(PROMPT, map, pos, width);
+    }
+
+    if(comparePositions(pos, end) < 0) {
+        buffer += input.pull(map, pos, width);
+    }
+
+    return buffer;
+}
+
 /** Terminal Interface
  * 
  * Acts as the interface between the User and the System through the Bios.
@@ -266,6 +288,12 @@ class TerminalInterface extends HTMLElement implements View{
                 System.current.history.index += 1;
                 input.set(System.current.history.current);
                 break;
+
+            case "ControlLeft":
+            case "ControlRight":
+                if(this.#bios.KeyBoard.isKeyPressed("KeyC"))
+                    this.copy(this.#bios.highlight);
+                break;
         
             case "Enter":
                 input.add("\n");
@@ -287,7 +315,9 @@ class TerminalInterface extends HTMLElement implements View{
     mouse(event: CustomEventInit<MouseButton>) {
         console.debug(event.detail);
         if(event.detail === "Secondary") {
-            //Paste From Clipboard
+            navigator.clipboard.readText().then((string)=>{
+                input.set(string);
+            })
         }
     }
 
@@ -304,6 +334,12 @@ class TerminalInterface extends HTMLElement implements View{
     
         this.#bios.cursor();
         this.#bios.scroll();
+    }
+
+    copy(map:HighlighMap|null):void {
+        if(map){
+            navigator.clipboard.writeText(getSystemHighlighted(map, this.#bios.width));
+        }
     }
 }
 
