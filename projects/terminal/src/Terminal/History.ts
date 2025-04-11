@@ -2,7 +2,9 @@
  * 
  * @author Alex Malotky
  */
-export default class History<T> {
+import Destroyable, { addToCleanup } from "./CleanUp";
+
+export default class History<T> implements Destroyable{
     private list:T[];
     private _index:number;
     private _id:string;
@@ -21,6 +23,8 @@ export default class History<T> {
             this.list = [];
             this._index = -1;
         }
+
+        addToCleanup(this);
     }
 
     destroy() {
