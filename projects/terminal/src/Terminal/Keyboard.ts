@@ -82,3 +82,7 @@ export default function Keyboard() {
         }
     }
 }
+
+export interface KeyboardType {
+    isKeyPressed(code:KeyCode):boolean
+}
