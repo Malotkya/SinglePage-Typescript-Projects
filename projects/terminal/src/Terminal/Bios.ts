@@ -3,7 +3,7 @@
  * @author Alex Malotky
  */
 import Keyboard, {KeyCode, KeyboardType} from "./Keyboard";
-import Mouse, {Position, Dimensions, getButton, MouseType} from './Mouse';
+import Mouse, {Position, Dimensions, getButton, MouseType, normalizePositions} from './Mouse';
 import * as Default from './Defaults';
 import Color from "@/Color";
 
@@ -66,9 +66,9 @@ export default function Bios(target:HTMLElement) {
 
     //////////////// Modify Environment ///////////////////
     target.style.width  = `${width * char.width}px`;
-    target.style.height = `${(height * char.height)+Y_OFFSET+10}px`;
+    target.style.height = `${(height * (char.height+1))+Y_OFFSET+10}px`;
     canvas.width  = width * char.width;
-    canvas.height = (height * char.height)+Y_OFFSET;
+    canvas.height = (height * (char.height+1))+Y_OFFSET;
 
     //////////////// UI Helpers ///////////////////////////
     const keyboard = Keyboard();
@@ -92,12 +92,12 @@ export default function Bios(target:HTMLElement) {
         target.dispatchEvent(new CustomEvent("mouse", {detail: getButton(e.button)}))
     });
     canvas.addEventListener("mousemove", (e)=>{
-        const update = mouse.reportMouseMove(e);
+        const update = normalizePositions(mouse.reportMouseMove(e), {x, y});
         if(update)
             highlightMap = update;
     });
     canvas.addEventListener("mouseup", (e)=>{
-        highlightMap = mouse.reportMouseUp(e);
+        highlightMap = normalizePositions(mouse.reportMouseUp(e), {x, y});
     });
 
     target.addEventListener("scrollend", ()=>{
@@ -123,7 +123,7 @@ export default function Bios(target:HTMLElement) {
     function grow(): void {
         if(y >= growHeight) {
             growHeight += height;
-            canvas.height = growHeight * char.height;
+            canvas.height = growHeight * (char.height+1);
         }
     }
 
@@ -135,11 +135,11 @@ export default function Bios(target:HTMLElement) {
         if(targetHeight < 0 || targetHeight >= growHeight || override === false)
             return;
 
-        const top    = Math.floor((target.scrollTop) / char.height);
-        const bottom = Math.floor((target.scrollTop + target.clientHeight) / char.height);
+        const top    = Math.floor((target.scrollTop) / (char.height+1));
+        const bottom = Math.floor((target.scrollTop + target.clientHeight) / (char.height+1))-2;
         if(targetHeight < top || targetHeight > bottom){
             window.setTimeout(()=>{
-                target.scrollTop = ((targetHeight - height + 1) * char.height) + Y_OFFSET;
+                target.scrollTop = ((targetHeight - height + 2) * (char.height+1)) + Y_OFFSET;
             }, 10);
         }
         scrollLocked = true;
@@ -246,7 +246,7 @@ export default function Bios(target:HTMLElement) {
          */
         set height(value:number){
             height = value;
-            value *= char.height;
+            value *= char.height+1;
             target.style.height = `${value+10}px`
             canvas.height = height;
         },
@@ -267,6 +267,10 @@ export default function Bios(target:HTMLElement) {
 
         get Mouse():MouseType {
             return mouse
+        },
+
+        get HighlighMap() {
+            return highlightMap
         },
 
         //////////////////// Public Functions ///////////////////////////
