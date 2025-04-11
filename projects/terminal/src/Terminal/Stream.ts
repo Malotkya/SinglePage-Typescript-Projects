@@ -4,7 +4,34 @@
  * 
  * @author Alex Malotky
  */
-import {sleep} from ".";
+import { sleep } from ".";
+import { Position, comparePositions } from "./Mouse";
+import { HighlighMap } from "./Bios";
+
+export function getHighlighted(buffer:string, map:HighlighMap, pos:Position, width:number):string {
+    const [start, end] = map;
+    let output:string = "";
+
+    for(let i=0; i<buffer.length; i++){
+        const char = buffer.charAt(i);
+
+        if(comparePositions(pos, start) >= 0 && comparePositions(pos, end) <= 0)
+            output += char;
+
+        if(char == '\n' || char == '\r') {
+            pos.x = 0;
+            pos.y++;
+        } else {
+            pos.x++;
+            if(pos.x > width) {
+                pos.x = 0;
+                pos.y++;
+            }
+        }
+    }
+
+    return output;
+}
 
 /** Stream Interface
  * 
@@ -14,6 +41,7 @@ export default interface Stream {
     add(c:any):void
     set(c:any):void
     flush(i?:number):string
+    pull(m:HighlighMap, p:Position, w:number):string
     readonly buffer:string
 }
 
@@ -116,6 +144,10 @@ export class InputStream implements Stream {
         return this.get(/^(.*?)[\n\r]+/);
     }
 
+    pull(map:HighlighMap, pos:Position, width:number):string {
+        return getHighlighted(this._print, map, pos, width);
+    }
+
     public get buffer() {
         return this._print;
     }
@@ -151,6 +183,10 @@ export class OutputStream implements Stream {
         }
         localStorage.setItem(OUT_KEY, buffer);
         return output;
+    }
+
+    pull(map:HighlighMap, pos:Position, width:number):string {
+        return getHighlighted(this.buffer, map, pos, width);
     }
 
     get buffer(){
