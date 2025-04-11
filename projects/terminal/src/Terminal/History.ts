@@ -13,7 +13,7 @@ export default class History<T> implements Destroyable{
         this._id = "History:"+id;
 
         try {
-            this.list = JSON.parse(localStorage.get(this._id));
+            this.list = JSON.parse(localStorage.getItem(this._id) || "");
 
             if(!Array.isArray(this.list))
                 throw "Not a list!";
