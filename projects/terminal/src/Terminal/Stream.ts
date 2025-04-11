@@ -6,124 +6,158 @@
  */
 import {sleep} from ".";
 
-/** Stream Class
+/** Stream Interface
  * 
  * This class acts like a stream to handle inputs and outputs.
  */
-export default class Stream {
-    protected _buffer: string;
-
-    public constructor(){
-        this._buffer = "";
-    }
-
-    protected pull(index: number){
-        if(index >= 0){
-            let temp = this._buffer.substring(0, index);
-            if(temp !== "")
-                return temp;
-        }
-        return null;
-    }
-
-    public add(s: string|Object){
-        this._buffer += s;
-    }
-
-    public remove(){
-        this._buffer = this._buffer.slice(0, -1);
-    }
-
-    public set(s: string){
-        this._buffer = s;
-    }
-
-    public clear(){
-        this._buffer = "";
-    }
-
-    public isReady(){
-        return this._buffer.length !== 0;
-    }
-
-    public flush(i: number = this._buffer.length){
-        return this._buffer.slice(0, i);
-    }
-
-    public get buffer(){
-        return this._buffer;
-    }
+export default interface Stream {
+    add(c:any):void
+    set(c:any):void
+    flush(i?:number):string
+    readonly buffer:string
 }
 
-export class InputStream extends Stream {
+export class InputStream implements Stream {
     private _print: string;
+    private _buffer:string;
 
     public constructor(){
-        super();
+        this._buffer = "";
         this._print = "";
     }
 
-    public set(s: string|undefined){
-        if(s) {
-            this._print = s;
-            this._buffer = s;
+    /** Set Buffer
+     * 
+     * @param {any} chunk 
+     */
+    public set(chunk: any){
+        if(chunk) {
+            this._print = String(chunk);
+            this._buffer = String(chunk);
         }
     }
 
-    public add(s: string){
-        this._print += s;
-        this._buffer += s;
+    /** Add Chunk to Buffer
+     * 
+     * @param {any} chunk 
+     */
+    public add(chunk: any){
+        this._print += String(chunk);
+        this._buffer += String(chunk);
     }
 
+    /** Remove from Buffer
+     * 
+     * Implements Backspace
+     */
     public remove(){
         this._buffer = this._buffer.slice(0, -1);
         this._print = this._print.slice(0, -1);
     }
     
-    async get(char:string|undefined){
-        while(true){
-            let index = 1;
-            if(char)
-                index = this._buffer.indexOf(char[0]);
-            let output = this.pull(index);
+    /** Get From Buffer
+     * 
+     * typeof pattern:
+     *  undefiend => get next char
+     *     string => return and remove string up to pattern + removes pattern
+     *     RegExp => return and remove first match
+     * 
+     * @param {string|RegExp} pattern 
+     * @returns {Promise<string>}
+     */
+    async get(pattern?:string|RegExp):Promise<string> {
+        //Get Just First Char
+        if(pattern === undefined){
+            while(this._buffer.length < 1)
+                await sleep();
 
-            if(output !== null)
-                return output;
+            const char = this._buffer.charAt(0);
+            this._buffer = this._buffer.substring(1);
+            return char;
+        }
+
+        //Convert String Pattern into Regex capture everything before.
+        if(typeof pattern === "string")
+            pattern = new RegExp(`^(.*?)${pattern}`);
+
+        //Aquire Match
+        while(true){
+            const match = this._buffer.match(pattern);
+            if(match){
+                this._buffer = this._buffer.replace(match[0], "");
+
+                if(match[1])
+                    return match[1];
+
+                return match[0];
+            }
 
             await sleep();
         }
     }
 
-    async getln(){
-        while(true){
-            let n = this._buffer.indexOf("\n");
-            let r = this._buffer.indexOf("\r");
+    /** Next Input
+     * 
+     * Equivalent to get(/^(.*?)\s+/)
+     * 
+     * @returns {Promise<string>}
+     */
+    next():Promise<string> {
+        return this.get(/^(.*?)\s+/);
+    }
 
-            let temp = this.pull(n);
-            if(temp !== null){
-                this.flush(n);
-                return temp;
-            }
-
-            temp = this.pull(r);
-            if(temp !== null){
-                this.flush(r);
-                return temp;
-            }
-
-            await sleep();
-        }
+    /** Get Line
+     * 
+     * Equivalent to get(/^(.*?)[\n\r]+/)
+     * 
+     * @returns {Promise<string>}
+     */
+    getln(): Promise<string>{
+        return this.get(/^(.*?)[\n\r]+/);
     }
 
     public get buffer() {
         return this._print;
     }
 
-    public clean(){
+    public clean() {
         this._print = "";
+    }
+
+    public flush(n:number = this._buffer.length){
+        this._print = this._print.substring(n);
+        return this._buffer.slice(n);
     }
 }
 
-export class OutputStream extends Stream {
-    
+const OUT_KEY = "OutputStream:Buffer";
+export class OutputStream implements Stream {
+    add(s:any){
+        localStorage.setItem(OUT_KEY, this.buffer + String(s));
+    }
+
+    set(s:any){
+        localStorage.setItem(OUT_KEY, String(s));
+    }
+
+    flush(n?:number) {
+        let buffer = this.buffer;
+        let output:string;
+        if(n){
+            output = buffer.slice(n);
+        } else {
+            output = buffer;
+            buffer = "";
+        }
+        localStorage.setItem(OUT_KEY, buffer);
+        return output;
+    }
+
+    get buffer(){
+        return localStorage.getItem(OUT_KEY) || "";
+    }
+
+    get ready():boolean {
+        return this.buffer.length > 0;
+    }
 }
