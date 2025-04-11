@@ -2,7 +2,7 @@
  * 
  * @author Alex Malotky
  */
-import IndexList from "@/IndexList";
+import History from "./History";
 import { Process } from ".";
 
 export type MainFunction = (args:string[])=>Promise<unknown>|unknown;
@@ -13,12 +13,12 @@ export default class App implements Process{
     private _description: string;
     #main: MainFunction|undefined;
     #help: HelpFunction|undefined;
-    readonly history: IndexList<string>;
+    readonly history: History<string>;
 
     constructor(call: string, description: string){
         this._call = call.toLowerCase();
         this._description = description;
-        this.history = new IndexList();
+        this.history = new History(this._call);
     }
 
     set main(value:MainFunction){

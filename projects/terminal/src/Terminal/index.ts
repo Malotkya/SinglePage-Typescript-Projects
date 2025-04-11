@@ -7,13 +7,13 @@ import View from "./View";
 import {InputStream, OutputStream} from "./Stream";
 import App, {HelpFunction, MainFunction} from "./App";
 import { KeyCode } from "./Keyboard";
-import IndexList from "@/IndexList";
+import History from "./History";
 import { MouseButton } from "./Mouse";
 
 export {App};
 
 export interface Process {
-    readonly history: IndexList<string>
+    readonly history: History<string>
     readonly call: string
     readonly description?:string
     readonly help?: HelpFunction
@@ -28,7 +28,7 @@ const CURSOR = "█";
 ///// Private Attributes of System ///////
 const apps:Map<string, Process> = new Map();
 const callstack: Process[] = [];
-const history: IndexList<string> = new IndexList();
+const history: History<string> = new History("System");
 const input = new InputStream();
 const output = new OutputStream();
 let view: View|null = null;
@@ -95,7 +95,7 @@ const System = {
 
         apps.set(call, {
             call, description,
-            history: new IndexList(),
+            history: new History(call),
             main: callback
         });
     },
@@ -185,7 +185,7 @@ const System = {
         return view;
     },
 
-    get history():IndexList<string> {
+    get history():History<string> {
         return history;
     },
 
@@ -228,7 +228,7 @@ class TerminalInterface extends HTMLElement implements View{
             if(view !== null){
                 view.mouse(event);
             } else {
-                
+                this.mouse(event);
             }
         });
         
@@ -285,6 +285,7 @@ class TerminalInterface extends HTMLElement implements View{
      * @param event 
      */
     mouse(event: CustomEventInit<MouseButton>) {
+        console.debug(event.detail);
         if(event.detail === "Secondary") {
             //Paste From Clipboard
         }
