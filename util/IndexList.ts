@@ -17,8 +17,8 @@ export default class IndexList<T> {
     }
 
     add(value:T) {
-        this._index = this.list.length;
         this.list.push(value);
+        this._index = this.list.length;
     }
 
     at(index:number):T|undefined{
