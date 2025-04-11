@@ -53,7 +53,7 @@ export default function Bios(target:HTMLElement) {
         width: Default.FONT_SIZE * RATIO,
         height: Default.FONT_SIZE
     }
-    let fontFace:string = `${Default.FONT_SIZE}px monospace`;
+    let fontFace:string = `${Default.FONT_SIZE-1}px monospace`;
     let x:number = 0;
     let y:number = 0;
     let growHeight:number = height;
@@ -75,16 +75,16 @@ export default function Bios(target:HTMLElement) {
         const code = keyboard.reportKeyDown(e);
         if(OverrideKeys.includes(code)) {
             e.preventDefault();
-            target.dispatchEvent(new CustomEvent("input", {detail: code}));
+            target.dispatchEvent(new CustomEvent("keyboard", {detail: code}));
         }
     });
     canvas.addEventListener("keypress", (e)=>{
-        target.dispatchEvent(new CustomEvent("input", {detail: e.key}));
+        target.dispatchEvent(new CustomEvent("keyboard", {detail: e.key}));
     });
 
     canvas.addEventListener("mousedown", (e)=>{
         mouse.reportMouseDown(e);
-        target.dispatchEvent(new CustomEvent("click", {detail: getButton(e.button)}))
+        target.dispatchEvent(new CustomEvent("mouse", {detail: getButton(e.button)}))
     });
     canvas.addEventListener("mousemove", (e)=>{
         highlightMap = mouse.reportMouseMove(e);
@@ -130,7 +130,7 @@ export default function Bios(target:HTMLElement) {
          * 
          */
         set size(value:number) {
-            fontFace = `${value}px monospace`;
+            fontFace = `${value-1}px monospace`;
             char.width = value * RATIO;
             char.height = value;
         },
