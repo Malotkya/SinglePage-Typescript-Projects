@@ -29,14 +29,17 @@ export type KeyCode = typeof KEY_CODES[number];
  * @param {KeyboardEvent} event 
  * @returns {[KeyCode, number]}
  */
-function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number] {
-    const code = event.code as KeyCode;
+function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number, alt:number|undefined] {
+    const code = event.ctrlKey? "ControlLeft": event.code as KeyCode;
     const index = KEY_CODES.indexOf(code);
+    const alt = event.ctrlKey? KEY_CODES.indexOf("Key"+event.key.toLocaleUpperCase() as KeyCode): undefined;
 
     if(index < 0)
         console.warn(`Unkown key code: ${code}!`);
+    else
+        console.debug(code, event);
 
-    return [code, index];
+    return [code, index, alt];
 }
 
 export default function Keyboard() {
@@ -50,8 +53,10 @@ export default function Keyboard() {
          * @returns {KeyCode}
          */
         reportKeyDown(event: KeyboardEvent):KeyCode {
-            const [code, index] = getKeyCode(event);
+            const [code, index, alt] = getKeyCode(event);
             KeysPressed |= (1 << index);
+            if(alt !== undefined && alt >= 0)
+                KeysPressed |= (1 << alt);
             return code ;
         },
 
@@ -61,8 +66,10 @@ export default function Keyboard() {
          * @returns {KeyCode}
          */
         reportKeyUp(event: KeyboardEvent):KeyCode {
-            const [code, index] = getKeyCode(event);
+            const [code, index, alt] = getKeyCode(event);
             KeysPressed &= ~(1 << index);
+            if(alt !== undefined && alt >= 0)
+                KeysPressed &= ~(1 << alt);
             return code ;
         },
 
