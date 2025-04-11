@@ -2,7 +2,7 @@ import System, {start, clear} from "./Terminal";
 import Help from "./Help";
 import Settings from "./Settings";
 
-System.addFunction("clear", "Clears the terminal.", clear);
+System.addFunction("clear", "Clears the terminal.", (args)=>clear(args[1]));
 System.addFunction("about", "Displays more information about the terminal app.", ()=>{
     System.println("This is an attempt to see what I can create in this environement.");
     System.println("I plan to continue to expand the functionality of thie terminal");

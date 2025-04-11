@@ -13,7 +13,7 @@ import { MouseButton, comparePositions } from "./Mouse";
 export {App};
 
 export interface Process {
-    readonly history: History<string>
+    readonly history?: History<string>
     readonly call: string
     readonly description?:string
     readonly help?: HelpFunction
@@ -94,7 +94,6 @@ const System = {
 
         apps.set(call, {
             call, description,
-            history: new History(call),
             main: callback
         });
     },
@@ -274,19 +273,24 @@ class TerminalInterface extends HTMLElement implements View{
      */
     keyboard(event:CustomEventInit<KeyCode>) {
         this.#bios.scroll(undefined, true);
+        const current = System.current;
         switch(event.detail){
             case "Backspace":
                 input.remove();
                 break;
                     
             case "ArrowUp":
-                System.current.history.index -= 1;
-                input.set(System.current.history.current);
+                if(current.history){
+                    current.history.index -= 1;
+                    input.set(current.history.current);
+                }
                 break;
         
             case "ArrowDown":
-                System.current.history.index += 1;
-                input.set(System.current.history.current);
+                if(current.history){
+                    current.history.index += 1;
+                    input.set(current.history.current);
+                }
                 break;
 
             case "ControlLeft":
@@ -390,7 +394,14 @@ export async function start() {
 /** Clear Output
  * 
  */
-export function clear() {
-    output.flush();
-    input.flush();
+export function clear(modifier:string) {
+    if(modifier === "-a") {
+        input.flush();
+        output.flush();
+        history.clear();
+        localStorage.clear();
+    } else {
+        output.flush();
+        input.flush();
+    }
 }
