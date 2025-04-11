@@ -36,8 +36,6 @@ function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number, alt:number
 
     if(index < 0)
         console.warn(`Unkown key code: ${code}!`);
-    else
-        console.debug(code, event);
 
     return [code, index, alt];
 }
