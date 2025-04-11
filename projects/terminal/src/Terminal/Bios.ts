@@ -28,8 +28,12 @@ export interface ViewTemplate {
     }
 }
 
+export type HighlighMap = [Position, Position];
+
 const OverrideKeys:KeyCode[] = [
     "Backspace",
+    "ControlLeft",
+    "ControlRight",
     "ArrowUp", 
     "ArrowDown",
 ]
@@ -61,7 +65,7 @@ export default function Bios(target:HTMLElement) {
     let x:number = 0;
     let y:number = 0;
     let growHeight:number = height;
-    let highlightMap:[Position, Position]|null = null;
+    let highlightMap:HighlighMap|null = null;
     let scrollLocked:boolean = true;
 
     //////////////// Modify Environment ///////////////////
@@ -269,7 +273,7 @@ export default function Bios(target:HTMLElement) {
             return mouse
         },
 
-        get HighlighMap() {
+        get highlight():HighlighMap|null {
             return highlightMap
         },
 
