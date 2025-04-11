@@ -6,7 +6,7 @@
  * @author Alex Malotky
  */
 const MOUSE_BUTTONS = [
-    "Main", "Secondary", "???", "Center"
+    "Main", "Center", "Secondary", "Fourth", 
 ] as const;
 export type MouseButton = typeof MOUSE_BUTTONS[number];
 
@@ -59,7 +59,6 @@ export default function Mouse(dim:Dimensions) {
          */
         reportMouseDown(event:MouseEvent):Position {
             button = event.button;
-            console.debug(event);
             const start = getPostion(event, dim);
             return start;
         },
