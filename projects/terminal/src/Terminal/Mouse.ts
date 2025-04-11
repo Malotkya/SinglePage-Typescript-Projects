@@ -30,7 +30,7 @@ export interface Dimensions {
  */
 function getPostion(event:MouseEvent, dim:Dimensions):Position {
     const x = Math.floor(event.offsetX / dim.width);
-    const y = Math.floor((event.offsetY - Y_OFFSET) / dim.height);
+    const y = Math.floor((event.offsetY - Y_OFFSET - 1) / dim.height);
 
     return {x, y};
 }
@@ -41,12 +41,12 @@ function getPostion(event:MouseEvent, dim:Dimensions):Position {
  * @param {Position} rhs 
  * @returns {number}
  */
-function comparePositions(lhs:Position, rhs:Position):number {
+export function comparePositions(lhs:Position, rhs:Position):number {
     const test = lhs.y - rhs.y;
     if(test !== 0)
         return test;
 
-    return lhs.x = rhs.x;
+    return lhs.x - rhs.x;
 }
 
 export function normalizePositions(map:[Position, Position]|null, max:Position):[Position, Position]|null {
