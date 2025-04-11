@@ -24,27 +24,61 @@ const KEY_CODES = [
 ] as const;
 export type KeyCode = typeof KEY_CODES[number];
 
-const KeysPressed:Record<string, boolean> = {};
-
-function getKeyCode(event:KeyboardEvent):KeyCode {
+/** Get Key Code & Stored Index
+ * 
+ * @param {KeyboardEvent} event 
+ * @returns {[KeyCode, number]}
+ */
+function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number] {
     const code = event.code as KeyCode;
-    if(!KEY_CODES.includes(code))
+    const index = KEY_CODES.indexOf(code);
+
+    if(index < 0)
         console.warn(`Unkown key code: ${code}!`);
-    return code;
+
+    return [code, index];
 }
 
-export function reportKeyDown(event: KeyboardEvent):KeyCode {
-    const code = getKeyCode(event);
-    KeysPressed[code] = true;
-    return code ;
-}
+export default function Keyboard() {
+    //Stored Keys Pressed
+    let KeysPressed:number = 0;
 
-export function reportKeyUp(event: KeyboardEvent):KeyCode {
-    const code = getKeyCode(event);
-    KeysPressed[code] = false;
-    return code ;
-}
+    return {
+        /** Report Key Down
+         * 
+         * @param {KeyboardEvent} event 
+         * @returns {KeyCode}
+         */
+        reportKeyDown(event: KeyboardEvent):KeyCode {
+            const [code, index] = getKeyCode(event);
+            KeysPressed |= (1 << index);
+            return code ;
+        },
 
-export function isKeyPressed(code: KeyCode):boolean {
-    return KeysPressed[code] === true;
+        /** Report Key Up
+         * 
+         * @param {KeyboardEvent} event 
+         * @returns {KeyCode}
+         */
+        reportKeyUp(event: KeyboardEvent):KeyCode {
+            const [code, index] = getKeyCode(event);
+            KeysPressed &= ~(1 << index);
+            return code ;
+        },
+
+        /** Is Key Pressed
+         * 
+         * @param {KeyboardEvent} code 
+         * @returns {KeyCode}
+         */
+        isKeyPressed(code: KeyCode):boolean {
+            const index = KEY_CODES.indexOf(code);
+            if(index < 0) {
+                console.warn(`Unkown key code: ${code}!`);
+                return false;
+            }
+        
+            return (KeysPressed & (1 << index)) !== 0;
+        }
+    }
 }
