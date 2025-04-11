@@ -3,7 +3,17 @@
  * @author Alex Malotky
  */
 import {ViewTemplate} from "./Bios";
+import { KeyCode } from "./Keyboard";
+import { MouseButton } from "./Mouse";
 
+export default interface View {
+    keyboard:(e:CustomEventInit<KeyCode>)=>void
+    mouse:(e:CustomEventInit<MouseButton>)=>void
+    render:(e:Event)=>void
+    delete?: ()=>void
+}
+
+/*
 export default class View {
     private _ctx: CanvasRenderingContext2D;
 
@@ -111,4 +121,4 @@ export default class View {
     get top(){
         return this._top;
     }
-}
+}*/
