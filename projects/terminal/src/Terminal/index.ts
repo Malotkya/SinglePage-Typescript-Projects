@@ -8,6 +8,7 @@ import {InputStream, OutputStream} from "./Stream";
 import App, {HelpFunction, MainFunction} from "./App";
 import { KeyCode } from "./Keyboard";
 import IndexList from "@/IndexList";
+import { MouseButton } from "./Mouse";
 
 export {App};
 
@@ -46,7 +47,7 @@ const System = {
      */
     print(s:string){
         output.add(s);
-        input.clear();
+        input.flush();
     },
 
     /** Print Line
@@ -161,8 +162,8 @@ const System = {
      * 
      */
     reset(){
-        input.clear();
-        output.clear();
+        input.flush();
+        output.flush();
     },
 
     /** Close System
@@ -178,11 +179,8 @@ const System = {
      * @returns {View}
      */
     async getView(){
-        output.clear();
+        output.flush();
 
-        while(!output.isReady()){
-            await sleep();
-        }
         view = <any>null; //new View(this.#bios.view());
         return view;
     },
@@ -210,74 +208,100 @@ export function sleep(s:number = 100): Promise<void>{
  * 
  * Acts as the interface between the User and the System through the Bios.
  */
-class TerminalInterface extends HTMLElement {
+class TerminalInterface extends HTMLElement implements View{
     #bios: BiosType;
 
     constructor(){
         super();
         this.#bios = Bios(this);
 
-        /** Input Event Listener
-         * 
-         * Handles keys being pressed
-         * 
-         * @param {CustomEvent} Event
-         */
-        //@ts-ignore
-        this.addEventListener("input", (event:CustomEvent<KeyCode>)=>{
-            switch(event.detail){
-                case "Backspace":
-                    input.remove();
-                    break;
-                        
-                case "ArrowUp":
-                    System.current.history.index -= 1;
-                    input.set(System.current.history.current);
-                    break;
-            
-                case "ArrowDown":
-                    System.current.history.index += 1;
-                    input.set(System.current.history.current);
-                    break;
-            
-                case "Enter":
-                    input.add("\n");
-                    if(!password && view === null){
-                        output.add(PROMPT+input.buffer);
-                    }
-                    input.clean();
-                    break;
-            
-                default:
-                    input.add( event.detail );
-                    break;
-            }      
+        
+        this.addEventListener("keyboard", (event:CustomEventInit<KeyCode>)=>{
+            if(view !== null){
+                view.keyboard(event);
+            } else {
+                this.keyboard(event);
+            }
+        });
+
+        this.addEventListener("mouse", (event:CustomEventInit<MouseButton>)=>{
+            if(view !== null){
+                view.mouse(event);
+            } else {
+                
+            }
         });
         
         /** Render Event Listener
          * 
          * Handles the render event
          */
-        this.addEventListener("render", ()=>{
+        this.addEventListener("render", (event:Event)=>{
             if(view !== null){
-                /*this.#bios.render(this.#view);
-            
-                if(!this.#view.running)
-                    this.#view = null; */
-                alert("Views are currently not supported!");
-                view = null;
+                view.render(event);
             } else {
-                if(output.isReady()) {
-                    this.#bios.print(output.buffer.padEnd(1, "\n"));
-                }
-                
-                if( !password) {
-                    this.#bios.print(PROMPT+input.buffer);
-                }
-            
-                this.#bios.print(CURSOR);
+                this.render(event);
             }
         });
+    }
+
+    /** Input Event Handler
+     * 
+     * Handles keys being pressed
+     * 
+     * @param {CustomEvent} Event
+     */
+    keyboard(event:CustomEventInit<KeyCode>) {
+        switch(event.detail){
+            case "Backspace":
+                input.remove();
+                break;
+                    
+            case "ArrowUp":
+                System.current.history.index -= 1;
+                input.set(System.current.history.current);
+                break;
+        
+            case "ArrowDown":
+                System.current.history.index += 1;
+                input.set(System.current.history.current);
+                break;
+        
+            case "Enter":
+                input.add("\n");
+                output.add(PROMPT+input.buffer);
+                input.clean();
+                break;
+        
+            default:
+                if(event.detail)
+                    input.add( event.detail );
+                break;
+        }
+    }
+
+    /** Mouse Event Handler
+     * 
+     * @param event 
+     */
+    mouse(event: CustomEventInit<MouseButton>) {
+        if(event.detail === "Secondary") {
+            //Paste From Clipboard
+        }
+    }
+
+    /** Render Event Listener
+     * 
+     */
+    render(event:Event) {
+        if(output.ready)
+            this.#bios.print(output.buffer.padEnd(1, "\n"));
+        
+        if( !password) {
+            this.#bios.print(PROMPT+input.buffer);
+        }
+    
+        this.#bios.print(CURSOR);
     }
 }
 
@@ -291,7 +315,7 @@ export async function start() {
         throw new Error("System is already running!");
     
     callstack.push(<any>System);
-    input.clear();
+    input.flush();
     running = true;
 
     while(running) {
@@ -304,12 +328,12 @@ export async function start() {
     
         if(app){
             callstack.push(app);
-            input.clear();
+            input.flush();
             try {
                 const e = await app.main(cmd);
 
                 if(view !== null)
-                    view.delete();
+                    void 0; //view.delete();
 
                 if(e)
                     throw e;
@@ -329,5 +353,6 @@ export async function start() {
  * 
  */
 export function clear() {
-    output.clear();
+    output.flush();
+    input.flush();
 }
