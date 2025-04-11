@@ -1,14 +1,30 @@
-/** Index Tracker List
+/** /Terminal/History
  * 
  * @author Alex Malotky
  */
-export default class IndexList<T> {
+export default class History<T> {
     private list:T[];
     private _index:number;
+    private _id:string;
 
-    constructor() {
-        this.list = [];
-        this._index = -1;
+    constructor(id:string) {
+        this._id = "History:"+id;
+
+        try {
+            this.list = JSON.parse(localStorage.get(this._id));
+
+            if(!Array.isArray(this.list))
+                throw "Not a list!";
+
+            this._index = this.list.length;
+        } catch (e){
+            this.list = [];
+            this._index = -1;
+        }
+    }
+
+    destroy() {
+        localStorage.setItem(this._id, JSON.stringify(this.list));
     }
 
     clear() {
