@@ -2,8 +2,8 @@
  * 
  * @author Alex Malotky
  */
-import * as Keyboard from "./Keyboard";
-import * as Mouse from './Mouse';
+import Keyboard, {KeyCode, KeyboardType} from "./Keyboard";
+import Mouse, {Position, Dimensions, getButton, MouseType} from './Mouse';
 import * as Default from './Defaults';
 
 const RATIO = 0.6;
@@ -25,7 +25,7 @@ export interface ViewTemplate {
     }
 }
 
-const OverrideKeys:Keyboard.KeyCode[] = [
+const OverrideKeys:KeyCode[] = [
     "Backspace",
     "ArrowUp", 
     "ArrowDown",
@@ -49,34 +49,49 @@ export default function Bios(target:HTMLElement) {
     let height:number = Default.SCREEN_HEIGHT;
 
     ////// Environment Variable modified by bios. ///////
-    let charWidth:number = Default.FONT_SIZE * RATIO;
-    let charHeight:number = Default.FONT_SIZE;
+    const char:Dimensions = {
+        width: Default.FONT_SIZE * RATIO,
+        height: Default.FONT_SIZE
+    }
     let fontFace:string = `${Default.FONT_SIZE}px monospace`;
     let x:number = 0;
     let y:number = 0;
     let growHeight:number = height;
+    let highlightMap:[Position, Position]|[] = [];
 
     //////////////// Modify Environment ///////////////////
-    target.setAttribute("width",  (width * charWidth).toString());
-    target.setAttribute("height", (height * charHeight).toString());
-    target.style.width  = `${width * charWidth}px`;
-    target.style.height = `${height * charHeight}px`;
-    canvas.width  = width * charWidth;
-    canvas.height = height * charHeight;
+    target.style.width  = `${width * char.width}px`;
+    target.style.height = `${(height * char.height)+10}px`;
+    canvas.width  = width * char.width;
+    canvas.height = height * char.height;
+
+    //////////////// UI Helpers ///////////////////////////
+    const keyboard = Keyboard();
+    const mouse = Mouse(char);
 
     //////////////// Event Listeners ////////////////////
-    canvas.addEventListener("keyup", async(e)=>Keyboard.reportKeyUp(e));
-    canvas.addEventListener("keydown", async(e)=>{
-        const code = Keyboard.reportKeyDown(e);
+    canvas.addEventListener("keyup", (e)=>keyboard.reportKeyUp(e));
+    canvas.addEventListener("keydown", (e)=>{
+        const code = keyboard.reportKeyDown(e);
         if(OverrideKeys.includes(code)) {
             e.preventDefault();
             target.dispatchEvent(new CustomEvent("input", {detail: code}));
         }
     });
-
-    canvas.addEventListener("keypress", async(e)=>{
+    canvas.addEventListener("keypress", (e)=>{
         target.dispatchEvent(new CustomEvent("input", {detail: e.key}));
     });
+
+    canvas.addEventListener("mousedown", (e)=>{
+        mouse.reportMouseDown(e);
+        target.dispatchEvent(new CustomEvent("click", {detail: getButton(e.button)}))
+    });
+    canvas.addEventListener("mousemove", (e)=>{
+        highlightMap = mouse.reportMouseMove(e);
+    });
+    canvas.addEventListener("mouseup", (e)=>{
+        highlightMap = mouse.reportMouseUp(e);
+    })
 
     ///////////////// Private Functions //////////////////
 
@@ -93,7 +108,7 @@ export default function Bios(target:HTMLElement) {
     function grow(): void {
         if(y > growHeight) {
             growHeight += height;
-            canvas.height = growHeight * charHeight;
+            canvas.height = growHeight * char.height;
         }
     }
 
@@ -116,11 +131,11 @@ export default function Bios(target:HTMLElement) {
          */
         set size(value:number) {
             fontFace = `${value}px monospace`;
-            charWidth = value * RATIO;
-            charHeight = value;
+            char.width = value * RATIO;
+            char.height = value;
         },
         get size():number {
-            return charHeight;
+            return char.height;
         },
 
         /** Termanal Width in Ch
@@ -128,9 +143,9 @@ export default function Bios(target:HTMLElement) {
          */
         set width(value:number) {
             width = value;
-            value *= charWidth;
-            target.setAttribute("width", value.toString());
+            value *= char.width;
             target.style.width = `${value}px`;
+            canvas.width = value;
 
         },
         get width():number {
@@ -142,9 +157,9 @@ export default function Bios(target:HTMLElement) {
          */
         set height(value:number){
             height = value;
-            value *= charHeight;
-            target.setAttribute("height", value.toString());
-            target.style.height = `${value}px`
+            value *= char.height;
+            target.style.height = `${value+10}px`
+            canvas.height = height;
         },
         get height():number {
             return height;
@@ -155,6 +170,14 @@ export default function Bios(target:HTMLElement) {
         },
         get y() {
             return y;
+        },
+
+        get KeyBoard():KeyboardType {
+            return keyboard
+        },
+
+        get Mouse():MouseType {
+            return mouse
         },
 
         //////////////////// Public Functions ///////////////////////////
@@ -168,7 +191,7 @@ export default function Bios(target:HTMLElement) {
         put(x:number, y:number, c:string) {
             gl.fillStyle = fontColor;
             gl.font = fontFace;
-            gl.fillText(c.charAt(0), (x+1)*charWidth, (y+2)*charHeight)
+            gl.fillText(c.charAt(0), (x+1)*char.width, (y+2)*char.height)
         },
 
         /** Print String
@@ -201,7 +224,7 @@ export default function Bios(target:HTMLElement) {
          * @param targetHeight 
          */
         scroll(targetHeight:number){
-            window.setTimeout(()=>target.scrollTop = (targetHeight + 2) * charHeight, 10);
+            window.setTimeout(()=>target.scrollTop = (targetHeight + 2) * char.height, 10);
         },
 
         /** Makes sure their is enough height for a new viewport
