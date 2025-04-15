@@ -10,7 +10,8 @@
   "workspaces": [
     "projects/operations",
     "projects/buckshot",
-    "projects/triangle"
+    "projects/triangle",
+    "projects/terminal"
   ],
   "dependencies": {
     "json5": "^2.2.3"
