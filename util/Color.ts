@@ -1,3 +1,11 @@
+/** Color.ts
+ * 
+ * @author Alex Malotky
+ */
+
+/** Color Helper Class
+ * 
+ */
 export default class Color {
     private _r:number;
     private _g:number;
@@ -66,7 +74,12 @@ export default class Color {
         return "#" + toHex(this._r) + toHex(this._g) + toHex(this._b);
     }
 
-    from(value:string):Color {
+    /** Color From String
+     * 
+     * @param {string} value 
+     * @returns {Color}
+     */
+    static from(value:string):Color {
         if(value.at(0) === "#")
             value = value.substring(1);
 
