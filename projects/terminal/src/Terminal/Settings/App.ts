@@ -1,16 +1,15 @@
-import App from './Terminal/App';
-import System from "./Terminal"
-import {BiosType} from './Terminal/Bios';
-import * as Default from './Terminal/Defaults';
+import App from '../App';
+import System from ".."
+import Defaults from './Defaults';
+import { saveValue, SettingsName } from '.';
+import Color from '@/Color';
 
-class Settings extends App {
-    private _bios: BiosType;
+export default class SettingsApp extends App {
     private _loop: boolean;
 
-    constructor(bios: BiosType) {
+    constructor() {
         super("settings", "Changes things like screen dimensions or colors");
 
-        this._bios = bios;
         this._loop = false;
 
         this.help = () => {
@@ -20,6 +19,7 @@ class Settings extends App {
         this.main = async(args) => {
             if(args[1] === undefined) {
                 this._loop = true;
+                await this.run();
             } else {
                 switch(args[1].toLowerCase()) {
                 case "set":
@@ -33,11 +33,6 @@ class Settings extends App {
                     System.println("Unknown command: " + args[1]);
                 }
             }
-    
-            if(this._loop)
-                await this.run();
-    
-            this._loop = false;
         }
     }
 
@@ -65,32 +60,56 @@ class Settings extends App {
     }
 
     reset = () => {
-        this._bios.width = Default.SCREEN_WIDTH;
-        this._bios.height = Default.SCREEN_HEIGHT;
-        //this._bios.setBackGroundColor(Default.COLOR_BACKGROUND);
-        //this._bios.setFontColor(Default.COLOR_FONT);
-        this._bios.size = Default.FONT_SIZE;
+        for(const name in Defaults){
+            saveValue(name as SettingsName, Defaults[name as SettingsName]);
+        }
     }
 
     change(att:string, value:string){
         switch(att) {
         case "background-color":
-            //this.bios.setBackGroundColor(value);
-            return "Comming Soon!"
+            try {
+                saveValue("background-color", Color.from(value));
+            } catch (e:any) {
+                return `TypeError: ${value} is not a color!`;
+            }
             break;
+            
         case "font-color":
-            //this._bios.setFontColor(value);
-            return "Comming Soon!"
+            try {
+                saveValue("font-color", Color.from(value));
+            } catch (e:any) {
+                return `TypeError: ${value} is not a color!`;
+            }
             break;
-        case "font-size":
-            this._bios.size = Number(value);
+
+        case "font-size": 
+            let size = Number(value);
+            if(isNaN(size)) {
+                return `TypeError: ${value} is not a number!`;
+            } else {
+                saveValue("font-size", size);
+            }
             break;
+
         case "screen-width":
-            this._bios.width = Number(value);
+            let width = Number(value);
+            if(isNaN(width)) {
+                return `TypeError: ${value} is not a number!`;
+            } else {
+                saveValue("width", width);
+            }
             break;
+
         case "screen-height":
-            this._bios.height = Number(value);
+            let height = Number(value);
+            if(isNaN(height)) {
+                return `TypeError: ${value} is not a number!`;
+            } else {
+                saveValue("width", height);
+            }
             break;
+
         default:
             return "Unknown Attribute: " + att;
         }
@@ -106,5 +125,3 @@ class Settings extends App {
         return false;
     }
 }
-
-export default Settings;
