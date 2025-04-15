@@ -5,7 +5,7 @@
  * @author Alex Malotky
  */
 import { sleep } from ".";
-import { Position, comparePositions } from "./Mouse";
+import Position, { comparePositions } from "./Position";
 import { HighlighMap } from "./Bios";
 
 export function getHighlighted(buffer:string, map:HighlighMap, pos:Position, width:number):string {
