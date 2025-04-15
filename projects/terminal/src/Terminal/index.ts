@@ -2,13 +2,14 @@
  * 
  * @author Alex Malotky
  */
-import Bios, {BiosType, HighlighMap} from "./Bios";
+import {BiosType, HighlighMap, claimBios} from "./Bios";
 import View from "./View";
 import {InputStream, OutputStream, getHighlighted} from "./Stream";
 import App, {HelpFunction, MainFunction} from "./App";
 import { KeyCode } from "./Keyboard";
 import History from "./History";
-import { MouseButton, comparePositions } from "./Mouse";
+import { MouseButton} from "./Mouse";
+import { comparePositions } from "./Position";
 
 export {App};
 
@@ -233,7 +234,7 @@ class TerminalInterface extends HTMLElement implements View{
 
     constructor(){
         super();
-        this.#bios = Bios(this);
+        this.#bios = claimBios(this);
 
         
         this.addEventListener("keyboard", (event:CustomEventInit<KeyCode>)=>{
@@ -295,7 +296,7 @@ class TerminalInterface extends HTMLElement implements View{
 
             case "ControlLeft":
             case "ControlRight":
-                if(this.#bios.KeyBoard.isKeyPressed("KeyC"))
+                if(this.#bios.Keyboard.isKeyPressed("KeyC"))
                     this.copy(this.#bios.highlight);
                 break;
         
