@@ -40,52 +40,47 @@ function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number, alt:number
     return [code, index, alt];
 }
 
-export default function Keyboard() {
-    //Stored Keys Pressed
-    let KeysPressed:number = 0;
+let KeysPressed:number = 0;
 
-    return {
-        /** Report Key Down
+/** Report Key Down
          * 
          * @param {KeyboardEvent} event 
          * @returns {KeyCode}
          */
-        reportKeyDown(event: KeyboardEvent):KeyCode {
-            const [code, index, alt] = getKeyCode(event);
-            KeysPressed |= (1 << index);
-            if(alt !== undefined && alt >= 0)
-                KeysPressed |= (1 << alt);
-            return code ;
-        },
+export function reportKeyDown(event: KeyboardEvent):KeyCode {
+    const [code, index, alt] = getKeyCode(event);
+    KeysPressed |= (1 << index);
+    if(alt !== undefined && alt >= 0)
+        KeysPressed |= (1 << alt);
+    return code ;
+}
 
-        /** Report Key Up
-         * 
-         * @param {KeyboardEvent} event 
-         * @returns {KeyCode}
-         */
-        reportKeyUp(event: KeyboardEvent):KeyCode {
-            const [code, index, alt] = getKeyCode(event);
-            KeysPressed &= ~(1 << index);
-            if(alt !== undefined && alt >= 0)
-                KeysPressed &= ~(1 << alt);
-            return code ;
-        },
+/** Report Key Up
+ * 
+ * @param {KeyboardEvent} event 
+ * @returns {KeyCode}
+ */
+export function reportKeyUp(event: KeyboardEvent):KeyCode {
+    const [code, index, alt] = getKeyCode(event);
+    KeysPressed &= ~(1 << index);
+    if(alt !== undefined && alt >= 0)
+        KeysPressed &= ~(1 << alt);
+    return code ;
+}
 
-        /** Is Key Pressed
-         * 
-         * @param {KeyboardEvent} code 
-         * @returns {KeyCode}
-         */
-        isKeyPressed(code: KeyCode):boolean {
-            const index = KEY_CODES.indexOf(code);
-            if(index < 0) {
-                console.warn(`Unkown key code: ${code}!`);
-                return false;
-            }
-        
-            return (KeysPressed & (1 << index)) !== 0;
-        }
+/** Is Key Pressed
+ * 
+ * @param {KeyboardEvent} code 
+ * @returns {KeyCode}
+ */
+export function isKeyPressed(code: KeyCode):boolean {
+    const index = KEY_CODES.indexOf(code);
+    if(index < 0) {
+        console.warn(`Unkown key code: ${code}!`);
+        return false;
     }
+
+    return (KeysPressed & (1 << index)) !== 0;
 }
 
 export interface KeyboardType {
