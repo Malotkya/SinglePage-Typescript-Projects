@@ -4,6 +4,7 @@
  * 
  * @author Alex Malotky
  */
+import Color from "./Color";
 
 /** Sleep
  * 
@@ -29,4 +30,18 @@ export function NumberOr(value:unknown, d:number):number {
         return d;
 
     return n;
+}
+
+/** Get Color Or Default
+ * 
+ * @param {unknown} value 
+ * @param {Color} d 
+ * @returns {Color}
+ */
+export function ColorOr(value:unknown, d:Color):Color {
+    try {
+        return Color.from(String(value));
+    } catch(e){
+        return d;
+    }
 }
