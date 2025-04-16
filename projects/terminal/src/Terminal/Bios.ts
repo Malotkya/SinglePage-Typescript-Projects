@@ -382,6 +382,9 @@ export type PixelFunction = (m:PixelMatrix)=>void;
 export function getView(): {template: ViewTemplate, init:(view:BiosView|null)=>void}
 export function getView(width:number,  height:number): {template: ViewTemplate, init:(view:BiosView|null)=>void}
 export function getView(w:number = width * char.width, h:number = height * char.height): {template: ViewTemplate, init:(view:BiosView|null)=>void}{
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+    
     if(width >= document.body.clientWidth)
         throw new Error("Width is to large!");
 
