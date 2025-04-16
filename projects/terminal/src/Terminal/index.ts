@@ -6,7 +6,7 @@ import {BiosType, HighlighMap, claimBios, getView} from "./Bios";
 import View, {SystemView, UserView} from "./View";
 import {InputStream, OutputStream, getHighlighted} from "./Stream";
 import App, {HelpFunction, MainFunction} from "./App";
-import { KeyCode } from "./Keyboard";
+import { KeyboardData } from "./Keyboard";
 import History from "./History";
 import { MouseButton} from "./Mouse";
 import { comparePositions } from "./Position";
@@ -240,19 +240,25 @@ class TerminalInterface extends HTMLElement{
         this.#bios = claimBios(this);
 
         
-        this.addEventListener("keyboard", (event:CustomEventInit<KeyCode>)=>{
+        this.addEventListener("keyboard", (event:CustomEventInit<KeyboardData>)=>{
+            if(event.detail === undefined)
+                throw new Error("Missing Detail!");
+
             if(view !== null){
-                view.keyboard(event);
+                view.keyboard(event as any);
             } else {
-                this.keyboard(event);
+                this.keyboard(event as any);
             }
         });
 
         this.addEventListener("mouse", (event:CustomEventInit<MouseButton>)=>{
+            if(event.detail === undefined)
+                throw new Error("Missing Detail!");
+
             if(view !== null){
-                view.mouse(event);
+                view.mouse(event as any);
             } else {
-                this.mouse(event);
+                this.mouse(event as any);
             }
         });
         
@@ -275,10 +281,12 @@ class TerminalInterface extends HTMLElement{
      * 
      * @param {CustomEvent} Event
      */
-    keyboard(event:CustomEventInit<KeyCode>) {
+    keyboard(event:CustomEvent<KeyboardData>) {
         this.#bios.scroll(undefined, true);
         const current = System.current;
-        switch(event.detail){
+        const {key, value} = event.detail;
+
+        switch(key){
             case "Backspace":
                 input.remove();
                 break;
@@ -304,14 +312,14 @@ class TerminalInterface extends HTMLElement{
                 break;
         
             case "Enter":
+            case "NumpadEnter":
                 input.add("\n");
                 output.add(PROMPT+input.buffer);
                 input.clean();
                 break;
         
             default:
-                if(event.detail)
-                    input.add( event.detail );
+                input.add( value );
                 break;
         }
     }
@@ -320,8 +328,7 @@ class TerminalInterface extends HTMLElement{
      * 
      * @param event 
      */
-    mouse(event: CustomEventInit<MouseButton>) {
-        console.debug(event.detail);
+    mouse(event: CustomEvent<MouseButton>) {
         if(event.detail === "Secondary") {
             navigator.clipboard.readText().then((string)=>{
                 input.set(string);

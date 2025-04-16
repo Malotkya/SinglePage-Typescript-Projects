@@ -2,7 +2,7 @@
  * 
  * @author Alex Malotky
  */
-import { KeyCode } from "./Keyboard";
+import { KeyboardData } from "./Keyboard";
 import { KeyboardType } from "./Keyboard";
 import { MouseButton, MouseType } from "./Mouse";
 import { HIGHLIGHT_OFFSET, PixelFunction } from "./Bios";
@@ -48,7 +48,7 @@ interface SpacialData {
 }
 
 type ViewEventMap = {
-    "keyboard": CustomEvent<KeyCode>
+    "keyboard": CustomEvent<KeyboardData>
     "mouse":    CustomEvent<MouseButton>
     "render":   CustomEvent<undefined>
     "close":    CustomEvent<undefined>
@@ -68,8 +68,8 @@ export interface BiosView {
 }
 
 export interface SystemView {
-    keyboard:(e:CustomEventInit<KeyCode>)=>void
-    mouse:(e:CustomEventInit<MouseButton>)=>void
+    keyboard:(e:CustomEvent<KeyboardData>)=>void
+    mouse:(e:CustomEvent<MouseButton>)=>void
     render:(e:Event)=>void
     close: ()=>void
 }
@@ -130,12 +130,12 @@ export default class View implements BiosView, SystemView, UserView{
         return this._background.height;
     }
 
-    keyboard(event:CustomEventInit<KeyCode>){
+    keyboard(event:CustomEvent<KeyboardData>){
         if(this.callbacks["keyboard"])
             this.callbacks["keyboard"](event);
     }
 
-    mouse(event:CustomEventInit<MouseButton>){
+    mouse(event:CustomEvent<MouseButton>){
         if(this.callbacks["mouse"])
             this.callbacks["mouse"](event);
     }

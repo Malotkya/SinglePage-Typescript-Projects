@@ -131,7 +131,8 @@ class Snake extends App {
             });
 
             view.on("keyboard", (e)=>{
-                switch(e.detail){
+                const {key, value} = e.detail;
+                switch(key){
                     case "Escape":
                         view.close();
                         break;
@@ -161,7 +162,7 @@ class Snake extends App {
                         break;
 
                     default:
-                        const n = Number(e.detail.at(-1));
+                        const n = Number(value);
                         if(!isNaN(n))
                             speed = (10 - n) * 100;
 
