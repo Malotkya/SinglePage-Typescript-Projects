@@ -12,13 +12,14 @@ import PixelMatrix from "./PixelMatrix";
 
 const RATIO = 0.6;
 export const Y_OFFSET = 5;
+const INTERFACE_OFFSET = 10;
 export const HIGHLIGHT_OFFSET = 1;
 
 
 export type HighlighMap = [Position, Position];
 
 interface RenderContext extends CanvasRenderingContext2D {
-    interface: HTMLElement
+    readonly interface: HTMLElement
 }
 
 let ctx:RenderContext|null = null;
@@ -66,9 +67,9 @@ export function claimBios(target:HTMLElement) {
         throw new Error("Unable to Initalize 2D Context!");
 
     target.style.width  = `${width * char.width}px`;
-    target.style.height = `${(height * (char.height+1))+Y_OFFSET+10}px`;
+    target.style.height = `${(height * char.height)+Y_OFFSET+INTERFACE_OFFSET}px`;
     canvas.width  = width * char.width;
-    canvas.height = (height * (char.height+1))+Y_OFFSET;
+    canvas.height = (height * char.height)+Y_OFFSET;
 
     canvas.addEventListener("keyup", (e)=>K.reportKeyUp(e));
     canvas.addEventListener("keydown", (e)=>{
@@ -100,7 +101,7 @@ export function claimBios(target:HTMLElement) {
         canvas.focus();
     });
 
-    (gl as RenderContext).interface = target;
+    (gl as any).interface = target;
     ctx = gl as RenderContext;
 
     target.appendChild(canvas);
@@ -184,7 +185,7 @@ function clear(): void {
 function grow(): void {
     if(y >= growHeight) {
         growHeight += height;
-        ctx!.canvas.height = growHeight * (char.height+1);
+        ctx!.canvas.height = growHeight * char.height;
     }
 }
 
@@ -195,7 +196,7 @@ function grow(): void {
  */
 function inverse(x:number, y:number, stretch:boolean = true) {
     x = ((x+1)*char.width) - HIGHLIGHT_OFFSET;
-    y = (y+1)*(char.height+1)-Y_OFFSET - HIGHLIGHT_OFFSET;
+    y = ((y+1)*char.height)- Y_OFFSET - HIGHLIGHT_OFFSET;
 
     const image = ctx!.getImageData(x, y, char.width, char.height+<any>stretch);
 
@@ -263,10 +264,10 @@ updateEvent(function update<N extends SettingsName>(name:N, value:SettingsMap[N]
             char.height = value as number;
             if(ctx){
                 const w = width * char.width;
-                const h = (height * (char.height+1))+Y_OFFSET;
+                const h = (height * char.height)+Y_OFFSET;
                 ctx.interface.style.width = `${w}px`;
                 ctx.canvas.width = w;
-                ctx.interface.style.height = `${h}px`;
+                ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
                 ctx.canvas.height = h;
             }
             break;
@@ -282,9 +283,9 @@ updateEvent(function update<N extends SettingsName>(name:N, value:SettingsMap[N]
 
         case "height":
             height = value as number;
-            const v = (value as number * (char.height+1))+Y_OFFSET;
+            const v = (value as number * char.height)+Y_OFFSET;
             if(ctx){
-                ctx.interface.style.height = `${v}px`;
+                ctx.interface.style.height = `${v+INTERFACE_OFFSET}px`;
                 ctx.canvas.height = v;
             }
             break;
@@ -313,7 +314,7 @@ export function put(x:number, y:number, c:string) {
 
     ctx.fillStyle = font.toString();
     ctx.font = fontFace;
-    ctx.fillText(c.charAt(0), (x+1)*char.width, ((y+1)*(char.height+1))+Y_OFFSET)
+    ctx.fillText(c.charAt(0), (x+1)*char.width, ((y+1)*char.height)+Y_OFFSET)
 }
 
 /** Print String
@@ -361,14 +362,14 @@ export function scroll(targetHeight:number = y, override:boolean = scrollLocked)
     if(targetHeight < 0 || targetHeight >= growHeight || override === false)
         return;
 
-    const top    = Math.floor((ctx.interface.scrollTop) / (char.height+1));
-    const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / (char.height+1))-2;
+    const top    = Math.floor((ctx.interface.scrollTop) / char.height);
+    const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / char.height)-2;
     if(targetHeight < top || targetHeight > bottom){
         /*window.setTimeout(()=>{
             if(element)
                 
         }, 10);*/
-        ctx.interface.scrollTop = ((targetHeight - height + 2) * (char.height+1)) + Y_OFFSET;
+        ctx.interface.scrollTop = ((targetHeight - height + 2) * char.height) + Y_OFFSET;
     }
     scrollLocked = true;
 }
@@ -387,17 +388,32 @@ export function getView(w:number = width * char.width, h:number = height * char.
     if(ctx === null)
         throw new Error("Bio is not yet claimed!");
     
-    if(width >= document.body.clientWidth)
+    if(w >= document.body.clientWidth)
         throw new Error("Width is to large!");
 
-    if(height >= document.body.clientHeight)
+    if(h >= document.body.clientHeight)
         throw new Error("Height is to large!");
 
     clear();
+    ctx.canvas.width = w;
+    ctx.canvas.height = h;
+    ctx.interface.style.width = `${w}px`;
+    ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
 
-    let size = char.height;
+    let size = char.width;
     return {
-        init:(v:BiosView|null)=>view = v,
+        init:(v:BiosView|null)=>{
+            view = v
+            if(v === null){
+                const w = width * char.width;
+                const h = (height * char.height)+Y_OFFSET;
+
+                ctx!.canvas.width = w;
+                ctx!.canvas.height = h;
+                ctx!.interface.style.width = `${w}px`;
+                ctx!.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+            }
+        },
         template: {
             font: {
                 width: char.width,
@@ -406,7 +422,8 @@ export function getView(w:number = width * char.width, h:number = height * char.
             },
             background: {
                 color: background,
-                width, height
+                width: w,
+                height: h
             },
             mouse: {
                 get position() {
