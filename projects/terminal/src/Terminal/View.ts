@@ -2,123 +2,171 @@
  * 
  * @author Alex Malotky
  */
-import {ViewTemplate} from "./Bios";
 import { KeyCode } from "./Keyboard";
-import { MouseButton } from "./Mouse";
+import { KeyboardType } from "./Keyboard";
+import { MouseButton, MouseType } from "./Mouse";
+import { HIGHLIGHT_OFFSET, PixelFunction } from "./Bios";
+import Color from "@/Color";
 
-export default interface View {
+interface ViewContext {
+    fillColor: Color
+    fontSize: number
+    lineCap: "butt"|"round"|"square"
+    lineDashOffset:number
+    lineJoin: "round"|"bevel"|"miter"
+    lineWidth: number
+    miterLimit: number
+    strokeStyle: Color
+    arc:(x:number, y:number, radius:number, startAngle:number, endAngle:number, counterclockwise?:boolean)=>void
+    arcTo:(x1:number, y1:number, x2:number, y2:number, radius:number)=>void
+    beginPath:()=>void
+    clearRect:(x:number, y:number, width:number, height:number)=>void
+    closePath:()=>void
+    ellipse:(x:number, y:number, radiusX:number, radiusY:number, rotation:number, startAngle:number, endAngle:number, counterclockwise?:boolean)=>void
+    fillRect:(x:number, y:number, width:number, height:number)=>void
+    fillText:(text:string, x:number, y:number, maxWidth?:number)=>void
+    lineTo:(x:number, y:number)=>void
+    moveTo:(x:number, y:number)=>void
+    rect:(x:number, y:number, width:number, height:number)=>void
+    roundRect:(x:number, y:number, width:number, height:number, radii:number)=>void
+    setLineDash:(segments:number[])=>void
+    stroke:()=>void
+    strokeRect:(x:number, y:number, width:number, height:number)=>void
+    strokeText:(text:string, x:number, y:number, maxWidth?:number)=>void
+    accessPixels:(x:number|PixelFunction, y?:number, height?:number|PixelFunction, width?:number, func?:PixelFunction)=>void
+} 
+
+interface SpacialData {
+    width: number
+    height: number
+    color: Color
+}
+
+type ViewEventMap = {
+    "keyboard": (e:CustomEventInit<KeyCode>)=>void
+    "mouse": (e:CustomEventInit<MouseButton>)=>void
+    "render": (e:Event)=>void
+    [n:string]: (e:Event)=>void
+}
+
+export interface BiosView {
+    readonly font: SpacialData
+    backgroundColor: Color
+    readonly width: number
+    readonly height: number
+    readonly Mouse: MouseType
+    readonly Keyboard: KeyboardType
+    delete: ()=>void
+}
+
+export interface SystemView {
     keyboard:(e:CustomEventInit<KeyCode>)=>void
     mouse:(e:CustomEventInit<MouseButton>)=>void
     render:(e:Event)=>void
-    delete?: ()=>void
+    delete: ()=>void
 }
 
-/*
-export default class View {
-    private _ctx: CanvasRenderingContext2D;
+export interface UserView {
+    on:<N extends keyof ViewEventMap>(name: N, handler:ViewEventMap[N])=>void
+    print:(x:number, y:number, s:string)=>void
+    flip:(x:number, y:number)=>void
+    delete:()=>void
+    clear:()=>void
+    readonly ctx: ViewContext
+}
 
-    private _fontColor: string;
-    private _backgroundColor: string;
-    private _cw: number;
-    private _ch: number;
-    private _width: number;
-    private _height: number;
+export interface ViewTemplate {
+    font: SpacialData
+    background: SpacialData
+    ctx: ViewContext
+    init: (view:View|null)=>void
+    mouse: MouseType
+    keyboard: KeyboardType
+}
 
-    private _top: number;
-
-    private _lastRender: ImageData|undefined;
+export default class View implements BiosView, SystemView, UserView{
+    readonly font: ViewTemplate["font"];
+    private _background: ViewTemplate["background"];
+    readonly ctx:ViewContext;
+    readonly Mouse: MouseType;
+    readonly Keyboard: KeyboardType;
+    private callbacks:Record<string, Function>;
 
     constructor(template: ViewTemplate){
-        let canvas = document.createElement("canvas");
-
-        canvas.width = template.size.width * template.font.width;
-        canvas.height = template.size.height * template.font.height;
-        canvas.style.zIndex = "-1";
-        canvas.style.position = "abosulte";
-        canvas.style.top = "0";
-        canvas .style.left = "0";
-
-        let context = canvas.getContext("2d");
-        if(context === null)
-            throw new Error("There was a problem creating the view object!");
-
-        this._ctx = context;
-        this._ctx.fillStyle = template.font.color;
-        this._ctx.font = template.font.string;
-
-        this._fontColor = template.font.color;
-        this._backgroundColor = template.background.color;
-        this._ch = template.font.height;
-        this._cw = template.font.width;
-        this._width = template.size.width;
-        this._height = template.size.height;
-
-        this._top = template.top;
-
-        document.body.appendChild(canvas);
-        this._lastRender = undefined;
+        const {font, background, ctx, mouse, keyboard, init} = template;
+        this.font = font;
+        this._background = background;
+        this.ctx = ctx;
+        this.Mouse = mouse;
+        this.Keyboard = keyboard;
+        this.callbacks = {};
+        this.callbacks["clearBios"] = ()=>init(null);
+        init(this);
     }
 
-    get running(){
-        return typeof this._lastRender === "undefined";
+    get backgroundColor() {
+        return this._background.color
     }
 
-    get width(){
-        return this._width;
+    set backgroundColor(c:Color) {
+        this._background.color = c;
     }
 
-    get height(){
-        return this._height;
+    get width() {
+        return this._background.width;
     }
 
-    output(x:number, y:number, s: string){
-        this._ctx.fillStyle = this._fontColor;
-        this._ctx.fillText(s, (x-1)*this._cw, y*this._ch);
+    get height() {
+        return this._background.height;
     }
 
-    clear(){
-        this._ctx.fillStyle = this._backgroundColor;
-        this._ctx.fillRect(0, 0, this._ctx.canvas.width, this._ctx.canvas.height);
+    get keyboard(){
+        return this.callbacks["keyboard"] as SystemView["keyboard"];
     }
 
-    async open(){
-        if(this.running){
-            await this.sleep();
-            this.clear();
-        }
-        return this.running;
+    get mouse(){
+        return this.callbacks["mouse"] as SystemView["mouse"];
     }
 
-    sleep() {
-        return new Promise(r => window.setTimeout(r, 1));
+    get render(){
+        return this.callbacks["render"] as SystemView["render"];
     }
 
-    render(){
-        if(this._lastRender){
-            return this._lastRender;
-        }
-
-        return this._ctx.getImageData(0,0,this._ctx.canvas.width, this._ctx.canvas.height);
+    print(x:number, y:number, text:string) {
+        this.ctx.fillColor = this.font.color;
+        this.ctx.fontSize  = this.font.height;
+        this.ctx.fillText(text, x*this.font.width, y*(this.font.height+1));
     }
 
-    close(){
-        this._lastRender = this._ctx.getImageData(0,0,this._ctx.canvas.width, this._ctx.canvas.height);
+    flip(x:number, y:number){
+        x = (x*this.font.width) - HIGHLIGHT_OFFSET;
+        y = (y*this.font.height) - HIGHLIGHT_OFFSET;
+
+        this.ctx.accessPixels(x, y, this.font.width, this.font.height, (matrix)=>{
+            for(const pixel of matrix){
+                if(this._background.color.equals(pixel.red, pixel.green, pixel.blue)) {
+                    pixel.red = this.font.color.red;
+                    pixel.green = this.font.color.green;
+                    pixel.blue = this.font.color.blue;
+                } else {
+                    pixel.red = this._background.color.red;
+                    pixel.green = this._background.color.green;
+                    pixel.blue = this._background.color.blue;
+                }
+            }
+        });
+
+    }
+
+    clear() {
+
+    }
+
+    on<N extends keyof ViewEventMap>(name: N, handler:ViewEventMap[N]){
+
     }
 
     delete(){
-        this.close();
-        this._ctx.canvas.remove();
+        this.callbacks["clearBios"]();
     }
-
-    test(){
-        for(let x=1; x<=this.width; x++){
-            for(let y=1; y<this.height; y++){
-                this.output(x,y, Math.floor(Math.random()*10).toString());
-            }
-        }
-    }
-
-    get top(){
-        return this._top;
-    }
-}*/
+}
