@@ -193,6 +193,34 @@ const System = {
 
     get call() {
         return SYSTEM_NAME;
+    },
+
+    async run(cmd:string) {
+        const args = cmd.split(/\s+/gm);
+        System.history.add(cmd);
+    
+        let app = System.getApp(args[0]);
+    
+        if(app){
+            callstack.push(app);
+            input.flush();
+            try {
+                const e = await app.main(args);
+
+                if(view !== null)
+                    view.close();
+
+                if(e)
+                    throw e;
+
+            } catch (e:any) {
+                System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
+            }
+            
+            callstack.pop();
+        } else {
+            System.println(`Unknown Command: '${args[0]}'!`);
+        }
     }
 }
 export default System;
@@ -373,32 +401,10 @@ export async function start() {
 
     while(running) {
         let string = await System.getln();
+        if(string === "")
+            continue;
     
-        let cmd = string.split(/\s+/gm);
-        System.history.add(string);
-    
-        let app = System.getApp(cmd[0]);
-    
-        if(app){
-            callstack.push(app);
-            input.flush();
-            try {
-                const e = await app.main(cmd);
-
-                if(view !== null)
-                    void 0; //view.delete();
-
-                if(e)
-                    throw e;
-
-            } catch (e:any) {
-                System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
-            }
-            
-            callstack.pop();
-        } else {
-            System.println("Unknown Command!");
-        }
+        System.run(string);
     }
 }
 
