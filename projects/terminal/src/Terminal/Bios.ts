@@ -62,7 +62,7 @@ export function claimBios(target:HTMLElement) {
     canvas.tabIndex = 1;
 
     const gl = canvas.getContext("2d", {alpha: false});
-    if(ctx === null)
+    if(gl === null)
         throw new Error("Unable to Initalize 2D Context!");
 
     target.style.width  = `${width * char.width}px`;
@@ -103,6 +103,7 @@ export function claimBios(target:HTMLElement) {
     (gl as RenderContext).interface = target;
     ctx = gl as RenderContext;
 
+    target.appendChild(canvas);
     canvas.focus();
     render();
 
@@ -254,29 +255,38 @@ function render() {
 
 //////////////// Gets / Setters ////////////////////
 updateEvent(function update<N extends SettingsName>(name:N, value:SettingsMap[N]){
-    if(ctx === null)
-        throw new Error("Bio is not yet claimed!");
-        
 
     switch(name){
         case "font-size":
             fontFace = `${value as number-1}px monospace`;
             char.width = value as number * RATIO;
             char.height = value as number;
+            if(ctx){
+                const w = width * char.width;
+                const h = (height * (char.height+1))+Y_OFFSET;
+                ctx.interface.style.width = `${w}px`;
+                ctx.canvas.width = w;
+                ctx.interface.style.height = `${h}px`;
+                ctx.canvas.height = h;
+            }
             break;
 
         case "width":
             width = value as number;
             (value as number) *= char.width;
-            ctx.interface.style.width = `${value}px`;
-            ctx.canvas.width = value as number;
+            if(ctx){
+                ctx.interface.style.width = `${value}px`;
+                ctx.canvas.width = value as number;
+            }
             break;
 
         case "height":
             height = value as number;
-            (value as number) *= char.height;
-            ctx.interface.style.height = `${value as number + 10}px`;
-            ctx.canvas.height = value as number;
+            const v = (value as number * (char.height+1))+Y_OFFSET;
+            if(ctx){
+                ctx.interface.style.height = `${v}px`;
+                ctx.canvas.height = v;
+            }
             break;
 
         case "background-color":
@@ -462,55 +472,55 @@ export function getView(w:number = width * char.width, h:number = height * char.
                 set strokeStyle(c:Color){
                     ctx!.strokeStyle = c.toString();
                 },
-                get arc(){
-                    return ctx!.arc;
+                arc(x:number, y:number, radius:number, startAngle:number, endAngle:number, counterclockwise?:boolean){
+                    ctx!.arc(x, y, radius, startAngle, endAngle, counterclockwise);
                 }, 
-                get arcTo(){
-                    return ctx!.arcTo;
+                arcTo(x1:number, y1:number, x2:number, y2:number, radius:number){
+                    ctx!.arcTo(x1, y1, x2, y2, radius);
                 },
-                get beginPath(){
-                    return ctx!.beginPath;
+                beginPath(){
+                    ctx!.beginPath();
                 },
-                get clearRect(){
-                    return ctx!.clearRect;
+                clearRect(x:number, y:number, width:number, height:number){
+                    ctx!.clearRect(x, y, width, height);
                 }, 
-                get closePath(){
-                    return ctx!.closePath;
+                closePath(){
+                    ctx!.closePath();
                 },
-                get ellipse(){
-                    return ctx!.ellipse;
+                ellipse(x:number, y:number, radiusX:number, radiusY:number, rotation:number, startAngle:number, endAngle:number, counterclockwise?:boolean){
+                    ctx!.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle, counterclockwise);
                 },
-                get fillRect(){
-                    return ctx!.fillRect;
+                fillRect(x:number, y:number, width:number, height:number){
+                    ctx!.fillRect(x, y, width, height);
                 }, 
-                get fillText(){
-                    return ctx!.fillText;
+                fillText(text:string, x:number, y:number, maxWidth?:number){
+                    ctx!.fillText(text, x, y, maxWidth);
                 },
-                get lineTo(){
-                    return ctx!.lineTo;
+                lineTo(x:number, y:number){
+                    ctx!.lineTo(x, y);
                 },
-                get moveTo(){
-                    return ctx!.moveTo;
+                moveTo(x:number, y:number){
+                    ctx!.moveTo(x, y);
                 }, 
-                get rect(){
-                    return ctx!.rect;
+                rect(x:number, y:number, width:number, height:number){
+                    ctx!.rect(x, y, width, height);
                 },
-                get roundRect(){
-                    return ctx!.roundRect;
+                roundRect(x:number, y:number, width:number, height:number, radii:number){
+                    ctx!.roundRect(x, y, width, height, radii);
                 },
-                get setLineDash(){
-                    return ctx!.setLineDash;
+                setLineDash(segments:number[]){
+                    ctx!.setLineDash(segments);
                 },
-                get stroke(){
-                    return ctx!.stroke;
+                stroke(){
+                    ctx!.stroke();
                 },
-                get strokeRect(){
-                    return ctx!.strokeRect;
+                strokeRect(x:number, y:number, width:number, height:number){
+                    ctx!.strokeRect(x, y, width, height);
                 }, 
-                get strokeText(){
-                    return ctx!.strokeText;
+                strokeText(text:string, x:number, y:number, maxWidth?:number){
+                    ctx!.strokeText(text, x, y, maxWidth);
                 },
-                accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction) {
+                accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction):void {
                     if(typeof x !== "number") {
                         func = x;
                         w = ctx!.canvas.width-1;
@@ -523,22 +533,22 @@ export function getView(w:number = width * char.width, h:number = height * char.
                         x = 0;
                         y = 0;
                     }
-    
-                    if(w === undefined || h === undefined || func === undefined)
-                        throw new Error("Invaliad Arguments!");
-    
+                
+                    if(typeof w !== "number" || typeof h !== "number" || typeof func !== "function")
+                        throw new TypeError("Invaliad Arguments!");
+                
                     if(x === undefined || x < 0 || x > w)
                         throw new TypeError("X is out of bounds!");
-    
+                
                     if(y === undefined || y < 0 || y > h)
                         throw new TypeError("Y is out of bounds!");
-    
+                
                     if(w < 1 || (w+x) > ctx!.canvas.width)
                         throw new TypeError("Width is out of bounds!");
-    
+                
                     if(h < 1 || (h+y) > ctx!.canvas.height)
                         throw new TypeError("Height is out of bounds!");
-    
+                
                     const image = ctx!.getImageData(x, y, w, h);
                     func(new PixelMatrix(image));
                     ctx!.putImageData(image, x, y);
