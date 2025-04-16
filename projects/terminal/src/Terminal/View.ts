@@ -141,8 +141,8 @@ export default class View implements BiosView, SystemView, UserView{
     }
 
     render(event:Event){
-        if(this.callbacks["mouse"])
-            this.callbacks["mouse"](event);
+        if(this.callbacks["render"])
+            this.callbacks["render"](event);
     }
 
     print(x:number, y:number, text:string) {
