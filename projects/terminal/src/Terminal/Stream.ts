@@ -114,7 +114,7 @@ export class InputStream implements Stream {
             if(match){
                 this._buffer = this._buffer.replace(match[0], "");
 
-                if(match[1])
+                if(typeof match[1] === "string")
                     return match[1];
 
                 return match[0];
