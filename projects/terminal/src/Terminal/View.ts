@@ -34,7 +34,11 @@ interface ViewContext {
     stroke:()=>void
     strokeRect:(x:number, y:number, width:number, height:number)=>void
     strokeText:(text:string, x:number, y:number, maxWidth?:number)=>void
-    accessPixels:(x:number|PixelFunction, y?:number, height?:number|PixelFunction, width?:number, func?:PixelFunction)=>void
+    accessPixels:{
+        (func: PixelFunction): void;
+        (width: number, height: number, func: PixelFunction): void;
+        (x: number, y: number, height: number, width: number, func: PixelFunction): void;
+    }
 } 
 
 interface SpacialData {
