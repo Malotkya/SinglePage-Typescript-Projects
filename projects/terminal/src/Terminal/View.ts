@@ -6,6 +6,7 @@ import { KeyCode } from "./Keyboard";
 import { KeyboardType } from "./Keyboard";
 import { MouseButton, MouseType } from "./Mouse";
 import { HIGHLIGHT_OFFSET, PixelFunction } from "./Bios";
+import { sleep } from ".";
 import Color from "@/Color";
 
 interface ViewContext {
@@ -43,11 +44,14 @@ interface SpacialData {
 }
 
 type ViewEventMap = {
-    "keyboard": (e:CustomEventInit<KeyCode>)=>void
-    "mouse": (e:CustomEventInit<MouseButton>)=>void
-    "render": (e:Event)=>void
-    [n:string]: (e:Event)=>void
+    "keyboard": CustomEvent<KeyCode>
+    "mouse":    CustomEvent<MouseButton>
+    "render":   CustomEvent<undefined>
+    "close":    CustomEvent<undefined>
+    [k:string]: CustomEvent<any> 
 }
+type EventName = keyof ViewEventMap;
+let test:EventName = 12;
 
 export interface BiosView {
     readonly font: SpacialData
@@ -56,22 +60,23 @@ export interface BiosView {
     readonly height: number
     readonly Mouse: MouseType
     readonly Keyboard: KeyboardType
-    delete: ()=>void
+    close: ()=>void
 }
 
 export interface SystemView {
     keyboard:(e:CustomEventInit<KeyCode>)=>void
     mouse:(e:CustomEventInit<MouseButton>)=>void
     render:(e:Event)=>void
-    delete: ()=>void
+    close: ()=>void
 }
 
-export interface UserView {
-    on:<N extends keyof ViewEventMap>(name: N, handler:ViewEventMap[N])=>void
+export interface UserView extends BiosView{
+    on:<N extends keyof ViewEventMap>(name: N, handler:(e:ViewEventMap[N])=>void)=>void
+    emit:<N extends keyof ViewEventMap>(e:ViewEventMap[N])=>void
     print:(x:number, y:number, s:string)=>void
     flip:(x:number, y:number)=>void
-    delete:()=>void
     clear:()=>void
+    wait:()=>Promise<void>
     readonly ctx: ViewContext
 }
 
@@ -90,6 +95,7 @@ export default class View implements BiosView, SystemView, UserView{
     readonly Mouse: MouseType;
     readonly Keyboard: KeyboardType;
     private callbacks:Record<string, Function>;
+    private _running:boolean;
 
     constructor(template: ViewTemplate, callback:(v:View|null)=>void){
         const {font, background, ctx, mouse, keyboard} = template;
@@ -100,6 +106,7 @@ export default class View implements BiosView, SystemView, UserView{
         this.Keyboard = keyboard;
         this.callbacks = {};
         this.callbacks[""] = ()=>callback(null);
+        this._running = true;
         callback(this);
     }
 
@@ -158,14 +165,34 @@ export default class View implements BiosView, SystemView, UserView{
     }
 
     clear() {
-
+        this.ctx.fillColor = this._background.color;
+        this.ctx.fillRect(0, 0, this.width, this.height);
     }
 
-    on<N extends keyof ViewEventMap>(name: N, handler:ViewEventMap[N]){
+    on<N extends keyof ViewEventMap>(name: N|string, handler:(e:ViewEventMap[N])=>void){
+        name = String(name);
+        if(name.length < 1)
+            throw new TypeError("Invalid event name!");
 
+        if(this.callbacks[name])
+            throw new Error("Event name is already taken!");
+
+        this.callbacks[name] = handler;
     }
 
-    delete(){
+    emit(e:Event) {
+        if(this.callbacks[e.type])
+            this.callbacks[e.type](e);
+    }
+
+    close(){
+        this._running = false;
         this.callbacks[""]();
+        this.emit(new CustomEvent("close"));
+    }
+
+    async wait() {
+        while(this._running)
+            await sleep(1000);
     }
 }
