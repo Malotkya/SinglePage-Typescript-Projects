@@ -73,14 +73,15 @@ export function claimBios(target:HTMLElement) {
 
     canvas.addEventListener("keyup", (e)=>K.reportKeyUp(e));
     canvas.addEventListener("keydown", (e)=>{
-        const code = K.reportKeyDown(e);
-        if(!code.includes("Key")) {
-            e.preventDefault();
-            target.dispatchEvent(new CustomEvent("keyboard", {detail: code}));
+        e.preventDefault();
+        const data = K.reportKeyDown(e);
+        if(data.key === "Space") {
+            data.value = " ";
+        } else if(data.value.length > 1) {
+            data.value = "";
         }
-    });
-    canvas.addEventListener("keypress", (e)=>{
-        target.dispatchEvent(new CustomEvent("keyboard", {detail: e.key}));
+
+        target.dispatchEvent(new CustomEvent("keyboard", {detail: data}));
     });
 
     canvas.addEventListener("mousedown", (e)=>{
