@@ -39,9 +39,14 @@ let button:keyof typeof MOUSE_BUTTONS|-1 = -1;
          * @param {MouseEvent} event 
          * @returns {Position}
          */
-export function reportMouseDown(event:MouseEvent, dim:Dimensions):Position {
+export function reportMouseDown(event:MouseEvent, dim:Dimensions):Position|null {
     button = event.button;
-    start = getPostion(event, dim);
+    if(button === 0) {
+        start = getPostion(event, dim);
+    } else {
+        start = null;
+    }
+   
     return start;
 };
 
