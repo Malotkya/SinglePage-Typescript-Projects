@@ -18,8 +18,8 @@ const KEY_CODES = [
     "ShiftLeft", "KeyZ", "KeyX", "KeyC", "KeyV", "KeyB", "KeyN", "KeyM", "Comma", "Period", "Slash", "ShiftRight",
     "ControlLeft", "AltLeft", "Space", "AltRight", "ControlRight",
     "ArrowLeft", "ArrowUp", "ArrowDown", "ArrowRight", "Home", "End", "PageUp", "PageDown",
-    "NumLock", "NumbadDivide", "NumpadMultiply", "NumpadSubtract", "NumbpadAdd", "NumbpadEnter", "NumpadDecimal",
-    "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4", "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9",
+    "NumLock", "NumpadDivide", "NumpadMultiply", "NumpadSubtract", "NumpadAdd", "NumbpadEnter", "NumpadDecimal",
+    "Numpad0", "Numpad1", "Numpad2", "Numpad3", "Numpad4", "Numpad5", "Numpad6", "Numpad7", "Numpad8", "Numpad9", "NumpadEnter",
     "Pause"
 ] as const;
 export type KeyCode = typeof KEY_CODES[number];
@@ -29,15 +29,23 @@ export type KeyCode = typeof KEY_CODES[number];
  * @param {KeyboardEvent} event 
  * @returns {[KeyCode, number]}
  */
-function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number, alt:number|undefined] {
-    const code = event.ctrlKey? "ControlLeft": event.code as KeyCode;
-    const index = KEY_CODES.indexOf(code);
-    const alt = event.ctrlKey? KEY_CODES.indexOf("Key"+event.key.toLocaleUpperCase() as KeyCode): undefined;
+function getKeyCode(event:KeyboardEvent):[code:KeyCode, index:number, alt:KeyCode|undefined, altIndex:number|undefined] {
+    const code = event.ctrlKey
+        ? "ControlLeft"
+        : event.altKey
+            ? "AltLeft"
+            : event.shiftKey
+                ? "ShiftLeft"
+                : event.code as KeyCode;
+
+    const index  = KEY_CODES.indexOf(code);
+    const alt     = code !== event.code?  event.code as KeyCode: undefined;
+    const altIndex = alt? KEY_CODES.indexOf(alt): undefined;
 
     if(index < 0)
         console.warn(`Unkown key code: ${code}!`);
 
-    return [code, index, alt];
+    return [code, index, alt, altIndex];
 }
 
 let KeysPressed:number = 0;
@@ -47,12 +55,15 @@ let KeysPressed:number = 0;
          * @param {KeyboardEvent} event 
          * @returns {KeyCode}
          */
-export function reportKeyDown(event: KeyboardEvent):KeyCode {
-    const [code, index, alt] = getKeyCode(event);
+export function reportKeyDown(event: KeyboardEvent):KeyboardData {
+    const [key, index, alt, altIndex] = getKeyCode(event);
     KeysPressed |= (1 << index);
-    if(alt !== undefined && alt >= 0)
-        KeysPressed |= (1 << alt);
-    return code ;
+    if(altIndex !== undefined && altIndex >= 0)
+        KeysPressed |= (1 << altIndex);
+    return {
+        value: event.key,
+        key, alt
+    };
 }
 
 /** Report Key Up
@@ -60,12 +71,15 @@ export function reportKeyDown(event: KeyboardEvent):KeyCode {
  * @param {KeyboardEvent} event 
  * @returns {KeyCode}
  */
-export function reportKeyUp(event: KeyboardEvent):KeyCode {
-    const [code, index, alt] = getKeyCode(event);
+export function reportKeyUp(event: KeyboardEvent):KeyboardData {
+    const [key, index, alt, altIndex] = getKeyCode(event);
     KeysPressed &= ~(1 << index);
-    if(alt !== undefined && alt >= 0)
-        KeysPressed &= ~(1 << alt);
-    return code ;
+    if(altIndex !== undefined && altIndex >= 0)
+        KeysPressed &= ~(1 << altIndex);
+    return {
+        value: event.key,
+        key, alt
+    };
 }
 
 /** Is Key Pressed
@@ -81,6 +95,12 @@ export function isKeyPressed(code: KeyCode):boolean {
     }
 
     return (KeysPressed & (1 << index)) !== 0;
+}
+
+export interface KeyboardData {
+    key: KeyCode
+    alt?: KeyCode
+    value: string
 }
 
 export interface KeyboardType {
