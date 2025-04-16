@@ -373,13 +373,15 @@ export function scroll(targetHeight:number = y, override:boolean = scrollLocked)
 
 export type PixelFunction = (m:PixelMatrix)=>void;
 
-/** Makes sure their is enough height for a new viewport
+/** Get View Data
  * 
- * @returns y-axis top of view
- */
-export function getView(): ViewTemplate
-export function getView(width:number,  height:number): ViewTemplate
-export function getView(w:number = width * char.width, h:number = height * char.height): ViewTemplate{
+ * @param {number} width
+ * @param {number} height
+ * @returns {Object}
+*/
+export function getView(): {template: ViewTemplate, init:(view:BiosView|null)=>void}
+export function getView(width:number,  height:number): {template: ViewTemplate, init:(view:BiosView|null)=>void}
+export function getView(w:number = width * char.width, h:number = height * char.height): {template: ViewTemplate, init:(view:BiosView|null)=>void}{
     if(width >= document.body.clientWidth)
         throw new Error("Width is to large!");
 
@@ -391,159 +393,161 @@ export function getView(w:number = width * char.width, h:number = height * char.
     let size = char.height;
     return {
         init:(v:BiosView|null)=>view = v,
-        font: {
-            width: char.width,
-            height: char.height,
-            color: font
-        },
-        background: {
-            color: background,
-            width, height
-        },
-        mouse: {
-            get position() {
-                return M.position()
+        template: {
+            font: {
+                width: char.width,
+                height: char.height,
+                color: font
             },
-
-            isButtonPressed(b:M.MouseButton) {
-                return M.isButtonPressed(b)
-            }
-        } satisfies M.MouseType,
-        keyboard: {
-            isKeyPressed(code:K.KeyCode) {
-                return K.isKeyPressed(code);
-            }
-        } satisfies K.KeyboardType,
-        ctx: {
-            get fillColor() {
-                return Color.from(ctx!.fillStyle as string)
+            background: {
+                color: background,
+                width, height
             },
-            set fillColor(c:Color) {
-                ctx!.fillStyle = c.toString();
-            },
-            get fontSize() {
-                return size;
-            },
-            set fontSize(n:number){
-                size = n;
-                ctx!.font = `${n-1}px monospace`;
-            },
-            get lineCap() {
-                return ctx!.lineCap
-            },
-            set lineCap(s:"butt"|"round"|"square") {
-                ctx!.lineCap = s;
-            },
-            get lineDashOffset() {
-                return ctx!.lineDashOffset
-            },
-            set lineDashOffset(n:number) {
-                ctx!.lineDashOffset = n;
-            },
-            get lineJoin() {
-                return ctx!.lineJoin
-            },
-            set lineJoin(s:"round"|"bevel"|"miter"){
-                ctx!.lineJoin = s;
-            },
-            get lineWidth(){
-                return ctx!.lineWidth;
-            },
-            set lineWidth(n:number){
-                ctx!.lineWidth = n;
-            },
-            get miterLimit(){
-                return ctx!.miterLimit;
-            },
-            set miterLimit(n:number){
-                ctx!.miterLimit = n;
-            },
-            get strokeStyle() {
-                return Color.from(ctx!.strokeStyle as string);
-            },
-            set strokeStyle(c:Color){
-                ctx!.strokeStyle = c.toString();
-            },
-            get arc(){
-                return ctx!.arc;
-            }, 
-            get arcTo(){
-                return ctx!.arcTo;
-            },
-            get beginPath(){
-                return ctx!.beginPath;
-            },
-            get clearRect(){
-                return ctx!.clearRect;
-            }, 
-            get closePath(){
-                return ctx!.closePath;
-            },
-            get ellipse(){
-                return ctx!.ellipse;
-            },
-            get fillRect(){
-                return ctx!.fillRect;
-            }, 
-            get fillText(){
-                return ctx!.fillText;
-            },
-            get lineTo(){
-                return ctx!.lineTo;
-            },
-            get moveTo(){
-                return ctx!.moveTo;
-            }, 
-            get rect(){
-                return ctx!.rect;
-            },
-            get roundRect(){
-                return ctx!.roundRect;
-            },
-            get setLineDash(){
-                return ctx!.setLineDash;
-            },
-            get stroke(){
-                return ctx!.stroke;
-            },
-            get strokeRect(){
-                return ctx!.strokeRect;
-            }, 
-            get strokeText(){
-                return ctx!.strokeText;
-            },
-            accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction) {
-                if(typeof x !== "number") {
-                    func = x;
-                    w = ctx!.canvas.width-1;
-                    h = ctx!.canvas.height-1;
-                    x = 0;
-                    y = 0;
-                } else if(typeof h !== "number") {
-                    w = x;
-                    h = y;
-                    x = 0;
-                    y = 0;
+            mouse: {
+                get position() {
+                    return M.position()
+                },
+    
+                isButtonPressed(b:M.MouseButton) {
+                    return M.isButtonPressed(b)
                 }
-
-                if(w === undefined || h === undefined || func === undefined)
-                    throw new Error("Invaliad Arguments!");
-
-                if(x === undefined || x < 0 || x > w)
-                    throw new TypeError("X is out of bounds!");
-
-                if(y === undefined || y < 0 || y > h)
-                    throw new TypeError("Y is out of bounds!");
-
-                if(w < 1 || (w+x) > ctx!.canvas.width)
-                    throw new TypeError("Width is out of bounds!");
-
-                if(h < 1 || (h+y) > ctx!.canvas.height)
-                    throw new TypeError("Height is out of bounds!");
-
-                const image = ctx!.getImageData(x, y, w, h);
-                func(new PixelMatrix(image));
-                ctx!.putImageData(image, x, y);
+            } satisfies M.MouseType,
+            keyboard: {
+                isKeyPressed(code:K.KeyCode) {
+                    return K.isKeyPressed(code);
+                }
+            } satisfies K.KeyboardType,
+            ctx: {
+                get fillColor() {
+                    return Color.from(ctx!.fillStyle as string)
+                },
+                set fillColor(c:Color) {
+                    ctx!.fillStyle = c.toString();
+                },
+                get fontSize() {
+                    return size;
+                },
+                set fontSize(n:number){
+                    size = n;
+                    ctx!.font = `${n-1}px monospace`;
+                },
+                get lineCap() {
+                    return ctx!.lineCap
+                },
+                set lineCap(s:"butt"|"round"|"square") {
+                    ctx!.lineCap = s;
+                },
+                get lineDashOffset() {
+                    return ctx!.lineDashOffset
+                },
+                set lineDashOffset(n:number) {
+                    ctx!.lineDashOffset = n;
+                },
+                get lineJoin() {
+                    return ctx!.lineJoin
+                },
+                set lineJoin(s:"round"|"bevel"|"miter"){
+                    ctx!.lineJoin = s;
+                },
+                get lineWidth(){
+                    return ctx!.lineWidth;
+                },
+                set lineWidth(n:number){
+                    ctx!.lineWidth = n;
+                },
+                get miterLimit(){
+                    return ctx!.miterLimit;
+                },
+                set miterLimit(n:number){
+                    ctx!.miterLimit = n;
+                },
+                get strokeStyle() {
+                    return Color.from(ctx!.strokeStyle as string);
+                },
+                set strokeStyle(c:Color){
+                    ctx!.strokeStyle = c.toString();
+                },
+                get arc(){
+                    return ctx!.arc;
+                }, 
+                get arcTo(){
+                    return ctx!.arcTo;
+                },
+                get beginPath(){
+                    return ctx!.beginPath;
+                },
+                get clearRect(){
+                    return ctx!.clearRect;
+                }, 
+                get closePath(){
+                    return ctx!.closePath;
+                },
+                get ellipse(){
+                    return ctx!.ellipse;
+                },
+                get fillRect(){
+                    return ctx!.fillRect;
+                }, 
+                get fillText(){
+                    return ctx!.fillText;
+                },
+                get lineTo(){
+                    return ctx!.lineTo;
+                },
+                get moveTo(){
+                    return ctx!.moveTo;
+                }, 
+                get rect(){
+                    return ctx!.rect;
+                },
+                get roundRect(){
+                    return ctx!.roundRect;
+                },
+                get setLineDash(){
+                    return ctx!.setLineDash;
+                },
+                get stroke(){
+                    return ctx!.stroke;
+                },
+                get strokeRect(){
+                    return ctx!.strokeRect;
+                }, 
+                get strokeText(){
+                    return ctx!.strokeText;
+                },
+                accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction) {
+                    if(typeof x !== "number") {
+                        func = x;
+                        w = ctx!.canvas.width-1;
+                        h = ctx!.canvas.height-1;
+                        x = 0;
+                        y = 0;
+                    } else if(typeof h !== "number") {
+                        w = x;
+                        h = y;
+                        x = 0;
+                        y = 0;
+                    }
+    
+                    if(w === undefined || h === undefined || func === undefined)
+                        throw new Error("Invaliad Arguments!");
+    
+                    if(x === undefined || x < 0 || x > w)
+                        throw new TypeError("X is out of bounds!");
+    
+                    if(y === undefined || y < 0 || y > h)
+                        throw new TypeError("Y is out of bounds!");
+    
+                    if(w < 1 || (w+x) > ctx!.canvas.width)
+                        throw new TypeError("Width is out of bounds!");
+    
+                    if(h < 1 || (h+y) > ctx!.canvas.height)
+                        throw new TypeError("Height is out of bounds!");
+    
+                    const image = ctx!.getImageData(x, y, w, h);
+                    func(new PixelMatrix(image));
+                    ctx!.putImageData(image, x, y);
+                }
             }
         }
     };
