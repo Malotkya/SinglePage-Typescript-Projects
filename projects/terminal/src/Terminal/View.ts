@@ -130,27 +130,30 @@ export default class View implements BiosView, SystemView, UserView{
         return this._background.height;
     }
 
-    get keyboard(){
-        return this.callbacks["keyboard"] as SystemView["keyboard"];
+    keyboard(event:CustomEventInit<KeyCode>){
+        if(this.callbacks["keyboard"])
+            this.callbacks["keyboard"](event);
     }
 
-    get mouse(){
-        return this.callbacks["mouse"] as SystemView["mouse"];
+    mouse(event:CustomEventInit<MouseButton>){
+        if(this.callbacks["mouse"])
+            this.callbacks["mouse"](event);
     }
 
-    get render(){
-        return this.callbacks["render"] as SystemView["render"];
+    render(event:Event){
+        if(this.callbacks["mouse"])
+            this.callbacks["mouse"](event);
     }
 
     print(x:number, y:number, text:string) {
         this.ctx.fillColor = this.font.color;
         this.ctx.fontSize  = this.font.height;
-        this.ctx.fillText(text, x*this.font.width, y*(this.font.height+1));
+        this.ctx.fillText(text, (x+1)*this.font.width, (y+1)*(this.font.height+1));
     }
 
     flip(x:number, y:number){
-        x = (x*this.font.width) - HIGHLIGHT_OFFSET;
-        y = (y*this.font.height) - HIGHLIGHT_OFFSET;
+        x = ((x+1)*this.font.width) - HIGHLIGHT_OFFSET;
+        y = ((y+1)*this.font.height) - HIGHLIGHT_OFFSET;
 
         this.ctx.accessPixels(x, y, this.font.width, this.font.height, (matrix)=>{
             for(const pixel of matrix){
