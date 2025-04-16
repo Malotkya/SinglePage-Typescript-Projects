@@ -17,14 +17,6 @@ export const HIGHLIGHT_OFFSET = 1;
 
 export type HighlighMap = [Position, Position];
 
-const OverrideKeys:K.KeyCode[] = [
-    "Backspace",
-    "ControlLeft",
-    "ControlRight",
-    "ArrowUp", 
-    "ArrowDown",
-]
-
 interface RenderContext extends CanvasRenderingContext2D {
     interface: HTMLElement
 }
@@ -81,7 +73,7 @@ export function claimBios(target:HTMLElement) {
     canvas.addEventListener("keyup", (e)=>K.reportKeyUp(e));
     canvas.addEventListener("keydown", (e)=>{
         const code = K.reportKeyDown(e);
-        if(OverrideKeys.includes(code)) {
+        if(!code.includes("Key")) {
             e.preventDefault();
             target.dispatchEvent(new CustomEvent("keyboard", {detail: code}));
         }
