@@ -194,11 +194,11 @@ function grow(): void {
  * @param {number} x
  * @param {number} y
  */
-function inverse(x:number, y:number, stretch:boolean = true) {
+function inverse(x:number, y:number) {
     x = ((x+1)*char.width) - HIGHLIGHT_OFFSET;
     y = ((y+1)*char.height)- Y_OFFSET - HIGHLIGHT_OFFSET;
 
-    const image = ctx!.getImageData(x, y, char.width, char.height+<any>stretch);
+    const image = ctx!.getImageData(x, y, char.width, char.height);
 
     for(let i=0; i<image.data.length; i+=4){
         if(background.equals(image.data[i], image.data[i+1], image.data[i+2])) {
@@ -348,7 +348,7 @@ export function cursor(cx:number = x, cy:number = y) {
     if(ctx === null)
         throw new Error("Bio is not yet claimed!");
 
-    inverse(cx, cy, false);
+    inverse(cx, cy);
 }
 
 /** Scroll to y-axis
