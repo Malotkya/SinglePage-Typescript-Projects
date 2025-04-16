@@ -24,12 +24,20 @@ export function sleep(n:number = 1):Promise<void> {
  * @returns {number}
  */
 export function NumberOr(value:unknown, d:number):number {
-    const n = Number(value);
+    switch(value){
+        case "":
+        case undefined:
+        case null:
+            return d;
 
-    if(isNaN(n))
-        return d;
+        default:
+            const n = Number(value);
 
-    return n;
+            if(isNaN(n))
+                return d;
+
+            return n;
+    }
 }
 
 /** Get Color Or Default
