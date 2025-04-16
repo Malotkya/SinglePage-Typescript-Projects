@@ -7,27 +7,13 @@ import * as M from './Mouse';
 import Settings, {SettingsMap, SettingsName, updateEvent} from './Settings';
 import Color from "@/Color";
 import Position, { normalizePositions, Dimensions } from "./Position";
+import {BiosView, ViewTemplate} from "./View";
+import PixelMatrix from "./PixelMatrix";
 
 const RATIO = 0.6;
 export const Y_OFFSET = 5;
-const HIGHLIGHT_OFFSET = 1;
+export const HIGHLIGHT_OFFSET = 1;
 
-export interface ViewTemplate {
-    top: number,
-    size: {
-        width: number
-        height: number
-    },
-    font: {
-        width: number
-        height: number
-        color: string
-        size: string
-    },
-    background: {
-        color: string
-    }
-}
 
 export type HighlighMap = [Position, Position];
 
@@ -42,7 +28,9 @@ const OverrideKeys:K.KeyCode[] = [
 interface RenderContext extends CanvasRenderingContext2D {
     interface: HTMLElement
 }
+
 let ctx:RenderContext|null = null;
+let view:BiosView|null = null;
 
 /////// Environment Variables modified by user. ///////
 let background:Color = Settings.backgroundColor;
@@ -64,6 +52,16 @@ let scrollLocked:boolean = true;
 
 
 //////////////// Event Listeners ////////////////////
+
+/** Claim Bios
+ * 
+ * Takes claim of bios if it can, and integrates the given interface with a canvas.
+ * 
+ * Returns helper interface to make interacting with the bios easier.
+ * 
+ * @param {HTMLElement} target 
+ * @returns {BiosType}
+ */
 export function claimBios(target:HTMLElement) {
     if(ctx !== null)
         throw new Error("Bios has already been claimed by another element!");
@@ -145,13 +143,13 @@ export function claimBios(target:HTMLElement) {
             isButtonPressed(b:M.MouseButton) {
                 return M.isButtonPressed(b)
             }
-        },
+        } satisfies M.MouseType,
 
         Keyboard: {
             isKeyPressed(code:K.KeyCode) {
                 return K.isKeyPressed(code);
             }
-        },
+        } satisfies K.KeyboardType,
 
         get highlight():HighlighMap|null {
             return highlightMap
@@ -161,6 +159,19 @@ export function claimBios(target:HTMLElement) {
     }
 }
 export type BiosType = ReturnType<typeof claimBios>
+
+/** Release Bios
+ * 
+ * @param target 
+ */
+export function releaseBio(target:HTMLElement) {
+    if(ctx?.interface === target) {
+        if(view !== null)
+            throw new Error("Unable to release bios when View is being used!");
+
+        ctx = null;
+    }
+}
 
 ///////////////// Private Functions //////////////////
 
@@ -308,6 +319,9 @@ export function put(x:number, y:number, c:string) {
  * @param {string} s 
  */
 export function print(s:string){
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+
     for(let i=0; i<s.length; i++) {
         let char = s.charAt(i);
         if(char == '\n' || char == '\r') {
@@ -328,6 +342,9 @@ export function print(s:string){
 }
 
 export function cursor(cx:number = x, cy:number = y) {
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+
     inverse(cx, cy, false);
 }
 
@@ -354,51 +371,180 @@ export function scroll(targetHeight:number = y, override:boolean = scrollLocked)
     scrollLocked = true;
 }
 
-    
+export type PixelFunction = (m:PixelMatrix)=>void;
 
-        /** Makes sure their is enough height for a new viewport
-         * 
-         * @returns y-axis top of view
-         */
-        /*public view(): ViewTemplate{
-            let top = (this.y-1) * this._charHeight;
+/** Makes sure their is enough height for a new viewport
+ * 
+ * @returns y-axis top of view
+ */
+export function getView(): ViewTemplate
+export function getView(width:number,  height:number): ViewTemplate
+export function getView(w:number = width * char.width, h:number = height * char.height): ViewTemplate{
+    if(width >= document.body.clientWidth)
+        throw new Error("Width is to large!");
 
-            this.y += this.height;
-            this.x = 1;
+    if(height >= document.body.clientHeight)
+        throw new Error("Height is to large!");
 
-            if(this.y >= this.totalHeight())
-                this.grow();
+    clear();
 
-            //Have to wait for the growth to render.
-            window.setTimeout(()=>this._target.scrollTop = top+2, 10);
+    let size = char.height;
+    return {
+        init:(v:BiosView|null)=>view = v,
+        font: {
+            width: char.width,
+            height: char.height,
+            color: font
+        },
+        background: {
+            color: background,
+            width, height
+        },
+        mouse: {
+            get position() {
+                return M.position()
+            },
 
-            this._gl.fillStyle = this._backgroundColor;
-            this._gl.fillRect( 0, top+1, this._gl.canvas.width, this._gl.canvas.height);
-            this._gl.fillStyle = this._fontColor;
-
-            return {
-                top: top,
-                size: {
-                    width: this._width,
-                    height: this._height
-                },
-                font: {
-                    width: this._charWidth,
-                    height: this._charHeight,
-                    color: this._fontColor,
-                    size: this._charHeight,
-                    string: this._gl.font
-                },
-                background: {
-                    color: this._backgroundColor
+            isButtonPressed(b:M.MouseButton) {
+                return M.isButtonPressed(b)
+            }
+        } satisfies M.MouseType,
+        keyboard: {
+            isKeyPressed(code:K.KeyCode) {
+                return K.isKeyPressed(code);
+            }
+        } satisfies K.KeyboardType,
+        ctx: {
+            get fillColor() {
+                return Color.from(ctx!.fillStyle as string)
+            },
+            set fillColor(c:Color) {
+                ctx!.fillStyle = c.toString();
+            },
+            get fontSize() {
+                return size;
+            },
+            set fontSize(n:number){
+                size = n;
+                ctx!.font = `${n-1}px monospace`;
+            },
+            get lineCap() {
+                return ctx!.lineCap
+            },
+            set lineCap(s:"butt"|"round"|"square") {
+                ctx!.lineCap = s;
+            },
+            get lineDashOffset() {
+                return ctx!.lineDashOffset
+            },
+            set lineDashOffset(n:number) {
+                ctx!.lineDashOffset = n;
+            },
+            get lineJoin() {
+                return ctx!.lineJoin
+            },
+            set lineJoin(s:"round"|"bevel"|"miter"){
+                ctx!.lineJoin = s;
+            },
+            get lineWidth(){
+                return ctx!.lineWidth;
+            },
+            set lineWidth(n:number){
+                ctx!.lineWidth = n;
+            },
+            get miterLimit(){
+                return ctx!.miterLimit;
+            },
+            set miterLimit(n:number){
+                ctx!.miterLimit = n;
+            },
+            get strokeStyle() {
+                return Color.from(ctx!.strokeStyle as string);
+            },
+            set strokeStyle(c:Color){
+                ctx!.strokeStyle = c.toString();
+            },
+            get arc(){
+                return ctx!.arc;
+            }, 
+            get arcTo(){
+                return ctx!.arcTo;
+            },
+            get beginPath(){
+                return ctx!.beginPath;
+            },
+            get clearRect(){
+                return ctx!.clearRect;
+            }, 
+            get closePath(){
+                return ctx!.closePath;
+            },
+            get ellipse(){
+                return ctx!.ellipse;
+            },
+            get fillRect(){
+                return ctx!.fillRect;
+            }, 
+            get fillText(){
+                return ctx!.fillText;
+            },
+            get lineTo(){
+                return ctx!.lineTo;
+            },
+            get moveTo(){
+                return ctx!.moveTo;
+            }, 
+            get rect(){
+                return ctx!.rect;
+            },
+            get roundRect(){
+                return ctx!.roundRect;
+            },
+            get setLineDash(){
+                return ctx!.setLineDash;
+            },
+            get stroke(){
+                return ctx!.stroke;
+            },
+            get strokeRect(){
+                return ctx!.strokeRect;
+            }, 
+            get strokeText(){
+                return ctx!.strokeText;
+            },
+            accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction) {
+                if(typeof x !== "number") {
+                    func = x;
+                    w = ctx!.canvas.width-1;
+                    h = ctx!.canvas.height-1;
+                    x = 0;
+                    y = 0;
+                } else if(typeof h !== "number") {
+                    w = x;
+                    h = y;
+                    x = 0;
+                    y = 0;
                 }
-            };
-        },*/
 
-        /** Redner View
-         * 
-         * @param {View} v 
-         */
-        /* render(v: View){
-            this._gl.putImageData(v.render(), 0, v.top);
-        }*/
+                if(w === undefined || h === undefined || func === undefined)
+                    throw new Error("Invaliad Arguments!");
+
+                if(x === undefined || x < 0 || x > w)
+                    throw new TypeError("X is out of bounds!");
+
+                if(y === undefined || y < 0 || y > h)
+                    throw new TypeError("Y is out of bounds!");
+
+                if(w < 1 || (w+x) > ctx!.canvas.width)
+                    throw new TypeError("Width is out of bounds!");
+
+                if(h < 1 || (h+y) > ctx!.canvas.height)
+                    throw new TypeError("Height is out of bounds!");
+
+                const image = ctx!.getImageData(x, y, w, h);
+                func(new PixelMatrix(image));
+                ctx!.putImageData(image, x, y);
+            }
+        }
+    };
+}
