@@ -79,7 +79,6 @@ export interface ViewTemplate {
     font: SpacialData
     background: SpacialData
     ctx: ViewContext
-    init: (view:View|null)=>void
     mouse: MouseType
     keyboard: KeyboardType
 }
@@ -92,16 +91,16 @@ export default class View implements BiosView, SystemView, UserView{
     readonly Keyboard: KeyboardType;
     private callbacks:Record<string, Function>;
 
-    constructor(template: ViewTemplate){
-        const {font, background, ctx, mouse, keyboard, init} = template;
+    constructor(template: ViewTemplate, callback:(v:View|null)=>void){
+        const {font, background, ctx, mouse, keyboard} = template;
         this.font = font;
         this._background = background;
         this.ctx = ctx;
         this.Mouse = mouse;
         this.Keyboard = keyboard;
         this.callbacks = {};
-        this.callbacks["clearBios"] = ()=>init(null);
-        init(this);
+        this.callbacks[""] = ()=>callback(null);
+        callback(this);
     }
 
     get backgroundColor() {
@@ -167,6 +166,6 @@ export default class View implements BiosView, SystemView, UserView{
     }
 
     delete(){
-        this.callbacks["clearBios"]();
+        this.callbacks[""]();
     }
 }
