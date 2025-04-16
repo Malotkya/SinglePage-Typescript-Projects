@@ -2,8 +2,8 @@
  * 
  * @author Alex Malotky
  */
-import {BiosType, HighlighMap, claimBios} from "./Bios";
-import View from "./View";
+import {BiosType, HighlighMap, claimBios, getView} from "./Bios";
+import View, {SystemView, UserView} from "./View";
 import {InputStream, OutputStream, getHighlighted} from "./Stream";
 import App, {HelpFunction, MainFunction} from "./App";
 import { KeyCode } from "./Keyboard";
@@ -31,7 +31,7 @@ const callstack: Process[] = [];
 const history: History<string> = new History("System");
 const input = new InputStream();
 const output = new OutputStream();
-let view: View|null = null;
+let view: SystemView|null = null;
 let password = false;
 let running = false;
 
@@ -175,13 +175,16 @@ const System = {
 
     /** Get View
      * 
-     * @returns {View}
+     * @returns {UserView}
      */
-    async getView(){
-        output.flush();
+    getView(w?:number, h?:number): UserView{
+        const {template, init} = getView(w!, h!);
+        const clear = (v:View|null) => {
+            view = v;
+            init(v);
+        }
 
-        view = <any>null; //new View(this.#bios.view());
-        return view;
+        return new View(template, clear);
     },
 
     get history():History<string> {
@@ -229,7 +232,7 @@ function getSystemHighlighted(map:HighlighMap, width:number):string {
  * 
  * Acts as the interface between the User and the System through the Bios.
  */
-class TerminalInterface extends HTMLElement implements View{
+class TerminalInterface extends HTMLElement{
     #bios: BiosType;
 
     constructor(){
@@ -333,7 +336,7 @@ class TerminalInterface extends HTMLElement implements View{
         if(output.ready)
             this.#bios.print(output.buffer.padEnd(1, "\n"));
         
-        if( !password) {
+        if(!password) {
             this.#bios.print(PROMPT+input.buffer);
         }
     
