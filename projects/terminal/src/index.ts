@@ -8,9 +8,11 @@ System.addFunction("about", "Displays more information about the terminal app.",
     System.println("I plan to continue to expand the functionality of thie terminal");
     System.println("Goals Include:");
     System.println("[*]: Change the terminal to be desplayed using 2D Graphics.");
-    System.println("[ ]: Add automatic scrolling functionality");
-    System.println("[ ]: Persist Settings");
-    System.println("[ ]: Create a basic game like snake");
+    System.println("[*]: Add automatic scrolling functionality");
+    System.println("[*]: Persist Settings");
+    System.println("[*]: Create a basic game like snake");
+    System.println("[ ]: Rework Settings into a System Registry (Local Storage or IDB");
+    System.println("[ ]: Create Basic File System & User Seperation / Login (IDB)");
 });
 System.addFunction("exit", "Closes the terminal.", ()=>{
     System.println("Good Bie!")
