@@ -38,6 +38,7 @@ class Snake extends App {
             let snake:Position[] = [];
             let food:Position = {x:-1, y:-1};
             let speed:number = 500;
+            let maxScore:number = 0;
 
             const start = () => {
                 const cX = Math.ceil(maxX / 2);
@@ -50,15 +51,20 @@ class Snake extends App {
             }
 
             const collision = (p:Position) => {
-                if(p.y < 1 || p.y >= maxY)
+                if(p.y < 1 || p.y >= maxY) {
                     return true;
+                }
+                    
 
-                if(p.x < 0 || p.x > maxX)
+                if(p.x < 1 || p.x >= maxX) {
                     return true;
+                }
 
                 for(const s of snake){
-                    if(s.x === p.x && s.y === s.x)
+                    if(s.x === p.x && s.y === p.y) {
                         return true;
+                    }
+                        
                 }
 
                 return false;
@@ -103,6 +109,7 @@ class Snake extends App {
 
                 if(collision(head)){
                     errorMessage = "Game Over!";
+                    maxScore = Math.max(maxScore, snake.length);
                 } else if(head.x === food.x && head.y === food.y) {
                     food = randPos();
                 } else {
@@ -123,9 +130,13 @@ class Snake extends App {
                 for(const p of snake){
                     view.print(p.x, p.y, "O");
                 }
-                view.print(maxX, 0, "X");
-                view.print(0, 0, `Use WASD/Arrow Keys to move. |  Score ${snake.length}`);
-                view.print(0, maxY, "Change speed of snake by pressing number key: 1 = slowest  9 = fastest.");
+
+                view.print(0, 0, `XX  Use WASD/Arrow Keys to move | Space to Start | Esc to Quit |  Score ${snake.length}  `.padEnd(maxX+1, "X"));
+                for(let i=1; i<maxY; i++) {
+                    view.print(0, i, "X");
+                    view.print(maxX, i, "X");
+                }
+                view.print(0, maxY, "XX  Change speed of snake by pressing number key: 1 = slowest  9 = fastest  ".padEnd(maxX+1, "X"));
                 if(errorMessage)
                     view.print(Math.floor((maxX - errorMessage.length)/2), Math.floor(maxY / 2), errorMessage);
             });
@@ -171,6 +182,7 @@ class Snake extends App {
 
             view.on("close", ()=>{
                 window.clearTimeout(timeoutId);
+                System.println("Max score: " + maxScore);
             })
 
             return view.wait();
