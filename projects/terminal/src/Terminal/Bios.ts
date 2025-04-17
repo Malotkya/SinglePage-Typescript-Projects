@@ -249,7 +249,7 @@ function highlight(){
  */
 function render() {
     clear();
-    if(ctx!.interface.dispatchEvent(new CustomEvent("render"))){
+    if(ctx!.interface.dispatchEvent(new CustomEvent("render", {cancelable: true}))){
         highlight();
     }
     requestAnimationFrame(render);
@@ -401,7 +401,7 @@ export function getView(w:number = width * char.width, h:number = height * char.
     ctx.interface.style.width = `${w}px`;
     ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
 
-    let size = char.width;
+    let size:Dimensions = JSON.parse(JSON.stringify(char));
     return {
         init:(v:BiosView|null)=>{
             view = v
@@ -448,11 +448,18 @@ export function getView(w:number = width * char.width, h:number = height * char.
                     ctx!.fillStyle = c.toString();
                 },
                 get fontSize() {
-                    return size;
+                    return size.height;
                 },
                 set fontSize(n:number){
-                    size = n;
+                    size.height = n;
                     ctx!.font = `${n-1}px monospace`;
+                },
+                get fontWidth() {
+                    return size.width;
+                },
+                set fontWidth(n:number){
+                    size.width = n;
+                    ctx!.letterSpacing = `${n - (size.height / 2)}px`;
                 },
                 get lineCap() {
                     return ctx!.lineCap
