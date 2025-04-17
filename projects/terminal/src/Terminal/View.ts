@@ -12,6 +12,7 @@ import Color from "@/Color";
 interface ViewContext {
     fillColor: Color
     fontSize: number
+    fontWidth: number
     lineCap: "butt"|"round"|"square"
     lineDashOffset:number
     lineJoin: "round"|"bevel"|"miter"
@@ -148,7 +149,10 @@ export default class View implements BiosView, SystemView, UserView{
     print(x:number, y:number, text:string) {
         this.ctx.fillColor = this.font.color;
         this.ctx.fontSize  = this.font.height;
-        this.ctx.fillText(text, (x+1)*this.font.width, (y+1)*(this.font.height+1));
+
+        y++;
+        for(const c of text)
+            this.ctx.fillText(c, (++x)*this.font.width, (y)*(this.font.height+1));
     }
 
     flip(x:number, y:number){
