@@ -14,7 +14,7 @@ const listeners:Record<string, StorageCallback[]> = {};
  * @param {string} key 
  * @param {StorageCallback} callback 
  */
-export function storageListener(key:string, callback:StorageCallback) {
+export function storageListener(key:string, callback:StorageCallback, imediate:boolean = true) {
     if(typeof key !== "string")
         throw new TypeError("Storage key must be a string!");
     if(typeof callback !== "function" || callback.length < 1)
@@ -26,7 +26,8 @@ export function storageListener(key:string, callback:StorageCallback) {
         listeners[key] = [callback];
     }
 
-    callback(localStorage.getItem(key) || "");
+    if(imediate)
+        callback(localStorage.getItem(key) || "");
 }
 
 window.addEventListener("storage", (event:StorageEvent)=>{
