@@ -13,6 +13,19 @@ interface PixelData {
     alpha:number
 }
 
+/** Pixel Reference
+ * 
+ * Seperate from Pixel Data in that changing its value will update
+ * the value in the image as well.
+ * 
+ */
+interface PixelReference {
+    red:number,
+    green:number,
+    blue:number,
+    alpha:number
+}
+
 /** Pixel Matrix Iterator
  * 
  */
@@ -20,7 +33,7 @@ interface PixelMatrixIterator {
     i: number
     next:()=>{
         done: boolean
-        value: PixelData
+        value: PixelReference
     }
 }
 
@@ -67,41 +80,67 @@ export default class PixelMatrix {
             this._iamge.data[i+3] = alpha;
     }
 
-    [Symbol.iterator]():PixelMatrixIterator {
+    private getRef(i:number):PixelReference {
         const img = this._iamge.data;
+        return {
+            get red() {
+                return img[i]
+            },
+            set red(n:number){
+                if(n < 0)
+                    img[i] = 0;
+                else if (n > 255)
+                    img[i] = 255;
+                else
+                    img[i] = n;
+            },
+            get green() {
+                return img[i+1]
+            },
+            set green(n:number){
+                if(n < 0)
+                    img[i+1] = 0;
+                else if (n > 255)
+                    img[i+1] = 255;
+                else
+                    img[i+1] = n;
+            },
+            get blue() {
+                return img[i+2]
+            },
+            set blue(n:number){
+                if(n < 0)
+                    img[i+2] = 0;
+                else if (n > 255)
+                    img[i+2] = 255;
+                else
+                    img[i+2] = n;
+            },
+            get alpha() {
+                return img[i+3]
+            },
+            set alpha(n:number){
+                if(n < 0)
+                    img[i+3] = 0;
+                else if (n > 255)
+                    img[i+3] = 255;
+                else
+                    img[i+3] = n;
+            }
+        }
+    }
+
+    [Symbol.iterator]():PixelMatrixIterator {
+        const maxLength = this._iamge.data.length;
+        const self = this;
         return {
             i: 0,
             next() {
-                if(this.i < img.length) {
-                    const i = this.i;
+                if(this.i < maxLength) {
+                    const value = self.getRef(this.i);
                     this.i += 4;
                     return {
-                        value: {
-                            get red() {
-                                return img[i]
-                            },
-                            get green() {
-                                return img[i+1]
-                            },
-                            get blue() {
-                                return img[i+2]
-                            },
-                            get alpha() {
-                                return img[i+3]
-                            },
-                            set red(n:number) {
-                                img[i] = n;
-                            },
-                            set green(n:number) {
-                                img[i+1] = n;
-                            },
-                            set blue(n:number) {
-                                img[i+2] = n;
-                            },
-                            set alpha(n:number) {
-                                img[i+3] = n;
-                            }
-                        },
+                        value,
                         done: false
                     }
                 }
