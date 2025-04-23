@@ -55,8 +55,6 @@ type ViewEventMap = {
     "close":    CustomEvent<undefined>
     [k:string]: CustomEvent<any> 
 }
-type EventName = keyof ViewEventMap;
-let test:EventName = 12;
 
 export interface BiosView {
     readonly font: SpacialData
