@@ -345,11 +345,24 @@ export function print(s:string){
     grow();
 }
 
-export function cursor(cx:number = x, cy:number = y) {
+export function cursor(cx:number = 0, cy:number = 0) {
     if(ctx === null)
         throw new Error("Bio is not yet claimed!");
 
-    inverse(cx, cy);
+    x += cx;
+    y += cy;
+
+    while(x < 0){
+        x += width;
+        y--;
+    }
+
+    while(x > width){
+        x -= width;
+        y++;
+    }
+
+    inverse(x, y);
 }
 
 /** Scroll to y-axis
