@@ -103,7 +103,7 @@ export class InputStream implements Stream {
     /** Backspace Implementation
      */
     public backspace(){
-        this.remove(--this._cursor);
+        this.remove(--this.cursor);
     }
 
     /** Delete Implementation
