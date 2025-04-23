@@ -1,7 +1,7 @@
-import App from '../App';
-import System from ".."
-import Defaults from './Defaults';
-import { saveValue, SettingsName } from '.';
+import App from './Terminal/App';
+import System from "./Terminal"
+import Defaults from './Terminal/Registry/Defaults';
+import Registry, {RegisterKey, RegisterType, SystemSettingsMap, SystemSettingsName} from './Terminal/Registry';
 import Color from '@/Color';
 
 export default class SettingsApp extends App {
@@ -60,53 +60,35 @@ export default class SettingsApp extends App {
     }
 
     reset = () => {
+        const list:{name:RegisterKey, value:RegisterType}[] = [];
         for(const name in Defaults){
-            saveValue(name as SettingsName, Defaults[name as SettingsName]);
+            list.push({
+                name,
+                value: Defaults[name as SystemSettingsName]
+            });
         }
+        Registry.batch(list);
     }
 
-    change(att:string, value:string){
+    change(att:SystemSettingsName|string, value:string){
         switch(att) {
-        case "background-color":
+        case "Background_Color":
+        case "Font_Color":
             try {
-                saveValue("background-color", Color.from(value));
-            } catch (e:any) {
-                return `TypeError: ${value} is not a color!`;
-            }
-            break;
-            
-        case "font-color":
-            try {
-                saveValue("font-color", Color.from(value));
+                Registry.set(att, Color.from(value));
             } catch (e:any) {
                 return `TypeError: ${value} is not a color!`;
             }
             break;
 
-        case "font-size": 
-            let size = Number(value);
-            if(isNaN(size)) {
+        case "Font_Size":
+        case "Screen_Width":
+        case "Screen_Height":
+            let n = Number(value);
+            if(isNaN(n)) {
                 return `TypeError: ${value} is not a number!`;
             } else {
-                saveValue("font-size", size);
-            }
-            break;
-
-        case "screen-width":
-            let width = Number(value);
-            if(isNaN(width)) {
-                return `TypeError: ${value} is not a number!`;
-            } else {
-                saveValue("width", width);
-            }
-            break;
-
-        case "screen-height":
-            let height = Number(value);
-            if(isNaN(height)) {
-                return `TypeError: ${value} is not a number!`;
-            } else {
-                saveValue("width", height);
+                Registry.set(att, n);
             }
             break;
 
