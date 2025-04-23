@@ -270,7 +270,7 @@ class TerminalInterface extends HTMLElement{
         
         this.addEventListener("keyboard", (event:CustomEventInit<KeyboardData>)=>{
             if(event.detail === undefined)
-                throw new Error("Missing Detail!");
+                throw new Error("Missing Keyboard Detail!");
 
             if(view !== null){
                 view.keyboard(event as any);
@@ -281,7 +281,7 @@ class TerminalInterface extends HTMLElement{
 
         this.addEventListener("mouse", (event:CustomEventInit<MouseButton>)=>{
             if(event.detail === undefined)
-                throw new Error("Missing Detail!");
+                throw new Error("Missing Mouse Detail!");
 
             if(view !== null){
                 view.mouse(event as any);
@@ -316,7 +316,11 @@ class TerminalInterface extends HTMLElement{
 
         switch(key){
             case "Backspace":
-                input.remove();
+                input.backspace();
+                break;
+
+            case "Delete":
+                input.delete();
                 break;
                     
             case "ArrowUp":
@@ -333,6 +337,14 @@ class TerminalInterface extends HTMLElement{
                 }
                 break;
 
+            case "ArrowLeft":
+                input.cursor--;
+                break;
+
+            case "ArrowRight":
+                input.cursor++;
+                break;
+
             case "ControlLeft":
             case "ControlRight":
                 if(this.#bios.Keyboard.isKeyPressed("KeyC"))
@@ -341,9 +353,7 @@ class TerminalInterface extends HTMLElement{
         
             case "Enter":
             case "NumpadEnter":
-                input.add("\n");
-                output.add(PROMPT+input.buffer);
-                input.clean();
+                output.add(PROMPT+input.enter());
                 break;
         
             default:
@@ -360,7 +370,7 @@ class TerminalInterface extends HTMLElement{
         if(event.detail === "Secondary") {
             navigator.clipboard.readText().then((string)=>{
                 input.set(string);
-            })
+            });
         }
     }
 
@@ -375,7 +385,7 @@ class TerminalInterface extends HTMLElement{
             this.#bios.print(PROMPT+input.buffer);
         }
     
-        this.#bios.cursor();
+        this.#bios.cursor(input.cursor-input.buffer.length);
         this.#bios.scroll();
     }
 
