@@ -104,6 +104,10 @@ export default class Color {
 
         return this._r === r && this._g === g && this._b === b;
     }
+
+    clone() {
+        return new Color(this._r, this._g, this._b);
+    }
 }
 
 const toHex = (n:number) => `0${n.toString(16)}`.slice(-2); 
