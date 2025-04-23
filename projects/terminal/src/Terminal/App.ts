@@ -34,14 +34,14 @@ export default class App implements Process{
 
     set help(value:HelpFunction){
         if(typeof value !== "function")
-            throw new TypeError("Main Function must be a function!");
+            throw new TypeError("Help Function must be a function!");
         
         this.#help = value;
     }
 
     get help():HelpFunction {
         if(this.#help === undefined)
-            throw new Error(`Main funciton never set for ${this._call}!`);
+            throw new Error(`Help funciton never set for ${this._call}!`);
 
         return this.#help;
     }
