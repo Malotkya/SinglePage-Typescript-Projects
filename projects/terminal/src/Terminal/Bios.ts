@@ -4,7 +4,7 @@
  */
 import * as K from "./Keyboard";
 import * as M from './Mouse';
-import Settings, {SettingsMap, SettingsName, updateEvent} from './Settings';
+import Registry from "./Registry";
 import Color from "@/Color";
 import Position, { normalizePositions, Dimensions } from "./Position";
 import {BiosView, ViewTemplate} from "./View";
@@ -26,17 +26,44 @@ let ctx:RenderContext|null = null;
 let view:BiosView|null = null;
 
 /////// Environment Variables modified by user. ///////
-let background:Color = Settings.backgroundColor;
-let font:Color = Settings.fontColor;
-let width:number = Settings.width;
-let height:number = Settings.height;
+let background:Color = Registry.on("Background_Color", (v)=>background = v);
+let font:Color = Registry.on("Font_Color", (v)=>font = v);
+let width:number = Registry.on("Screen_Width", (v)=>{
+    width = v
+    if(ctx){
+        v *= char.width;
+        ctx.interface.style.width = `${v}px`;
+        ctx.canvas.width = v;
+    }
+});
+let height:number = Registry.on("Screen_Height", (v)=>{
+    height = v
+    if(ctx){
+        v *= char.height;
+        ctx.interface.style.height = `${v}px`;
+        ctx.canvas.height = v;
+    }
+});
 
 ////// Environment Variable modified by bios. ///////
+let fontSize:number = Registry.on("Font_Size", (v)=>{
+    fontSize = v;
+    char.width = v * RATIO;
+    char.height = v;
+    if(ctx){
+        const w = width * char.width;
+        const h = (height * char.height)+Y_OFFSET;
+        ctx.interface.style.width = `${w}px`;
+        ctx.canvas.width = w;
+        ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+        ctx.canvas.height = h;
+    }
+})
 const char:Dimensions = {
-    width: Settings.fontSize * RATIO,
-    height: Settings.fontSize
+    width: fontSize * RATIO,
+    height: fontSize
 }
-let fontFace:string = `${Settings.fontSize-1}px monospace`;
+let fontFace:string = `${fontSize-1}px monospace`;
 let x:number = 0;
 let y:number = 0;
 let growHeight:number = height;
@@ -255,52 +282,6 @@ function render() {
     requestAnimationFrame(render);
 }
 
-//////////////// Gets / Setters ////////////////////
-updateEvent(function update<N extends SettingsName>(name:N, value:SettingsMap[N]){
-
-    switch(name){
-        case "font-size":
-            fontFace = `${value as number-1}px monospace`;
-            char.width = value as number * RATIO;
-            char.height = value as number;
-            if(ctx){
-                const w = width * char.width;
-                const h = (height * char.height)+Y_OFFSET;
-                ctx.interface.style.width = `${w}px`;
-                ctx.canvas.width = w;
-                ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
-                ctx.canvas.height = h;
-            }
-            break;
-
-        case "width":
-            width = value as number;
-            (value as number) *= char.width;
-            if(ctx){
-                ctx.interface.style.width = `${value}px`;
-                ctx.canvas.width = value as number;
-            }
-            break;
-
-        case "height":
-            height = value as number;
-            const v = (value as number * char.height)+Y_OFFSET;
-            if(ctx){
-                ctx.interface.style.height = `${v+INTERFACE_OFFSET}px`;
-                ctx.canvas.height = v;
-            }
-            break;
-
-        case "background-color":
-            background = value as Color;
-            break;
-
-        case "font-color":
-            font = value as Color;
-            break;
-    }
-});
-
 //////////////////// Public Functions ///////////////////////////
 
 /** Put Single Character
@@ -379,10 +360,6 @@ export function scroll(targetHeight:number = y, override:boolean = scrollLocked)
     const top    = Math.floor((ctx.interface.scrollTop) / char.height);
     const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / char.height)-2;
     if(targetHeight < top || targetHeight > bottom){
-        /*window.setTimeout(()=>{
-            if(element)
-                
-        }, 10);*/
         ctx.interface.scrollTop = ((targetHeight - height + 2) * char.height) + Y_OFFSET;
     }
     scrollLocked = true;
