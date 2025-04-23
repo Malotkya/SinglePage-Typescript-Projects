@@ -1,6 +1,6 @@
 import System, {start, clear, App} from "./Terminal";
 import Help from "./Help";
-import Settings, {SettingsApp} from "./Terminal/Settings";
+import SettingsApp from "./Settings";
 
 System.addFunction("clear", "Clears the terminal.", (args)=>clear(args[1]));
 System.addFunction("about", "Displays more information about the terminal app.", ()=>{
