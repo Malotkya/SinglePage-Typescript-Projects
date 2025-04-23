@@ -56,7 +56,7 @@ function fromRegisterStoreValue<T extends RegisterTypeKey>(store:RegisterStoreVa
 function toRegisterStoreValue(value:RegisterType):RegisterStoreValue{
     let type = extractType(value);
     if(type !== "string") {
-        if(typeof type.toString === "function")
+        if(typeof type.toString !== "function")
             throw new Error(`Unkown Rester Type: ${type}!`);
 
         return {
@@ -107,7 +107,12 @@ function getRegister(string:string|null = localStorage.getItem(REGISTER_KEY)):Re
         //Console.debug(e);
     }
 
-    const value = JSON.parse(JSON.stringify(Defaults));
+    const value:Register = <any>{};
+    value.Background_Color = Defaults.Background_Color.clone();
+    value.Font_Color       = Defaults.Font_Color.clone();
+    value.Font_Size        = Defaults.Font_Size.valueOf();
+    value.Screen_Height    = Defaults.Screen_Height.valueOf();
+    value.Screen_Width     = Defaults.Screen_Width.valueOf();
     setRegister(value);
     return value;
 }
