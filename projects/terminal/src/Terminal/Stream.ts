@@ -48,10 +48,12 @@ export default interface Stream {
 export class InputStream implements Stream {
     private _print: string;
     private _buffer:string;
+    private _cursor:number;
 
     public constructor(){
         this._buffer = "";
         this._print = "";
+        this._cursor = 0;
     }
 
     /** Set Buffer
@@ -59,9 +61,13 @@ export class InputStream implements Stream {
      * @param {any} chunk 
      */
     public set(chunk: any){
+        
         if(chunk) {
-            this._print = String(chunk);
-            this._buffer = String(chunk);
+            chunk = String(chunk);
+            const index = this._buffer.length - this._print.length;
+            this._buffer = this._buffer.substring(0, index) + chunk
+            this._print = chunk;
+            this._cursor = chunk.length;
         }
     }
 
@@ -70,17 +76,67 @@ export class InputStream implements Stream {
      * @param {any} chunk 
      */
     public add(chunk: any){
-        this._print += String(chunk);
-        this._buffer += String(chunk);
+        chunk = String(chunk);
+        if(this._cursor === this._print.length || this._print.length === 0) {
+            this._print += chunk;
+            this._buffer += chunk;
+        } else {
+            const index = this._buffer.length - (this._print.length - this._cursor)
+
+            this._print = this._print.substring(0, this._cursor) + chunk
+                        + this._print.substring(this._cursor);
+            
+            this._buffer = this._buffer.substring(0, index) + chunk
+                         + this._buffer.substring(index);
+        }
+        this.cursor += chunk.length;
     }
 
-    /** Remove from Buffer
-     * 
-     * Implements Backspace
+    public enter() {
+        const output = this._print+"\n";
+        this._buffer += "\n";
+        this._print = "";
+        this._cursor = 0;
+        return output;
+    }
+
+    /** Backspace Implementation
      */
-    public remove(){
-        this._buffer = this._buffer.slice(0, -1);
-        this._print = this._print.slice(0, -1);
+    public backspace(){
+        this.remove(--this._cursor);
+    }
+
+    /** Delete Implementation
+     * 
+     */
+    public delete(){
+        this.remove(this._cursor);
+    }
+
+    /** Remove at Index
+     * 
+     * @param {number} index 
+     */
+    private remove(index:number) {
+        if(index < 0 || index > this._print.length)
+            return;
+
+        if(this._print.length > 0){
+            const bufferIndex = this._buffer.length - (this._print.length - index);
+
+            if(index === 0){
+                this._print = this._print.substring(1);
+            } else {
+                this._print = this._print.substring(0, index) + this._print.substring(index+1);
+            }
+
+            if(bufferIndex === 0){
+                this._buffer = this.buffer.substring(1);
+            } else {
+                this._buffer = this._buffer.substring(0, index) + this._buffer.substring(index+1);
+            }
+            
+        }
     }
     
     /** Get From Buffer
@@ -154,10 +210,25 @@ export class InputStream implements Stream {
 
     public clean() {
         this._print = "";
+        this._cursor = 0;
+    }
+
+    get cursor():number {
+        return this._cursor;
+    }
+
+    set cursor(n:number) {
+        if(n < 0)
+            this._cursor = 0;
+        else if(n > this._print.length)
+            this._cursor = this._print.length;
+        else
+            this._cursor = n;
     }
 
     public flush(n:number = this._buffer.length){
         this._print = this._print.substring(n);
+        this.cursor -= n;
         return this._buffer.slice(n);
     }
 }
