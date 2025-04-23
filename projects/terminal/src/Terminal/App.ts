@@ -3,10 +3,7 @@
  * @author Alex Malotky
  */
 import History from "./History";
-import { Process } from ".";
-
-export type MainFunction = (args:string[])=>Promise<unknown>|unknown;
-export type HelpFunction = ()=>Promise<void>|void;
+import { Process, HelpFunction, MainFunction} from ".";
 
 export default class App implements Process{
     private _call: string;

@@ -5,20 +5,24 @@
 import {BiosType, HighlighMap, claimBios, getView} from "./Bios";
 import View, {SystemView, UserView} from "./View";
 import {InputStream, OutputStream, getHighlighted} from "./Stream";
-import App, {HelpFunction, MainFunction} from "./App";
+import App from "./App";
 import { KeyboardData } from "./Keyboard";
 import History from "./History";
 import { MouseButton} from "./Mouse";
 import { comparePositions } from "./Position";
+import Arguments from "./Arguments";
 
 export {App};
+
+export type MainFunction = (args:Arguments)=>Promise<unknown>|unknown;
+export type HelpFunction = ()=>Promise<void>|void;
 
 export interface Process {
     readonly history?: History<string>
     readonly call: string
     readonly description?:string
     readonly help?: HelpFunction
-    readonly main:MainFunction
+    readonly main: MainFunction
 }
 
 const SYSTEM_NAME = "Terminal System";
@@ -196,7 +200,7 @@ const System = {
     },
 
     async run(cmd:string) {
-        const args = cmd.split(/\s+/gm);
+        const args = new Arguments(cmd);
         System.history.add(cmd);
     
         let app = System.getApp(args[0]);
