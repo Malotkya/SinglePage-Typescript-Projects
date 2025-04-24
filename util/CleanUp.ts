@@ -1,8 +1,8 @@
-/** /Terminal/CleanUp
+/** CleanUp.ts
  * 
  * @author Alex Malotky
  */
-export default interface Destroyable {
+export interface Destroyable {
     destroy():void|Promise<void>
 }
 
