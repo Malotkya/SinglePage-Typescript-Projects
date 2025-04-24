@@ -2,7 +2,7 @@
  * 
  * @author Alex Malotky
  */
-import Destroyable, { addToCleanup } from "./CleanUp";
+import { Destroyable, addToCleanup } from "@/CleanUp";
 
 export default class History<T> implements Destroyable{
     private list:T[];
