@@ -40,6 +40,9 @@ type Operations = typeof ValidOperations[number];
  * @returns {boolean}
  */
 export function validate(value:number, owner:number, user:number, operation:Operations):boolean {
+    if(user === 0)
+        return true;
+    
     const group:GroupValue = user > 0
         ? owner === user
             ? 1
