@@ -1,23 +1,35 @@
+import Stream from "../Stream";
 import * as db from "./Database";
-import { normalize, parse } from "./Path";
+import { parse } from "./Path";
+import FileSystem from "./Process";
+export {FileSystem};
 
+///////////////////////////// Helper Functions /////////////////////////////
+
+/** Get Current User From System
+ * 
+ * @returns 
+ */
 function getCurrentUser(): number {
     return 0;
 }
 
+/** Get User Name By Id
+ * 
+ * @param {number} id 
+ * @returns {string}
+ */
 function getUserName(id:number):string {
+    if(id === 0)
+        return "root";
+    
     return "Unknown";
 }
 
+///////////////////////////// Option Interfaces /////////////////////////////
+
 export interface LinkOptions {
     mode?:number
-}
-
-export async function link(from:string, to:string, opts:LinkOptions = {}):Promise<void> {
-    db.createLink(from, to, {
-        ...opts,
-        user: getCurrentUser()
-    });
 }
 
 export interface UnlinkOptions {
@@ -25,86 +37,259 @@ export interface UnlinkOptions {
     recursive?:boolean
 }
 
-export async function unlink(path:string, opts:UnlinkOptions = {}):Promise<void> {
-    db.unlink(path, {
-        ...opts,
-        user: getCurrentUser()
-    })
-}
-
 export interface MakeDirectoryOptions {
     recursive?: boolean
     chmod?: number
-}
-
-export async function mkdir(path:string, opts:MakeDirectoryOptions = {}):Promise<void> {
-    db.createDirectory(path, {
-        ...opts,
-        user: getCurrentUser()
-    })
-}
-
-export async function move(from:string, to:string):Promise<void> {
-    throw new Error("Move is not yet implemented!");
-}
-
-export async function copy(from:string, to:string):Promise<void> {
-    throw new Error("Copy is not yet implemented!");
-}
-
-export async function rename(from:string, to:string):Promise<void> {
-    throw new Error("Rename is not yet implemented!");
-}
-
-export async function readdir(path:string):Promise<string[]> {
-    return db.readDirectory(path, getCurrentUser())
 }
 
 export interface RemoveOptions {
     recursive?:boolean
 }
 
-export async function rm(path:string, opts:RemoveOptions = {}):Promise<void> {
-    const test = await db.remove(path, {
-        ...opts,
-        user: getCurrentUser()
-    });
-
-    if(test && test.length > 0) {
-        const e = new Error("Return list not empty!")
-        e.name = "Critical Error";
-        throw e;
-    }
-}
-
-export async function readfile(path:string):Promise<string> {
-    return await db.readFile(path, getCurrentUser());
-}
-
 export interface WriteFileOptions {
     type?: db.WriteFileType
+    force?: boolean
 }
 
-export async function writefile(path:string, content:string, opts:WriteFileOptions = {}):Promise<void> {
-    await db.writeToFile(path, {
-        user: getCurrentUser(),
-        type: opts.type || "Override"
-    }, content) 
+export function init() {
+    return db.init();
 }
 
-export async function openfile(path:string){ //Stream?
-    throw new Error("Open File is not yet implemented!")
+//////////////////////////// File System Interface ///////////////////////////////
+
+/** File System
+ * 
+ */
+const fs = {
+
+    /** Link to File or Directory
+     * 
+     * @param {string} from 
+     * @param {string} to 
+     * @param {LinkOptions} opts 
+     */
+    async link(from:string, to:string, opts:LinkOptions = {}):Promise<void> {
+        await db.createLink(from, to, {
+            ...opts,
+            user: getCurrentUser()
+        });
+    },
+
+    /** Unlink File or Directory
+     * 
+     * Will delete file or directoy if base location is chosen
+     * 
+     * @param {string} path 
+     * @param {UnlinkOptions} opts 
+     */
+    async unlink(path:string, opts:UnlinkOptions = {}):Promise<void> {
+        db.unlink(path, {
+            ...opts,
+            user: getCurrentUser()
+        })
+    },
+
+    /** Remove File or Dirctory
+     * 
+     * @param {string} path 
+     * @param {RemoveOptions} opts 
+     */
+    async rm(path:string, opts:RemoveOptions = {}):Promise<void> {
+        const test = await db.remove(path, {
+            ...opts,
+            user: getCurrentUser()
+        });
+    
+        if(test && test.length > 0) {
+            const e = new Error("Return list not empty!")
+            e.name = "Critical Error";
+            throw e;
+        }
+    },
+
+    /** Get Stats
+     * 
+     * @param {string} path 
+     * @returns {Promise<SystemStats|null>}
+     */
+    async stats(path:string):Promise<SystemStats|null> {
+        const info  = await db.getInfo(path);
+        const about = parse(path);
+    
+        if(info === undefined)
+            return null;
+    
+        (info as db.FileDirectoryData)
+    
+        //Detect Successfull Link
+        if(info.path !== about.path) {
+            return {
+                name: about.name,
+                base: about.base,
+                ext: about.ext,
+                path: about.path,
+                created: info.created,
+                updated: (info as any).updated,
+                owner: getUserName(info.owner),
+                links: info.links,
+                mode: info.mode,
+                isLink(): true{
+                    return true;
+                },
+                isFile() {
+                    return (info.type === "File") as true
+                },
+                isDiretory() {
+                    return (info.type === "Directory") as false
+                }
+            } satisfies LinkSystemStats
+        }
+    
+        return {
+            name: about.name,
+            base: info.base,
+            ext: (info as any).ext,
+            created: info.created,
+            owner: getUserName(info.owner),
+            links: info.links,
+            mode: info.mode,
+            path: info.path,
+            target: (info as any).target,
+            isFile() {
+                return (info.type === "File") as false;
+            },
+            isDiretory() {
+                return (info.type === "Directory") as false;
+            },
+            isLink() {
+                return (info.type === "Link") as true
+            }
+    
+        } satisfies FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats
+    },
+
+    /** File or Directory Exists
+     * 
+     * @param {string} path 
+     * @returns {Promise<boolean>}
+     */
+    async exists(path:string):Promise<boolean>{
+        return (await db.getInfo(path)) !== undefined;
+    },
+
+    /** Move Directory or File
+     * 
+     * @param {string} from 
+     * @param {string} to 
+     */
+    async move(from:string, to:string):Promise<void> {
+        throw new Error("Move is not yet implemented!");
+    },
+
+    /** Copy Directory or File
+     * 
+     * @param {string} from 
+     * @param {string} to 
+     */
+    async copy(from:string, to:string):Promise<void> {
+        throw new Error("Copy is not yet implemented!");
+    },
+
+    /** Rename Directory or File
+     * 
+     * @param {string} from 
+     * @param {string} to 
+     */
+    async rename(from:string, to:string):Promise<void> {
+        throw new Error("Rename is not yet implemented!");
+    },
+
+    /** Change Mode
+     * 
+     * @param {string} path 
+     */
+    async chmod(path:string, value:number){
+        throw new Error("Change Mode is not yet implemented!")
+    },
+
+    /** Make Directory
+     * 
+     * @param {string} path 
+     * @param {MakeDirectoryOptions} opts 
+     */
+    async mkdir(path:string, opts:MakeDirectoryOptions = {}):Promise<void> {
+        db.createDirectory(path, {
+            ...opts,
+            user: getCurrentUser()
+        })
+    },
+
+    /** Read Directory
+     * 
+     * @param {string} path 
+     * @returns {Promise<string[]>}
+     */
+    async readdir(path:string):Promise<string[]> {
+        return await db.readDirectory(path, getCurrentUser())
+    },
+
+    /** Make File
+     * 
+     */
+    async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:string):Promise<void> {
+        await db.createFile(path, {
+            ...opts,
+            user: getCurrentUser()
+        }, data);
+    },
+
+    /** Write File
+     * 
+     * @param {string} path 
+     * @param {string} data 
+     * @param {WriteFileOptions} opts 
+     */
+    async writefile(path:string, data:string, opts:WriteFileOptions = {}):Promise<void> {
+        if(await this.exists(path)) {
+            await db.writeToFile(path, {
+                user: getCurrentUser(),
+                type: opts.type || "Override"
+            }, data);
+
+        } else if(opts.force){
+            await db.createFile(path, {
+                recursive: true,
+                user: getCurrentUser()
+            }, data);
+        }
+        
+    },
+
+    /** Read File
+     * 
+     * @param {string} path 
+     * @returns {Promise<string>}
+     */
+    async readfile(path:string):Promise<string> {
+        return await db.readFile(path, getCurrentUser());
+    },
+
+    /** Open File
+     * 
+     * @param {string} path 
+     * @returns {Promise<stream>}
+     */
+    openfile(path:string):Promise<Stream>{ 
+        throw new Error("Open File is not yet implemented!")
+    }
 }
+export default fs;
 
-export async function exists(path:string):Promise<boolean>{
-    return (await db.getInfo(path)) !== undefined;
-}
+//////////////////////////// System State Interface ///////////////////////////////
 
-export async function chmod(path:string){
-    throw new Error("Change Mode is not yet implemented!")
-}
-
-
+/** Linked File
+ * 
+ */
 interface LinkedFileStat {
     name: string
     base: string
@@ -119,6 +304,10 @@ interface LinkedFileStat {
     isDiretory(): false
     isLink(): true
 }
+
+/** Linked Directory
+ * 
+ */
 interface LinkedDirectoryStat {
     name: string
     base: string
@@ -131,33 +320,10 @@ interface LinkedDirectoryStat {
     isDiretory(): true
     isLink(): true
 }
-type LinkSystemStats = LinkedFileStat|LinkedDirectoryStat;
 
-interface FileSystemStats {
-    name: string
-    base: string
-    ext: string
-    created: Date
-    owner: string
-    links: number
-    mode: number
-    path: string
-    isFile(): true
-    isDiretory(): false
-    isLink(): false
-}
-interface DirectorySystemStats {
-    name: string
-    base: string
-    created: Date
-    owner: string
-    links: number
-    mode: number
-    path: string
-    isFile(): false
-    isDiretory(): true
-    isLink(): false
-}
+/** Broken Link
+ * 
+ */
 interface BrokenLinkSystemStats {
     name: string
     base: string
@@ -172,61 +338,39 @@ interface BrokenLinkSystemStats {
     isDiretory(): false
     isLink(): true
 }
-type SystemStats = FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats|LinkSystemStats
+type LinkSystemStats = LinkedFileStat|LinkedDirectoryStat;
 
-export async function stats(path:string):Promise<SystemStats|null> {
-    const info  = await db.getInfo(path);
-    const about = parse(path);
-
-    if(info === undefined)
-        return null;
-
-    (info as db.FileDirectoryData)
-
-    //Detect Successfull Link
-    if(info.path !== about.path) {
-        return {
-            name: about.name,
-            base: about.base,
-            ext: about.ext,
-            path: about.path,
-            created: info.created,
-            updated: (info as any).updated,
-            owner: getUserName(info.owner),
-            links: info.links,
-            mode: info.mode,
-            isLink(): true{
-                return true;
-            },
-            isFile() {
-                return (info.type === "File") as true
-            },
-            isDiretory() {
-                return (info.type === "Directory") as false
-            }
-        } satisfies LinkSystemStats
-    }
-
-    return {
-        name: about.name,
-        base: info.base,
-        ext: (info as any).ext,
-        created: info.created,
-        owner: getUserName(info.owner),
-        links: info.links,
-        mode: info.mode,
-        path: info.path,
-        target: (info as any).target,
-        isFile() {
-            return (info.type === "File") as false;
-        },
-        isDiretory() {
-            return (info.type === "Directory") as false;
-        },
-        isLink() {
-            return (info.type === "Link") as true
-        }
-
-    } satisfies FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats
+/** File
+ * 
+ */
+interface FileSystemStats {
+    name: string
+    base: string
+    ext: string
+    created: Date
+    owner: string
+    links: number
+    mode: number
+    path: string
+    isFile(): true
+    isDiretory(): false
+    isLink(): false
 }
 
+/** Directory
+ * 
+ */
+interface DirectorySystemStats {
+    name: string
+    base: string
+    created: Date
+    owner: string
+    links: number
+    mode: number
+    path: string
+    isFile(): false
+    isDiretory(): true
+    isLink(): false
+}
+
+type SystemStats = FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats|LinkSystemStats

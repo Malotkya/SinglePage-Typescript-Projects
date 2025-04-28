@@ -30,8 +30,8 @@ export interface FileDirectoryData{
     links:number
     created: Date
     updated: Date
-    base: string
     path: string
+    base: string
     ext: string
 }
 export interface LinkDirectoryData{
@@ -74,10 +74,27 @@ async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N
 
 interface DirectoryOptions {
     user: number,
-    mode?: number
+    mode?: number,
+    recursive?: boolean
 }
 
 ////////////////////////// Global Operations //////////////////////////////////////
+
+export async function init():Promise<void> {
+    const conn = await getConn("Directory", "readwrite");
+
+    if(await conn.get("/") === undefined) {
+        conn.put({
+            type: "Directory",
+            owner: 0,
+            mode: 777,
+            links: 0,
+            created: new Date(),
+            base: "",
+            path: "/"
+        } satisfies FolderDirectoryData, "/");
+    }
+}
 
 /** Get Directory Info
  * 
@@ -176,7 +193,7 @@ export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryTran
  * @param {string} path 
  * @param {DirectoryOptions} opts 
  */
-export async function createDirectory(path:string, opts:DirectoryOptions):Promise<void> {
+export async function createDirectory(path:string, opts:DirectoryOptions, conn?:DirectoryTransaction<"readwrite">):Promise<DirectoryData> {
     const {user, mode = DEFAULT_DRIECTORY_MODE} = opts;
     if(typeof user !== "number")
         throw new TypeError("User must be a number!");
@@ -185,7 +202,7 @@ export async function createDirectory(path:string, opts:DirectoryOptions):Promis
 
     path = normalize(path);
     const name = dirname(path);
-    const conn = await getConn("Directory", "readwrite");
+    conn = conn || await getConn("Directory", "readwrite");
 
     if(await conn.get(path))
         throw new FileError("Create", `${path} already exists!`);
@@ -198,8 +215,13 @@ export async function createDirectory(path:string, opts:DirectoryOptions):Promis
         data = await conn.get(data.target);
     }
 
-    if(data === undefined)
-        throw new FileError("Create", `'${parrent}' does not exist!`);
+    if(data === undefined) {
+        if(opts.recursive) {
+            data = await createDirectory(parrent, opts, conn);
+        } else {
+            throw new FileError("Create", `'${parrent}' does not exist!`);
+        }
+    }
 
     if(data.type !== "Directory")
         throw new FileError("Create", `${parrent} is not a directory!`);
@@ -207,7 +229,7 @@ export async function createDirectory(path:string, opts:DirectoryOptions):Promis
     if(validate(data.mode, data.owner, user, "WriteOnly"))
         throw new UnauthorizedError(parrent, "Write");
 
-    await conn.add({
+    const output:DirectoryData = {
         type: "Directory",
         base: name,
         path: parrent,
@@ -215,7 +237,10 @@ export async function createDirectory(path:string, opts:DirectoryOptions):Promis
         mode: mode,
         created: new Date(),
         links: 0
-    } satisfies DirectoryData, path);
+    };
+
+    await conn.add(output, path);
+    return output;
 }
 
 /** Read Directory
@@ -384,8 +409,13 @@ export async function createFile(path:string, opts:DirectoryOptions, data?:strin
         info = await dirConn.get(info.target);
     }
         
-    if(info === undefined)
-        throw new FileError("Create", `'${parrent}' does not Exist!`);
+    if(info === undefined) {
+        if(opts.recursive) {
+            info = await createDirectory(parrent, opts, dirConn);
+        } else {
+            throw new FileError("Create", `'${parrent}' does not Exist!`);
+        }
+    }
 
     if(info.type !== "Directory")
         throw new FileError("Create", `${parrent} is not a directory!`);
