@@ -1,6 +1,6 @@
 import System, {MainFunction} from "..";
-import {normalize, relative} from "./Path";
-import fs from ".";
+import {normalize, relative, join} from "./Path";
+import fs, {SystemStats} from ".";
 
 let location:string = "/";
 
@@ -9,13 +9,44 @@ interface FileSystemProcess {
     main: MainFunction
 }
 
+async function toString(stat:SystemStats, name:string = stat.name):Promise<string> {
+    let string = `${stat.created.toLocaleDateString()} ${stat.created.toLocaleTimeString()}`;
+    
+    if(stat.isFile()) {
+        const size = await fs.size(stat.path + "/" + stat.name);
+        string += size.toString().padStart(10).slice(-10);
+    } else {
+        string += "   <dir>   ";
+    }
+
+    return string + ` ${name}`
+}
+
 const process:Record<string, FileSystemProcess> = {
+    ".": {
+        desc: "",
+        main: ()=>System.println(location)
+    },
     "dir": {
         desc: "List items in Directory",
         main: async()=>{
-            const list = await fs.readdir(location);
-            System.println(list.join("\n"));
-            System.println(list.length.toString());
+            const size = await fs.size(location);
+            System.println(`Reading: ${location}\n`);
+
+            const home = (await fs.stats(location))!;
+            System.println(await toString(home, "."));
+
+            if(location !== "/") {
+                const parrent = (await fs.stats(normalize(location, "..")))!;
+                System.println(await toString(parrent, ".."));
+            }
+            
+            for(const dir of (await fs.readdir(location)).sort()) {
+                const stat = (await fs.stats(join(location, dir)))!;
+                System.println(await toString(stat))
+            }
+
+            System.println("");
         }
     },
     "mkdir": {
@@ -44,10 +75,6 @@ const process:Record<string, FileSystemProcess> = {
 
             location = target;
         }
-    },
-    ".": {
-        desc: "",
-        main: ()=>System.println(location)
     }
 }
 export default process
