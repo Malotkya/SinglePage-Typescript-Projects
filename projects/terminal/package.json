@@ -10,6 +10,7 @@
     "watch": "npx webpack-cli --watch"
   },
   "dependencies": {
+    "idb": "^8.0.2",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.3",
     "webpack": "^5.99.5",
