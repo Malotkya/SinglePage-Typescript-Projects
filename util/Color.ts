@@ -91,8 +91,8 @@ export default class Color {
 
         return new Color(
             parseInt(value.substring(0, 2), 16),
-            parseInt(value.substring(2, 2), 16),
-            parseInt(value.substring(4, 2), 16)
+            parseInt(value.substring(2, 4), 16),
+            parseInt(value.substring(4, 6), 16)
         )
     }
 
