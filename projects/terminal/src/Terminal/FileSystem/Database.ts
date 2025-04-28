@@ -3,7 +3,7 @@
  * @author Alex Malotky
  */
 import {openDB, IDBPDatabase, IDBPObjectStore} from "idb";
-import { dirname, join, normalize, parse } from "./Path";
+import { dirname, join, normalize, parse, parrent } from "./Path";
 import { validate } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
 
@@ -77,6 +77,14 @@ interface DirectoryOptions {
     mode?: number,
     recursive?: boolean
 }
+//////////////////////// Private Helper Function /////////////////////////////////
+
+async function _dir(path:string, conn:DirectoryTransaction<any>):Promise<string[]> {
+    return (await conn.getAllKeys() as string[])
+        .filter(s=>parrent(path, s))
+        .map(dirname);
+}
+
 
 ////////////////////////// Global Operations //////////////////////////////////////
 
@@ -116,6 +124,36 @@ export async function getInfo(path:string):Promise<DirectoryData|undefined> {
     return data;
 }
 
+export async function getSize(path:string, rec?:DirectoryTransaction<"readonly">):Promise<number> {
+    path = normalize(path);
+    const conn = rec || await getConn("Directory", "readonly");
+
+    let data:DirectoryData|undefined = await conn.get(path);
+    while(data?.type === "Link") {
+        data = await conn.get(data.target);
+    }
+
+    if(data === undefined)
+        throw new FileError("Read", `${path} does not exist!`);
+
+    if(data.type === "File") {
+        const file:string|undefined = await (await getConn("File", "readonly")).get(path);
+        if(file){
+            return file.length;
+        }
+
+        return 0;
+    }
+
+    let output = 0;
+    const list = await _dir(path, conn)
+    for(const file of list) {
+        output += await getSize(join(path, file), conn);
+    }
+
+    return output;
+}
+
 interface RemoveOptions {
     recursive?:boolean
     user: number
@@ -149,7 +187,7 @@ export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryTran
             break;
 
         case "Directory":
-            const list = await readDirectory(path, opts.user);
+            const list = await _dir(path, conn);
             if(list.length > 0){
                 if(opts.recursive) {
                     files = [];
@@ -226,7 +264,7 @@ export async function createDirectory(path:string, opts:DirectoryOptions, conn?:
     if(data.type !== "Directory")
         throw new FileError("Create", `${parrent} is not a directory!`);
 
-    if(validate(data.mode, data.owner, user, "WriteOnly"))
+    if(!validate(data.mode, data.owner, user, "WriteOnly"))
         throw new UnauthorizedError(parrent, "Write");
 
     const output:DirectoryData = {
@@ -261,8 +299,7 @@ export async function readDirectory(path:string, user:number):Promise<string[]> 
     if(data.type !== "Directory")
         throw new FileError("Read", `${path} is not a directory!`);
 
-    const list = await conn.getAllKeys(path);
-    return list.map(v=>dirname(v as string));
+    return await _dir(path, conn);
 }
 
 //////////////////////////// Link Operations //////////////////////////////////////
@@ -360,7 +397,7 @@ export async function unlink(path:string, opts:UnlinkOptions):Promise<void> {
     }
         
     if(data.type === "Directory" && recursive) {
-        for(const file of await readDirectory(path, user)) {
+        for(const file of await _dir(path, conn)) {
             await unlink(join(path, file), opts);
         }
     }
@@ -463,7 +500,7 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
     if(info.type !== "File")
         throw new FileError("Delete", `${path} is not a file!`);
 
-    if( !validate(info.mode, info.owner, user, "WriteOnly")) 
+    if(!validate(info.mode, info.owner, user, "WriteOnly")) 
         throw new UnauthorizedError(path, "Write");
 
     info.updated = new Date();
