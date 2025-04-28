@@ -168,6 +168,15 @@ const fs = {
         } satisfies FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats
     },
 
+    /** Get Size of File or Directory
+     * 
+     * @param {string} path 
+     * @returns {Promise<number>}
+     */
+    async size(path:string):Promise<number> {
+        return db.getSize(path);
+    },
+
     /** File or Directory Exists
      * 
      * @param {string} path 
@@ -290,7 +299,7 @@ export default fs;
 /** Linked File
  * 
  */
-interface LinkedFileStat {
+export interface LinkedFileStat {
     name: string
     base: string
     ext:string
@@ -308,7 +317,7 @@ interface LinkedFileStat {
 /** Linked Directory
  * 
  */
-interface LinkedDirectoryStat {
+export interface LinkedDirectoryStat {
     name: string
     base: string
     created: Date
@@ -324,7 +333,7 @@ interface LinkedDirectoryStat {
 /** Broken Link
  * 
  */
-interface BrokenLinkSystemStats {
+export interface BrokenLinkSystemStats {
     name: string
     base: string
     ext?: string
@@ -343,7 +352,7 @@ type LinkSystemStats = LinkedFileStat|LinkedDirectoryStat;
 /** File
  * 
  */
-interface FileSystemStats {
+export interface FileSystemStats {
     name: string
     base: string
     ext: string
@@ -360,7 +369,7 @@ interface FileSystemStats {
 /** Directory
  * 
  */
-interface DirectorySystemStats {
+export interface DirectorySystemStats {
     name: string
     base: string
     created: Date
@@ -373,4 +382,4 @@ interface DirectorySystemStats {
     isLink(): false
 }
 
-type SystemStats = FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats|LinkSystemStats
+export type SystemStats = FileSystemStats|DirectorySystemStats|BrokenLinkSystemStats|LinkSystemStats
