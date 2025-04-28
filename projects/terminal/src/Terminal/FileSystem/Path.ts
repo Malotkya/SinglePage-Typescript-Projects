@@ -97,6 +97,8 @@ function _relative(from:string[], to:string[]):string[]|string {
 
         if(from[i] === to[i])
             last = i;
+
+        ++i;
     }
 
     const output:string[] = [];
@@ -183,6 +185,27 @@ export function join(...args:string[]):string {
         assertPath(s)
         return s;
     }).join(SEP);
+}
+
+/** Is Immediate Parrent
+ * 
+ * @param {string} parrent 
+ * @param {string} child 
+ */
+export function parrent(parrent:string, child:string):boolean {
+    assertPath(parrent);
+    assertPath(child);
+
+    const lhs = _normalize(parrent);
+    const rhs = _normalize(child);
+
+    if(rhs.length === 0){
+        return false
+    } else {
+        rhs.pop();
+    }
+
+    return _pathsEqual(lhs, rhs);
 }
 
 /** Parse Info
