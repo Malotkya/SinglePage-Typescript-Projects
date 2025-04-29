@@ -53,3 +53,22 @@ export function ColorOr(value:unknown, d:Color):Color {
         return d;
     }
 }
+
+/** Better To String
+ * 
+ * @param {any} value 
+ * @returns {string}
+ */
+export function betterToString(value:any):string {
+    const type = typeof value;
+    if(type === "string")
+        return value;
+
+    if(typeof value.toString === "function")
+        return value.toString();
+
+    if(type === "object")
+        return JSON.stringify(value);
+
+    return String(value);
+}
