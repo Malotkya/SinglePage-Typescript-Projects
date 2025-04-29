@@ -7,11 +7,14 @@ import Arguments from "./Arguments";
 import History from "./History";
 import { initView, initIO, getView } from "./Terminal";
 import { UserView } from "./Terminal/View";
+import { currentLocation } from "./Files/Process";
+import { executable } from "./Files";
 
 export {App};
 
 export type MainFunction = (a:Arguments)=>Promise<unknown>|unknown;
 export type HelpFunction = ()=>Promise<unknown>|unknown;
+export type StartFunction = ()=>Promise<void>
 
 export interface Process {
     readonly history?: History<string>
@@ -21,11 +24,19 @@ export interface Process {
     readonly main: MainFunction
 }
 
+interface SystemIterator{
+    next(): {
+        value: [string, Process],
+        done?: boolean
+    }
+}
+
 const SYSTEM_NAME = "Terminal System";
 const SYSTEM_CALL = SYSTEM_NAME.toLocaleLowerCase();
 
 ///// Private Attributes of System ///////
-const apps:Map<string, Process> = new Map();
+const systemProcess:Map<string, Process> = new Map();
+const loadedProcess:Map<string, Process> = new Map();
 const history: History<string> = new History("System");
 const callstack: Process[] = [];
 const {stdin, stdout} = initIO();
@@ -61,10 +72,8 @@ const System = {
      */
     addApp(app: App){
         if(app instanceof App){
-            if(apps.has(app.call) || app.call === SYSTEM_CALL)
-                throw new Error("Call is already in use");
-
-            apps.set(app.call, app);
+            const call = validateCall(app.call);
+            systemProcess.set(call, app);
         } else {
             throw new Error("Not an App!");
         }
@@ -77,32 +86,46 @@ const System = {
      * @param {MainFunction} callback 
      */
     addFunction(call:string, description: string, callback:MainFunction){
-        if(typeof call !== "string")
-            throw new TypeError("Function call must be a string!");
+        call = validateCall(call);
 
-        if(typeof description !== "string")
-            throw new TypeError("Function description must be a string!");
-
-        if(typeof callback !== "function")
-            throw new TypeError("Callback function must be a function!");
-
-        call = call.toLocaleLowerCase();
-        if(apps.has(call) || call === SYSTEM_CALL)
-            throw new Error("Call is already in use");
-
-        apps.set(call, {
+        systemProcess.set(call, {
             call, description,
             main: callback
         });
     },
 
+    /** Load Process
+     * 
+     * @param {Process} data 
+     */
+    loadProcess(data:Process) {
+        const call = validateCall(data.call);
+        if(typeof data.main !== "function")
+            throw new TypeError("Not a process!");
+
+        if(data.help && typeof data.help !== "function")
+            throw new TypeError("Not a process!");
+
+        if(data.description && typeof data.description !== "string")
+            throw new TypeError("Not a process!");
+
+        if(data.history && !(data.history instanceof History))
+            throw new TypeError("Not a process!");
+
+        loadedProcess.set(call, data);
+    },
+
+    clearProcesses() {
+        loadedProcess.clear();
+    },
+
     /** Get App
      * 
      * @param {string} name 
-     * @returns {App|null}
+     * @returns {Process|null}
      */
-    getApp(name:string) {
-        return apps.get(name) || null
+    getProcess(name:string):Process|null {
+        return systemProcess.get(name) || loadedProcess.get(name) || null
     },
 
     /** Get String
@@ -138,9 +161,9 @@ const System = {
      * 
      * Calls getLn and blocks printing of characters.
      * 
-     * @returns {string}
+     * @returns {Promise<string>}
      */
-    async getPassord(){
+    async getPassord():Promise<string> {
         stdin.hide = true;
         let output: string = await stdin.getln();
         stdin.hide = false;
@@ -156,10 +179,40 @@ const System = {
 
     /** Loop over Apps
      * 
-     * @returns {MapIterator<[string, Process]>} 
+     * @returns {SystemIterator} 
      */
-    [Symbol.iterator](){
-        return apps.entries();
+    [Symbol.iterator]():SystemIterator{
+        let sys:MapIterator<[string, Process]>|null  = systemProcess.entries();
+        let file:MapIterator<[string, Process]>|null = loadedProcess.entries();
+
+        return {
+            next() {
+                return {
+                    get value() {
+                        if(sys) {
+                            const n = sys.next();
+                            if(n.done)
+                                sys = null;
+                            else
+                                return n.value;
+                        }
+
+                        if(file) {
+                            const n = file.next();
+                            if(n.done)
+                                file = null;
+                            else
+                                return n.value;
+                        }
+
+                        return [] as any;
+                    },
+                    get done() {
+                        return sys === null && file === null
+                    }
+                }
+            }
+        }
     },
 
     /** Reset System
@@ -198,33 +251,61 @@ const System = {
         const args = new Arguments(cmd);
         System.history.add(cmd);
     
-        let app = System.getApp(args[0]);
-    
-        if(app){
-            callstack.push(app);
-            stdin.flush();
-            try {
-                const e = await app.main(args);
+        try {
+            const exe = System.getProcess(args[0]) || await executable(args[0]);
+            if(exe === null)
+                throw new Error(`Unknown Command: '${args[0]}'!`);
 
+            callstack.push(exe);
+            stdin.flush();
+
+            try {
+                const e = await exe.main(args);
                 if(e)
                     throw e;
 
-                await (getView()?.wait());
-
-            } catch (e:any) {
+            } catch (e:any){
                 System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
             }
             
+            await (getView()?.wait());
             callstack.pop();
-        } else {
-            System.println(`Unknown Command: '${args[0]}'!`);
+
+        } catch (e:any){
+            System.println(e.message || e);
         }
+    },
+
+    get cwd():string {
+        return currentLocation();
     }
 }
 export default System;
 
+/** Get Current History
+ * 
+ * @returns {History<string>|null}
+ */
 export function getHistory():History<string>|null{
     return callstack[callstack.length-1].history || null;
+}
+
+/** Validate System Call
+ * 
+ * @param value 
+ */
+export function validateCall(value:string):string{
+    if(typeof value !== "string")
+        throw new TypeError("Call must be a string!");
+    value = value.toLocaleLowerCase();
+    
+    if(value.match(/^[a-z]\w+$/) === null)
+        throw new Error("System call can only contain numbers and letters, and must start with a letter!");
+
+    if(systemProcess.has(value) || loadedProcess.has(value))
+        throw new Error("Call is already taken!");
+
+    return value;
 }
 
 /** Sleep
@@ -236,14 +317,13 @@ export function sleep(s:number = 100): Promise<void>{
     return new Promise((r)=>window.setTimeout(r,s));
 }
 
-
 /** Start System
  * 
  */
-export async function start() {
+export async function start(){
     if(running)
         throw new Error("System is already running!");
-    
+
     callstack.push(<any>System);
     stdin.flush();
     running = true;
@@ -252,7 +332,7 @@ export async function start() {
         let string = await System.getln();
         if(string === "")
             continue;
-    
+       
         System.run(string);
     }
 }
@@ -271,8 +351,3 @@ export function clear(modifier:string) {
         stdout.flush();
     }
 }
-
-
-
-
-
