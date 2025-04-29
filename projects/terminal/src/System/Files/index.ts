@@ -5,8 +5,11 @@
 import Stream from "../Stream";
 import * as db from "./Database";
 import { InitData } from "./Database";
-import { parse } from "./Path";
+import * as Path from "./Path";
 import FileSystem from "./Process";
+import {Process} from "..";
+import { fromFile, FileData } from "../App";
+import { FileError } from "./Errors";
 export {FileSystem, InitData};
 
 ///////////////////////////// Helper Functions /////////////////////////////
@@ -58,6 +61,41 @@ export interface WriteFileOptions {
 
 export function init(data?:InitData) {
     return db.init(data);
+}
+
+export async function executable(file:string):Promise<Process|null> {
+    const {base} = Path.parse(file);
+    try {
+        const data:FileData = {
+            name: base
+        };
+        let buffer = await db.executable(file, getCurrentUser());
+
+        let match:RegExpMatchArray|null = buffer.match(/^([a-z]+):/im);
+        let name:string = "*";
+
+        while(match !== null) {
+            const index = buffer.indexOf(match[0]);
+            const newName = match[1].toLocaleLowerCase();
+            const value = buffer.substring(0, index);
+            buffer = buffer.substring(index+match[0].length);
+
+            data[name.toLocaleLowerCase().trim()] = value;
+            name = newName;
+
+            match = buffer.match(/^([a-z]+):/im);
+        }
+
+        data[name] = buffer;
+
+        return fromFile(data);
+
+    } catch (e){
+        if(e instanceof FileError)
+            return null;
+
+        throw e;
+    }
 }
 
 //////////////////////////// File System Interface ///////////////////////////////
@@ -119,7 +157,7 @@ const fs = {
      */
     async stats(path:string):Promise<SystemStats|null> {
         const info  = await db.getInfo(path);
-        const about = parse(path);
+        const about = Path.parse(path);
     
         if(info === undefined)
             return null;

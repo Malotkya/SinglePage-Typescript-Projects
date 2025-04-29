@@ -642,3 +642,30 @@ export async function readFile(path:string, user:number):Promise<string> {
     const fileConn = await getConn("File", "readonly");
     return await fileConn.get(path) || "";
 }
+
+/** Read Executable
+ * 
+ * @param {string} path 
+ * @param {string} user 
+ * @returns {Promise<string>}
+ */
+export async function executable(path:string, user:number):Promise<string> {
+    if(typeof user !== "number")
+        throw new TypeError("User must be a number!");
+
+    path = normalize(path);
+    const dirConn = await getConn("Directory", "readonly");
+
+    const info:DirectoryData|undefined = await dirConn.get(path);
+    if(info === undefined)
+        throw new FileError("Execute", `'${path}' does not Exist!`);
+
+    if(info.type !== "File")
+        throw new FileError("Execute", `${path} is not a file!`);
+
+    if(!validate(info.mode, info.owner, user, "ExecuteOnly"))
+        throw new UnauthorizedError(path, "Execute");
+
+    const fileConn = await getConn("File", "readonly");
+    return await fileConn.get(path) || "";
+}
