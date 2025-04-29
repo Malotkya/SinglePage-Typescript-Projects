@@ -15,6 +15,14 @@ interface FileSystemProcess {
     main: MainFunction
 }
 
+/** Get Current Location
+ * 
+ * @returns {string}
+ */
+export function currentLocation():string {
+    return location;
+}
+
 /** System Stats To String Helper
  * 
  * @param {SystemStats} stat 
