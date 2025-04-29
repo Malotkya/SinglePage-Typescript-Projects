@@ -1,10 +1,8 @@
-import System, {start, clear} from "./Terminal";
-import { FileSystem, init } from "./Terminal/FileSystem";
+import System, {start, clear} from "./System";
+import { FileSystem, init } from "./System/Files";
 import Help from "./Help";
 import SettingsApp from "./Settings";
 import Snake from "./Snake";
-
-
 
 for(const call in FileSystem){
     const {desc, main} = FileSystem[call];
