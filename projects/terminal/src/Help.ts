@@ -1,4 +1,4 @@
-import System, {App} from "./Terminal";
+import System, {App} from "./System";
 
 class Help extends App {
     constructor(){

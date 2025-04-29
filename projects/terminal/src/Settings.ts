@@ -1,7 +1,6 @@
-import App from './Terminal/App';
-import System from "./Terminal"
-import Defaults from './Terminal/Registry/Defaults';
-import Registry, {RegisterKey, RegisterType, SystemSettingsMap, SystemSettingsName} from './Terminal/Registry';
+import System, {App} from "./System"
+import Defaults from './System/Registry/Defaults';
+import Registry, {RegisterKey, RegisterType, SystemSettingsName} from './System/Registry';
 import Color from '@/Color';
 
 export default class SettingsApp extends App {

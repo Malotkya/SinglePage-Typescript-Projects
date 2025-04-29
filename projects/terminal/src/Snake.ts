@@ -1,4 +1,4 @@
-import System, {App} from "./Terminal";
+import System, {App} from "./System";
 
 interface Position {
     x:number
