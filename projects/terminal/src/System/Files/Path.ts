@@ -1,4 +1,4 @@
-/** /Terminal/FileSystem/Path
+/** /System/Files/Path
  * 
  * Ment to emulate node:path as best as possible.
  * 

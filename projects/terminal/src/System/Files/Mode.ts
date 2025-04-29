@@ -1,4 +1,4 @@
-/** /Terminal/FileSystem/Mode
+/** /System/Files/Mode
  * 
  * @author Alex Malotky
  */

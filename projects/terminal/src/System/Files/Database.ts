@@ -1,16 +1,26 @@
-/** /Terminal/FileSystem/Database
+/** /System/Files/Database
  * 
  * @author Alex Malotky
  */
-import {openDB, IDBPDatabase, IDBPObjectStore} from "idb";
+import {openDB, IDBPDatabase, IDBPObjectStore, IDBPTransaction} from "idb";
 import { dirname, join, normalize, parse, parrent } from "./Path";
 import { validate } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
 
 const DEFAULT_DRIECTORY_MODE = 775;
 const DEFAULT_FILE_MODE = 664;
+const DEFAULT_ROOT_MODE = 755;
 
-type StoreType = "Directory"|"File"
+export interface InitData {
+    [name:string]:string|InitData
+}
+
+const Stores = [
+    "Directory",
+    "File"
+] as const;
+
+type StoreType = typeof Stores[number]
 
 let db:IDBPDatabase|undefined;
 
@@ -46,18 +56,21 @@ export interface LinkDirectoryData{
     path: string
 }
 type DirectoryData = FolderDirectoryData|FileDirectoryData|LinkDirectoryData;
-type DirectoryTransaction<M extends IDBTransactionMode> = IDBPObjectStore<DirectoryData, ["Directory"], "Directory",  M>
+type DirectoryStore<M extends IDBTransactionMode> = IDBPObjectStore<DirectoryData, typeof Stores, "Directory",  M>
 
 type FileData = string;
-type FileTransaction<M extends IDBTransactionMode> = IDBPObjectStore<FileData, ["File"], "File",  M>
+type FileStore<M extends IDBTransactionMode> = IDBPObjectStore<FileData, typeof Stores, "File",  M>
+
+type FileSystemTransaction<M extends IDBTransactionMode> = IDBPTransaction<DirectoryData|FileData, typeof Stores, M>
 
 /** Get Database Connection
  * 
  * @returns {Promise<IDBPDatabase>}
  */
-async function getConn<M extends IDBTransactionMode>(name:"Directory", mode:M):Promise<DirectoryTransaction<M>>
-async function getConn<M extends IDBTransactionMode>(name:"File", mode:M):Promise<FileTransaction<M>>
-async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N, mode:M):Promise<IDBPObjectStore<any, [N], N, M>>{
+async function getConn<M extends IDBTransactionMode>(name:"Directory", mode:M):Promise<DirectoryStore<M>>
+async function getConn<M extends IDBTransactionMode>(name:"File", mode:M):Promise<FileStore<M>>
+async function getConn<M extends IDBTransactionMode>(mode:M):Promise<FileSystemTransaction<M>>
+async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N|M, mode?:M):Promise<DirectoryStore<M>|FileStore<M>|FileSystemTransaction<M>>{
     if(db === undefined) {
         db = await openDB("Terminal:Filesystem", 1, {
             upgrade: async (db)=>{
@@ -66,8 +79,14 @@ async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N
             }
         });
     }
+
+    if(Stores.includes(name as any)) {
+        //@ts-ignore
+        return db.transaction(name, mode!).objectStore(name);
+    }
     
-    return db.transaction(name, mode).objectStore(name);
+    //@ts-ignore
+    return db.transaction(Stores, name);
 }
 
 
@@ -79,29 +98,93 @@ interface DirectoryOptions {
 }
 //////////////////////// Private Helper Function /////////////////////////////////
 
-async function _dir(path:string, conn:DirectoryTransaction<any>):Promise<string[]> {
+async function _dir(path:string, conn:DirectoryStore<any>):Promise<string[]> {
     return (await conn.getAllKeys() as string[])
         .filter(s=>parrent(path, s))
         .map(dirname);
 }
 
+/** Build Directory
+ * 
+ * @param {string} path 
+ * @param {InitData} init 
+ */
+async function _build(path:string, init:InitData) {
+    const tx = await getConn("readwrite");
+    const dir  = tx.objectStore("Directory");
+    const file = tx.objectStore("File");
+    for(const name in init){
+        const filePath = join(path, name);
+        let data:DirectoryData|undefined = await dir.get(filePath);
+
+        //Build File
+        if(typeof init[name] === "string") {
+            
+            //Update
+            if(data) {
+                (data as FileDirectoryData).updated = new Date();
+
+            //Create
+            } else {
+                const [base, ext = ""] = name.split(".");
+                data = {
+                    type: "File",
+                    owner: 0,
+                    mode: DEFAULT_ROOT_MODE,
+                    base: base,
+                    ext: ext,
+                    links: 0,
+                    created: new Date(),
+                    updated: new Date(),
+                    path: path
+                } satisfies FileDirectoryData;
+            }
+
+            //Save
+            await dir.put(data, filePath);
+            await file.put(init[name], filePath);
+
+        //Build Directory
+        } else {
+
+            //Create
+            if(data === undefined){
+                await dir.add({
+                    type: "Directory",
+                    owner: 0,
+                    mode: DEFAULT_ROOT_MODE,
+                    links: 0,
+                    created: new Date(),
+                    base: name,
+                    path: path
+                } satisfies FolderDirectoryData, filePath)
+            }
+
+            //Populate Directory
+            await _build(filePath, init[name]);
+        }
+    }
+}
+
 
 ////////////////////////// Global Operations //////////////////////////////////////
 
-export async function init():Promise<void> {
+export async function init(data:InitData = {}):Promise<void> {
     const conn = await getConn("Directory", "readwrite");
 
     if(await conn.get("/") === undefined) {
         conn.put({
             type: "Directory",
             owner: 0,
-            mode: 777,
+            mode: DEFAULT_ROOT_MODE,
             links: 0,
             created: new Date(),
             base: "",
             path: "/"
         } satisfies FolderDirectoryData, "/");
     }
+
+   await _build("/", data);
 }
 
 /** Get Directory Info
@@ -124,7 +207,7 @@ export async function getInfo(path:string):Promise<DirectoryData|undefined> {
     return data;
 }
 
-export async function getSize(path:string, rec?:DirectoryTransaction<"readonly">):Promise<number> {
+export async function getSize(path:string, rec?:DirectoryStore<"readonly">):Promise<number> {
     path = normalize(path);
     const conn = rec || await getConn("Directory", "readonly");
 
@@ -166,7 +249,7 @@ interface RemoveOptions {
  * @param {DirectoryTransaction} rec 
  * @returns {string|null}
  */
-export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryTransaction<"readwrite">):Promise<string[]|null> {
+export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryStore<"readwrite">):Promise<string[]|null> {
     if(typeof opts.user !== "number")
         throw new TypeError("User must be a number!");
 
@@ -231,7 +314,7 @@ export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryTran
  * @param {string} path 
  * @param {DirectoryOptions} opts 
  */
-export async function createDirectory(path:string, opts:DirectoryOptions, conn?:DirectoryTransaction<"readwrite">):Promise<DirectoryData> {
+export async function createDirectory(path:string, opts:DirectoryOptions, conn?:DirectoryStore<"readwrite">):Promise<DirectoryData> {
     const {user, mode = DEFAULT_DRIECTORY_MODE} = opts;
     if(typeof user !== "number")
         throw new TypeError("User must be a number!");

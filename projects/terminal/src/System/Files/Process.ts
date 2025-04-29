@@ -1,3 +1,9 @@
+/** /System/Files/Process
+ * 
+ * System calls to allow the user to access the file system.
+ * 
+ * @author Alex Malotky
+ */
 import System, {MainFunction} from "..";
 import {normalize, relative, join} from "./Path";
 import fs, {SystemStats} from ".";
@@ -9,6 +15,12 @@ interface FileSystemProcess {
     main: MainFunction
 }
 
+/** System Stats To String Helper
+ * 
+ * @param {SystemStats} stat 
+ * @param {string} name 
+ * @returns {Promise<string>}
+ */
 async function toString(stat:SystemStats, name:string = stat.name):Promise<string> {
     let string = `${stat.created.toLocaleDateString()} ${stat.created.toLocaleTimeString()}`;
     

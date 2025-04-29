@@ -1,8 +1,13 @@
+/** /System/Files
+ * 
+ * @author Alex Malotky
+ */
 import Stream from "../Stream";
 import * as db from "./Database";
+import { InitData } from "./Database";
 import { parse } from "./Path";
 import FileSystem from "./Process";
-export {FileSystem};
+export {FileSystem, InitData};
 
 ///////////////////////////// Helper Functions /////////////////////////////
 
@@ -51,8 +56,8 @@ export interface WriteFileOptions {
     force?: boolean
 }
 
-export function init() {
-    return db.init();
+export function init(data?:InitData) {
+    return db.init(data);
 }
 
 //////////////////////////// File System Interface ///////////////////////////////
