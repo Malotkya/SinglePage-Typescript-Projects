@@ -1,59 +1,51 @@
-/** /Terminal/Stream
- * 
- * Attempting to mimic streams to handle input and output of strings.
+/** /System/Stream/IO
  * 
  * @author Alex Malotky
  */
-import { sleep } from ".";
-import Position, { comparePositions } from "./Position";
-import { HighlighMap } from "./Bios";
+import {SystemStream, ReadStream, WriteStream, getHighlighted} from ".";
+import Position from "../Terminal/Position";
+import { HighlighMap } from "../Terminal/Bios";
+import {betterToString} from "@"
+import {sleep} from "..";
 
-export function getHighlighted(buffer:string, map:HighlighMap, pos:Position, width:number):string {
-    const [start, end] = map;
-    let output:string = "";
-
-    for(let i=0; i<buffer.length; i++){
-        const char = buffer.charAt(i);
-
-        if(comparePositions(pos, start) >= 0 && comparePositions(pos, end) <= 0)
-            output += char;
-
-        if(char == '\n' || char == '\r') {
-            pos.x = 0;
-            pos.y++;
-        } else {
-            pos.x++;
-            if(pos.x > width) {
-                pos.x = 0;
-                pos.y++;
-            }
-        }
-    }
-
-    return output;
-}
-
-/** Stream Interface
- * 
- * This class acts like a stream to handle inputs and outputs.
- */
-export default interface Stream {
-    add(c:any):void
-    set(c:any):void
-    flush(i?:number):string
-    pull(m:HighlighMap, p:Position, w:number):string
-    readonly buffer:string
-}
-
-export class InputStream implements Stream {
+export class InputStream implements SystemStream,WriteStream,ReadStream {
     private _print: string;
     private _buffer:string;
     private _cursor:number;
+    hide:boolean;
 
     public constructor(){
         this._buffer = "";
         this._print = "";
         this._cursor = 0;
+        this.hide = false;
+    }
+
+    getStdIn():ReadStream&{hide:boolean}{
+        const stdin = this;
+        return {
+            get(pattern?:string|RegExp):Promise<string> {
+                return stdin.get(pattern);
+            },
+            getln():Promise<string> {
+                return stdin.getln();
+            },
+            next():Promise<string> {
+                return stdin.next();
+            },
+            get buffer() {
+                return stdin.buffer;
+            },
+            flush(i?:number):string {
+                return stdin.flush(i);
+            },
+            set hide(value:boolean) {
+                stdin.hide = value;
+            },
+            get hide():boolean {
+                return stdin.hide;
+            }
+        }
     }
 
     /** Set Buffer
@@ -63,7 +55,7 @@ export class InputStream implements Stream {
     public set(chunk: any){
         
         if(chunk) {
-            chunk = String(chunk);
+            chunk = betterToString(chunk);
             const index = this._buffer.length - this._print.length;
             this._buffer = this._buffer.substring(0, index) + chunk
             this._print = chunk;
@@ -75,8 +67,8 @@ export class InputStream implements Stream {
      * 
      * @param {any} chunk 
      */
-    public add(chunk: any){
-        chunk = String(chunk);
+    public write(chunk: any){
+        chunk = betterToString(chunk);
         if(this._cursor === this._print.length || this._print.length === 0) {
             this._print += chunk;
             this._buffer += chunk;
@@ -131,7 +123,7 @@ export class InputStream implements Stream {
             }
 
             if(bufferIndex === 0){
-                this._buffer = this.buffer.substring(1);
+                this._buffer = this._buffer.substring(1);
             } else {
                 this._buffer = this._buffer.substring(0, index) + this._buffer.substring(index+1);
             }
@@ -205,6 +197,10 @@ export class InputStream implements Stream {
     }
 
     public get buffer() {
+        return this._buffer
+    }
+
+    public get print() {
         return this._print;
     }
 
@@ -234,13 +230,28 @@ export class InputStream implements Stream {
 }
 
 const OUT_KEY = "OutputStream:Buffer";
-export class OutputStream implements Stream {
-    add(s:any){
-        localStorage.setItem(OUT_KEY, this.buffer + String(s));
+export class OutputStream implements SystemStream,WriteStream {
+    getStdOut():WriteStream {
+        const stdout = this;
+        return {
+            write(c:any) {
+                stdout.write(c);
+            },
+            get buffer() {
+                return stdout.buffer;
+            },
+            flush(n?:number):string {
+                return stdout.flush(n);
+            }
+        }
+    }
+
+    write(c:any){
+        localStorage.setItem(OUT_KEY, this.buffer + betterToString(c));
     }
 
     set(s:any){
-        localStorage.setItem(OUT_KEY, String(s));
+        localStorage.setItem(OUT_KEY, betterToString(s));
     }
 
     flush(n?:number) {
