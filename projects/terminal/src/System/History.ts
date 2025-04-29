@@ -1,4 +1,4 @@
-/** /Terminal/History
+/** /System/History
  * 
  * @author Alex Malotky
  */
