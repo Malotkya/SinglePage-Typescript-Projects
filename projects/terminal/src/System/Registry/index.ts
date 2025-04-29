@@ -1,4 +1,4 @@
-/** /Terminal/Register
+/** /System/Register
  * 
  * These are the default constants that will be used by the app.  If there are
  * settings saved in a cookie those will be used instead.
