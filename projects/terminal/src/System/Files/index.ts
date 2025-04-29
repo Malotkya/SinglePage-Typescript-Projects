@@ -8,7 +8,7 @@ import { InitData } from "./Database";
 import * as Path from "./Path";
 import FileSystem from "./Process";
 import {Process} from "..";
-import { fromFile, FileData } from "../App";
+import { fromFile } from "../Script";
 import { FileError } from "./Errors";
 export {FileSystem, InitData};
 
@@ -63,10 +63,10 @@ export function init(data?:InitData) {
     return db.init(data);
 }
 
-export async function executable(file:string):Promise<Process|null> {
+export async function executable(file:string, skip?:boolean):Promise<Process|null> {
     const {base} = Path.parse(file);
     try {
-        const data:FileData = {
+        const data:Record<string, string> = {
             name: base
         };
         let buffer = await db.executable(file, getCurrentUser());
@@ -88,7 +88,7 @@ export async function executable(file:string):Promise<Process|null> {
 
         data[name] = buffer;
 
-        return fromFile(data);
+        return fromFile(data, skip);
 
     } catch (e){
         if(e instanceof FileError)
