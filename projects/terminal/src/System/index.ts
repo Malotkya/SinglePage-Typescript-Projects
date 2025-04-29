@@ -1,4 +1,4 @@
-/** /Terminal
+/** /System
  * 
  * @author Alex Malotky
  */
@@ -32,7 +32,6 @@ interface SystemIterator{
 }
 
 const SYSTEM_NAME = "Terminal System";
-const SYSTEM_CALL = SYSTEM_NAME.toLocaleLowerCase();
 
 ///// Private Attributes of System ///////
 const systemProcess:Map<string, Process> = new Map();
@@ -177,7 +176,7 @@ const System = {
         return callstack[callstack.length-1];
     },
 
-    /** Loop over Apps
+    /** Process Iterator
      * 
      * @returns {SystemIterator} 
      */
@@ -239,43 +238,61 @@ const System = {
         return initView(w, h);
     },
 
+    /** System History
+     * 
+     */
     get history():History<string> {
         return history;
     },
 
+    /** System Call Name
+     * 
+     */
     get call() {
         return SYSTEM_NAME;
     },
 
-    async run(cmd:string) {
+    /** Run Command
+     * 
+     * @param {string} cmd 
+     */
+    async run(cmd:string):Promise<void>{
         const args = new Arguments(cmd);
-        System.history.add(cmd);
+        history.add(cmd);
     
+        let exe:Process|null = null;
         try {
-            const exe = System.getProcess(args[0]) || await executable(args[0]);
-            if(exe === null)
-                throw new Error(`Unknown Command: '${args[0]}'!`);
-
-            callstack.push(exe);
-            stdin.flush();
-
-            try {
-                const e = await exe.main(args);
-                if(e)
-                    throw e;
-
-            } catch (e:any){
-                System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
-            }
-            
-            await (getView()?.wait());
-            callstack.pop();
-
+            exe = System.getProcess(args[0]) || await executable(args[0], true);
         } catch (e:any){
             System.println(e.message || e);
+            return;
         }
+
+        if(exe === null) {
+            System.println(`Unknown Command: '${args[0]}'!`);
+            return;
+        }
+
+        stdin.flush();
+        callstack.push(exe);
+
+        try {
+            const e = await exe.main(args);
+            if(e)
+                throw e;
+
+            await (getView()?.wait());
+
+        } catch (e:any){
+            System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
+        }
+        
+        callstack.pop();
     },
 
+    /** Current Working Directory
+     * 
+     */
     get cwd():string {
         return currentLocation();
     }
