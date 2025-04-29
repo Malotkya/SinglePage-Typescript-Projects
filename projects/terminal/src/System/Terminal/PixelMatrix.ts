@@ -1,4 +1,4 @@
-/** /Terminal/PixelMatrix
+/** /System/Terminal/PixelMatrix
  * 
  * @author Alex Malotky
  */

@@ -1,4 +1,4 @@
-/** /Terminal/Mouse
+/** /System/Terminal/Mouse
  * 
  * This file currently does nothing but will eventualy function similar to the
  * keyboard file.

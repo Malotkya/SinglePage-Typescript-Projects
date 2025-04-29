@@ -1,10 +1,10 @@
-/** /Terminal/Bios
+/** /System/Terminal/Bios
  * 
  * @author Alex Malotky
  */
 import * as K from "./Keyboard";
 import * as M from './Mouse';
-import Registry from "./Registry";
+import Registry from "../Registry";
 import Color from "@/Color";
 import Position, { normalizePositions, Dimensions } from "./Position";
 import {BiosView, ViewTemplate} from "./View";
@@ -373,9 +373,9 @@ export type PixelFunction = (m:PixelMatrix)=>void;
  * @param {number} height
  * @returns {Object}
 */
-export function getView(): {template: ViewTemplate, init:(view:BiosView|null)=>void}
-export function getView(width:number,  height:number): {template: ViewTemplate, init:(view:BiosView|null)=>void}
-export function getView(w:number = width * char.width, h:number = height * char.height): {template: ViewTemplate, init:(view:BiosView|null)=>void}{
+export function viewTemplate(): {template: ViewTemplate, init:(view:BiosView|null)=>void}
+export function viewTemplate(width:number,  height:number): {template: ViewTemplate, init:(view:BiosView|null)=>void}
+export function viewTemplate(w:number = width * char.width, h:number = height * char.height): {template: ViewTemplate, init:(view:BiosView|null)=>void}{
     if(ctx === null)
         throw new Error("Bio is not yet claimed!");
     
