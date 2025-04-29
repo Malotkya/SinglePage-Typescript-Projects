@@ -16,7 +16,7 @@ export class UnauthorizedError extends Error {
  * 
  */
 export class FileError extends Error {
-    constructor( type:"Read"|"Write"|"Delete"|"Create"|"Link"|"Unlink", message:string) {
+    constructor( type:"Read"|"Write"|"Delete"|"Create"|"Link"|"Unlink"|"Execute", message:string) {
         super(message)
         this.name = `FileError [${type}]`
     }
