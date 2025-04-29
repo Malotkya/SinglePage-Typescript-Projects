@@ -1,9 +1,9 @@
-/** /Terminal/App
+/** /System/App
  * 
  * @author Alex Malotky
  */
 import History from "./History";
-import System, { Process, HelpFunction, MainFunction, validateCall} from ".";
+import System, { Process, HelpFunction, MainFunction, validateCall } from ".";
 
 export default class App implements Process{
     private _call: string;
@@ -53,32 +53,3 @@ export default class App implements Process{
         return this._description;
     }
 }
-
-export type FileData = Record<string, string>;
-
-function buildScript(data:string):Function {
-    return new Function(`return (async(System, args)=>{
-        ${data}
-    })(arguments[1], arguments[2])`)
-}
-
-export function fromFile(data:FileData):Process {
-    const history:string = data["history"]? data["history"].toLocaleLowerCase().trim(): "";
-    const call:string = validateCall(data["name"]);
-    const help:Function|undefined = data["help"]? buildScript(data["help"]): undefined;
-    const description:string|undefined = data["description"];
-    const string:string|undefined = data["main"] || data["*"];
-    
-    if(typeof string !== "string")
-        throw new Error("Main function missing");
-
-    const main = buildScript(string);
-    
-    return {
-        call, description,
-        history: history === "true" || history === "1"? new History(call): undefined,
-        main: (args)=>main(System, args),
-        help: help? ()=>help(System): undefined
-    }
-}
-
