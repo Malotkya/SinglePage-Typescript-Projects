@@ -8,7 +8,7 @@ import History from "./History";
 import { initView, initIO, getView, setPrompt } from "./Terminal";
 import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
-import { executable, InitData, readExecutableFile } from "./Files";
+import { executable, InitData, parseExecutable } from "./Files";
 import SystemIterator from "./Iterator";
 
 export {App};
@@ -336,7 +336,7 @@ export async function initSystem(bin:InitData):Promise<void> {
         } else {
             systemProcess.set(
                 validateCall(name, true), 
-                readExecutableFile(bin[name]))
+                parseExecutable(bin[name]))
         }
     }
 }
