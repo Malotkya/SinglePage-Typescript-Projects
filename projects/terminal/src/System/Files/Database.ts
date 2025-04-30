@@ -7,6 +7,7 @@ import Database from "../Database";
 import { dirname, join, normalize, parse, parrent } from "./Path";
 import { validate } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
+import { ROOT_USER_ID, UserId, isUserId } from "../User";
 
 const DEFAULT_DRIECTORY_MODE = 775;
 const DEFAULT_FILE_MODE = 664;
@@ -25,7 +26,7 @@ type StoreType = typeof Stores[number]
 
 export interface FolderDirectoryData {
     type: "Directory"
-    owner: number
+    owner: UserId
     mode: number
     links:number
     created: Date
@@ -34,7 +35,7 @@ export interface FolderDirectoryData {
 }
 export interface FileDirectoryData{
     type: "File"
-    owner: number
+    owner: UserId
     mode: number
     links:number
     created: Date
@@ -46,7 +47,7 @@ export interface FileDirectoryData{
 export interface LinkDirectoryData{
     type: "Link"
     target: string
-    owner: number
+    owner: UserId
     mode: number
     links:number
     created: Date
@@ -82,7 +83,7 @@ async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N
 
 
 interface DirectoryOptions {
-    user: number,
+    user: UserId,
     mode?: number,
     recursive?: boolean
 }
@@ -119,7 +120,7 @@ async function _build(path:string, init:InitData) {
                 const [base, ext = ""] = name.split(".");
                 data = {
                     type: "File",
-                    owner: 0,
+                    owner: ROOT_USER_ID,
                     mode: DEFAULT_ROOT_MODE,
                     base: base,
                     ext: ext,
@@ -141,7 +142,7 @@ async function _build(path:string, init:InitData) {
             if(data === undefined){
                 await dir.add({
                     type: "Directory",
-                    owner: 0,
+                    owner: ROOT_USER_ID,
                     mode: DEFAULT_ROOT_MODE,
                     links: 0,
                     created: new Date(),
@@ -165,7 +166,7 @@ export async function init(data:InitData = {}):Promise<void> {
     if(await conn.get("/") === undefined) {
         conn.put({
             type: "Directory",
-            owner: 0,
+            owner: ROOT_USER_ID,
             mode: DEFAULT_ROOT_MODE,
             links: 0,
             created: new Date(),
@@ -229,7 +230,7 @@ export async function getSize(path:string, rec?:DirectoryStore<"readonly">):Prom
 
 interface RemoveOptions {
     recursive?:boolean
-    user: number
+    user: UserId
 }
 
 /** Remove Directory or File
@@ -240,8 +241,8 @@ interface RemoveOptions {
  * @returns {string|null}
  */
 export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryStore<"readwrite">):Promise<string[]|null> {
-    if(typeof opts.user !== "number")
-        throw new TypeError("User must be a number!");
+    if( !isUserId(opts.user) )
+        throw new TypeError("Invalid User Id!");
 
     path = normalize(path);
     const conn = rec || await getConn("Directory", "readwrite");
@@ -306,8 +307,8 @@ export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryStor
  */
 export async function createDirectory(path:string, opts:DirectoryOptions, conn?:DirectoryStore<"readwrite">):Promise<DirectoryData> {
     const {user, mode = DEFAULT_DRIECTORY_MODE} = opts;
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+    if( !isUserId(opts.user) )
+        throw new TypeError("Invalid User Id!");
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
 
@@ -359,9 +360,9 @@ export async function createDirectory(path:string, opts:DirectoryOptions, conn?:
  * @param {string} path 
  * @returns {Promise<string[]>}
  */
-export async function readDirectory(path:string, user:number):Promise<string[]> {
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+export async function readDirectory(path:string, user:UserId):Promise<string[]> {
+    if( !isUserId(user) )
+        throw new TypeError("Invalid User Id!");
 
     path = normalize(path);
     const conn = await getConn("Directory", "readonly");
@@ -385,8 +386,8 @@ export async function readDirectory(path:string, user:number):Promise<string[]> 
  */
 export async function createLink(from:string, to:string, opts:DirectoryOptions):Promise<void> {
     const {user, mode = DEFAULT_DRIECTORY_MODE} = opts;
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+    if( !isUserId(user) )
+        throw new TypeError("Invalid User Id!");
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
 
@@ -437,7 +438,7 @@ export async function createLink(from:string, to:string, opts:DirectoryOptions):
 interface UnlinkOptions {
     force?:boolean,
     recursive?:boolean
-    user:number,
+    user:UserId,
 }
 
 /** Unlink Options
@@ -448,8 +449,8 @@ interface UnlinkOptions {
  */
 export async function unlink(path:string, opts:UnlinkOptions):Promise<void> {
     const {force = false, recursive = false, user} = opts;
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+    if( !isUserId(opts.user) )
+        throw new TypeError("Invalid User Id!");
 
     path = normalize(path);
     const conn = await getConn("Directory", "readwrite");
@@ -487,7 +488,7 @@ export async function unlink(path:string, opts:UnlinkOptions):Promise<void> {
 export type WriteFileType = "Prepend"|"Append"|"Override"|"Insert";
 
 interface FileOptions {
-    user: number,
+    user: UserId,
     type: WriteFileType
 }
 
@@ -499,8 +500,8 @@ interface FileOptions {
  */
 export async function createFile(path:string, opts:DirectoryOptions, data?:string):Promise<void> {
     const {user, mode = DEFAULT_FILE_MODE} = opts;
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+    if( !isUserId(user) )
+        throw new TypeError("Invalid User Id!");
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
 
@@ -560,8 +561,8 @@ export async function createFile(path:string, opts:DirectoryOptions, data?:strin
  */
 export async function writeToFile(path:string, opts:FileOptions, data:string):Promise<void> {
     const {user, type} = opts;
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+    if( !isUserId(user) )
+        throw new TypeError("Invalid User Id!");
     
     path = normalize(path);
     const dirConn = await getConn("Directory", "readwrite");
@@ -612,9 +613,9 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
  * @param {string} path 
  * @param {number} user 
  */
-export async function readFile(path:string, user:number):Promise<string> {
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+export async function readFile(path:string, user:UserId):Promise<string> {
+    if( !isUserId(user) )
+        throw new TypeError("Invalid User Id!");
 
     path = normalize(path);
     const dirConn = await getConn("Directory", "readonly");
@@ -636,12 +637,12 @@ export async function readFile(path:string, user:number):Promise<string> {
 /** Read Executable
  * 
  * @param {string} path 
- * @param {string} user 
+ * @param {UserId} user 
  * @returns {Promise<string>}
  */
-export async function executable(path:string, user:number):Promise<string> {
-    if(typeof user !== "number")
-        throw new TypeError("User must be a number!");
+export async function executable(path:string, user:UserId):Promise<string> {
+    if( !isUserId(user) )
+        throw new TypeError("Invalid User Id!");
 
     path = normalize(path);
     const dirConn = await getConn("Directory", "readonly");

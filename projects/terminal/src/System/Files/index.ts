@@ -10,29 +10,8 @@ import FileSystem from "./Process";
 import {Process} from "..";
 import { fromFile } from "../Script";
 import { FileError } from "./Errors";
+import User, {getUserById} from "../User";
 export {FileSystem, InitData};
-
-///////////////////////////// Helper Functions /////////////////////////////
-
-/** Get Current User From System
- * 
- * @returns 
- */
-function getCurrentUser(): number {
-    return 0;
-}
-
-/** Get User Name By Id
- * 
- * @param {number} id 
- * @returns {string}
- */
-function getUserName(id:number):string {
-    if(id === 0)
-        return "root";
-    
-    return "Unknown";
-}
 
 ///////////////////////////// Option Interfaces /////////////////////////////
 
@@ -69,7 +48,7 @@ export async function executable(file:string, skip?:boolean):Promise<Process|nul
         const data:Record<string, string> = {
             name: base
         };
-        let buffer = await db.executable(file, getCurrentUser());
+        let buffer = await db.executable(file, await User.id());
 
         let match:RegExpMatchArray|null = buffer.match(/^([a-z]+):/im);
         let name:string = "*";
@@ -114,7 +93,7 @@ const fs = {
     async link(from:string, to:string, opts:LinkOptions = {}):Promise<void> {
         await db.createLink(from, to, {
             ...opts,
-            user: getCurrentUser()
+            user: await User.id()
         });
     },
 
@@ -128,7 +107,7 @@ const fs = {
     async unlink(path:string, opts:UnlinkOptions = {}):Promise<void> {
         db.unlink(path, {
             ...opts,
-            user: getCurrentUser()
+            user: await User.id()
         })
     },
 
@@ -140,7 +119,7 @@ const fs = {
     async rm(path:string, opts:RemoveOptions = {}):Promise<void> {
         const test = await db.remove(path, {
             ...opts,
-            user: getCurrentUser()
+            user: await User.id()
         });
     
         if(test && test.length > 0) {
@@ -173,7 +152,7 @@ const fs = {
                 path: about.path,
                 created: info.created,
                 updated: (info as any).updated,
-                owner: getUserName(info.owner),
+                owner: (await getUserById(info.owner))?.username || "Guest",
                 links: info.links,
                 mode: info.mode,
                 isLink(): true{
@@ -193,7 +172,7 @@ const fs = {
             base: info.base,
             ext: (info as any).ext,
             created: info.created,
-            owner: getUserName(info.owner),
+            owner: (await getUserById(info.owner))?.username || "Guest",
             links: info.links,
             mode: info.mode,
             path: info.path,
@@ -272,7 +251,7 @@ const fs = {
     async mkdir(path:string, opts:MakeDirectoryOptions = {}):Promise<void> {
         db.createDirectory(path, {
             ...opts,
-            user: getCurrentUser()
+            user: await User.id()
         })
     },
 
@@ -282,7 +261,7 @@ const fs = {
      * @returns {Promise<string[]>}
      */
     async readdir(path:string):Promise<string[]> {
-        return await db.readDirectory(path, getCurrentUser())
+        return await db.readDirectory(path, await User.id())
     },
 
     /** Make File
@@ -291,7 +270,7 @@ const fs = {
     async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:string):Promise<void> {
         await db.createFile(path, {
             ...opts,
-            user: getCurrentUser()
+            user: await User.id()
         }, data);
     },
 
@@ -304,14 +283,14 @@ const fs = {
     async writefile(path:string, data:string, opts:WriteFileOptions = {}):Promise<void> {
         if(await this.exists(path)) {
             await db.writeToFile(path, {
-                user: getCurrentUser(),
+                user: await User.id(),
                 type: opts.type || "Override"
             }, data);
 
         } else if(opts.force){
             await db.createFile(path, {
                 recursive: true,
-                user: getCurrentUser()
+                user: await User.id()
             }, data);
         }
         
@@ -323,7 +302,7 @@ const fs = {
      * @returns {Promise<string>}
      */
     async readfile(path:string):Promise<string> {
-        return await db.readFile(path, getCurrentUser());
+        return await db.readFile(path, await User.id());
     },
 
     /** Open File

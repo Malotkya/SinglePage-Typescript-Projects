@@ -2,6 +2,7 @@
  * 
  * @author Alex Malotky
  */
+import { ROOT_USER_ID, UserId } from "../User";
 
 type GroupValue = 1|10|100;
 type OperationValue = 0|1|2|3|4|5|6|7;
@@ -39,15 +40,15 @@ type Operations = typeof ValidOperations[number];
  * @param {string} operation 
  * @returns {boolean}
  */
-export function validate(value:number, owner:number, user:number, operation:Operations):boolean {
-    if(user === 0)
+export function validate(value:number, owner:UserId, user:UserId, operation:Operations):boolean {
+    if(user === ROOT_USER_ID)
         return true;
     
-    const group:GroupValue = user > 0
-        ? owner === user
+    const group:GroupValue = user === null
+        ? 100
+        : owner === user
             ? 1
-            : 10
-        : 100;
+            : 10;
 
     const o:OperationValue|-1 = ValidOperations.indexOf(operation) as any;
     if(o === -1)
