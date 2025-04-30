@@ -39,7 +39,6 @@ function _normalize(path:string):string[] {
     
     let i = 0;
     while(i < list.length){
-        const dir = list[i];
         switch(list[i]){
             case ".":
             case "":
@@ -181,10 +180,8 @@ export function join(...args:string[]):string {
     if(args.length === 0)
         throw new TypeError("Path must be a string!");
 
-    return args.filter((s)=>{
-        assertPath(s)
-        return s;
-    }).join(SEP);
+    return "/"+args.flatMap(s=>s.split(SEP))
+        .filter(s=>s).join(SEP);
 }
 
 /** Is Immediate Parrent
