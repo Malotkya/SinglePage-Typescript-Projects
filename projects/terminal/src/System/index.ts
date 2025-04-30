@@ -9,6 +9,8 @@ import { initView, initIO, getView, setPrompt } from "./Terminal";
 import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable } from "./Files";
+import SystemIterator from "./Iterator";
+import {login, logout} from "./User";
 
 export {App};
 
@@ -22,13 +24,6 @@ export interface Process {
     readonly description?:string
     readonly help?: HelpFunction
     readonly main: MainFunction
-}
-
-interface SystemIterator{
-    next(): {
-        value: [string, Process],
-        done?: boolean
-    }
 }
 
 const SYSTEM_NAME = "Terminal System";
@@ -189,38 +184,8 @@ const System = {
      * 
      * @returns {SystemIterator} 
      */
-    [Symbol.iterator]():SystemIterator{
-        let sys:MapIterator<[string, Process]>|null  = systemProcess.entries();
-        let file:MapIterator<[string, Process]>|null = loadedProcess.entries();
-
-        return {
-            next() {
-                return {
-                    get value() {
-                        if(sys) {
-                            const n = sys.next();
-                            if(n.done)
-                                sys = null;
-                            else
-                                return n.value;
-                        }
-
-                        if(file) {
-                            const n = file.next();
-                            if(n.done)
-                                file = null;
-                            else
-                                return n.value;
-                        }
-
-                        return [] as any;
-                    },
-                    get done() {
-                        return sys === null && file === null
-                    }
-                }
-            }
-        }
+    [Symbol.iterator]():ReturnType<typeof SystemIterator<Process>>{
+        return SystemIterator(systemProcess.entries(), loadedProcess.entries());
     },
 
     /** Reset System
@@ -236,6 +201,7 @@ const System = {
      */
     close() {
         running = false;
+        logout();
         window.location.replace("/");
     },
 
