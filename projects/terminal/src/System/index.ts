@@ -5,7 +5,7 @@
 import App from "./App";
 import Arguments from "./Arguments";
 import History from "./History";
-import { initView, initIO, getView } from "./Terminal";
+import { initView, initIO, getView, setPrompt } from "./Terminal";
 import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable } from "./Files";
@@ -156,6 +156,15 @@ const System = {
         return stdin.next();
     },
 
+    async prompt(message:string, password:boolean = false):Promise<string> {
+        setPrompt(message);
+        stdin.flush();
+        stdin.hide = password;
+        const output = await stdin.getln();
+        stdin.hide = false;
+        return output;
+    },
+
     /** Get Password
      * 
      * Calls getLn and blocks printing of characters.
@@ -164,7 +173,7 @@ const System = {
      */
     async getPassord():Promise<string> {
         stdin.hide = true;
-        let output: string = await stdin.getln();
+        const output: string = await stdin.getln();
         stdin.hide = false;
         return output;
     },

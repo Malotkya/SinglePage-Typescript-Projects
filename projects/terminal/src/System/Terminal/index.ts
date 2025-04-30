@@ -10,7 +10,8 @@ import { comparePositions } from "./Position";
 import {InputStream, OutputStream, ReadStream, WriteStream, getHighlighted} from "../Stream";
 import { getHistory } from "..";
 
-const PROMPT = "$ ";
+const DEFAUTL_PROMPT = "$ ";
+let prompt = DEFAUTL_PROMPT;
 
 type StdInput  = ReadStream&{hide:boolean};
 type StdOutput = WriteStream;
@@ -32,7 +33,7 @@ function getTerminalHighlighted(map:HighlighMap, width:number):string {
     let buffer = output.pull(map, pos, width);
 
     if(comparePositions(pos, end) < 0){
-        buffer += getHighlighted(PROMPT, map, pos, width);
+        buffer += getHighlighted(prompt, map, pos, width);
     }
 
     if(comparePositions(pos, end) < 0) {
@@ -40,6 +41,10 @@ function getTerminalHighlighted(map:HighlighMap, width:number):string {
     }
 
     return buffer;
+}
+
+export function setPrompt(value?:string|null) {
+    prompt = value || DEFAUTL_PROMPT;
 }
 
 export function getView():View|null {
@@ -160,7 +165,7 @@ class TerminalInterface extends HTMLElement{
         
             case "Enter":
             case "NumpadEnter":
-                output.write(PROMPT+input.enter());
+                output.write(prompt+input.enter());
                 break;
         
             default:
@@ -186,10 +191,10 @@ class TerminalInterface extends HTMLElement{
      */
     render(event:Event) {
         if(output.ready)
-            this.#bios.print(output.buffer.padEnd(1, "\n"));
+            this.#bios.print(output.buffer);
         
         if(!password) {
-            this.#bios.print(PROMPT+input.buffer);
+            this.#bios.print(prompt+input.buffer);
         }
     
         this.#bios.cursor(input.cursor-input.buffer.length);
