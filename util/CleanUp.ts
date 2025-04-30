@@ -13,10 +13,9 @@ const list:Array<Destroyable|CleanUp> = [];
 export function addToCleanup(item:Destroyable|CleanUp) {
     if(typeof item === "function" || (typeof item === "object" && typeof item.destroy === "function")) {
         list.push(item);
+    } else {
+        throw new Error("Item is not destroyable!");
     }
-
-    throw new Error("Item is not destroyable!");
-    
 }
 
 window.addEventListener("beforeunload", async(e)=>{
