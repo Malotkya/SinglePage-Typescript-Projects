@@ -2,7 +2,8 @@
  * 
  * @author Alex Malotky
  */
-import {openDB, IDBPDatabase, IDBPObjectStore, IDBPTransaction} from "idb";
+import {IDBPObjectStore, IDBPTransaction} from "idb";
+import Database from "../Database";
 import { dirname, join, normalize, parse, parrent } from "./Path";
 import { validate } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
@@ -21,8 +22,6 @@ const Stores = [
 ] as const;
 
 type StoreType = typeof Stores[number]
-
-let db:IDBPDatabase|undefined;
 
 export interface FolderDirectoryData {
     type: "Directory"
@@ -56,10 +55,10 @@ export interface LinkDirectoryData{
     path: string
 }
 type DirectoryData = FolderDirectoryData|FileDirectoryData|LinkDirectoryData;
-type DirectoryStore<M extends IDBTransactionMode> = IDBPObjectStore<DirectoryData, typeof Stores, "Directory",  M>
+type DirectoryStore<M extends IDBTransactionMode> = IDBPObjectStore<DirectoryData, ["Directory"], "Directory",  M>
 
 type FileData = string;
-type FileStore<M extends IDBTransactionMode> = IDBPObjectStore<FileData, typeof Stores, "File",  M>
+type FileStore<M extends IDBTransactionMode> = IDBPObjectStore<FileData, ["File"], "File",  M>
 
 type FileSystemTransaction<M extends IDBTransactionMode> = IDBPTransaction<DirectoryData|FileData, typeof Stores, M>
 
@@ -71,22 +70,13 @@ async function getConn<M extends IDBTransactionMode>(name:"Directory", mode:M):P
 async function getConn<M extends IDBTransactionMode>(name:"File", mode:M):Promise<FileStore<M>>
 async function getConn<M extends IDBTransactionMode>(mode:M):Promise<FileSystemTransaction<M>>
 async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N|M, mode?:M):Promise<DirectoryStore<M>|FileStore<M>|FileSystemTransaction<M>>{
-    if(db === undefined) {
-        db = await openDB("Terminal:Filesystem", 1, {
-            upgrade: async (db)=>{
-                db.createObjectStore("File");
-                db.createObjectStore("Directory");
-            }
-        });
-    }
+    const db = await Database<DirectoryData|FileData>();
 
     if(Stores.includes(name as any)) {
-        //@ts-ignore
-        return db.transaction(name, mode!).objectStore(name);
+        return db.transaction(name as N, mode!).objectStore(name as N) as any;
     }
     
-    //@ts-ignore
-    return db.transaction(Stores, name);
+    return db.transaction(Stores, name as IDBTransactionMode) as FileSystemTransaction<M>;
 }
 
 
