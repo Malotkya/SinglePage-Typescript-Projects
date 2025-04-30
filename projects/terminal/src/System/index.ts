@@ -329,14 +329,26 @@ export async function start(){
     }
 }
 
-export async function initSystem(bin:InitData):Promise<void> {
-    for(const name in bin) {
-        if(typeof bin[name] === "object") {
-            initSystem(bin[name]);
-        } else {
-            systemProcess.set(
-                validateCall(name, true), 
-                parseExecutable(bin[name]))
+export async function initSystem(...args:(InitData|Record<string, MainFunction>)[]):Promise<void> {
+    for(const bin of args){
+        for(const name in bin) {
+            switch(typeof bin[name]) {
+                case "object":
+                    initSystem(bin[name]);
+                    break;
+
+                case "function":
+                    systemProcess.set(
+                        validateCall(name, true),
+                        {call: name, main: bin[name] }
+                    );
+                    break;
+
+                default:
+                    systemProcess.set(
+                        validateCall(name, true), 
+                        parseExecutable(bin[name]))
+            }
         }
     }
 }
