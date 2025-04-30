@@ -2,20 +2,28 @@
  * 
  * @author Alex Malotky
  */
+export type CleanUp = ()=>void|Promise<void>;
 export interface Destroyable {
-    destroy():void|Promise<void>
+    destroy:CleanUp
 }
 
-const list:Destroyable[] = [];
 
-export function addToCleanup(item:Destroyable) {
-    if(typeof item !== "object" || typeof item.destroy !== "function")
-        throw new Error("Item is not destroyable!");
-    list.push(item);
+const list:Array<Destroyable|CleanUp> = [];
+
+export function addToCleanup(item:Destroyable|CleanUp) {
+    if(typeof item === "function" || (typeof item === "object" && typeof item.destroy === "function")) {
+        list.push(item);
+    }
+
+    throw new Error("Item is not destroyable!");
+    
 }
 
 window.addEventListener("beforeunload", async(e)=>{
     for(const item of list){
-        await item.destroy();
+        if(typeof item === "function")
+            await item();
+        else
+            await item.destroy();
     }
 });
