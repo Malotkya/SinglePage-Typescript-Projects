@@ -1,5 +1,5 @@
-import System, {start as startSystem, clear} from "./System";
-import { init as initFS, InitData as InitialFiles, FileSystem } from "./System/Files";
+import System, {start as startSystem, clear, initSystem} from "./System";
+import { init as initFS, InitData as InitialFiles, FileSystem, InitData } from "./System/Files";
 import { functionToString } from "./System/Script";
 import {login, logout} from "./System/User";
 import SystemFiles from "./Operations";
@@ -66,11 +66,6 @@ function merge(os:SystemFile, optional:SystemFile = {}):InitialFiles {
  */
 export function init(files?:InitialFiles):StartFunction {
 
-    for(const call in FileSystem){
-        const {desc, main} = FileSystem[call];
-        System.addFunction(call, desc, main);
-    }
-
     System.addFunction("about", "Displays more information about the terminal app.", ()=>{
         System.println("This is an attempt to see what I can create in this environement.");
         System.println("I plan to continue to expand the functionality of thie terminal");
@@ -93,10 +88,14 @@ export function init(files?:InitialFiles):StartFunction {
     System.addApp(new SettingsApp());
     System.addApp(new Snake());
 
+    const data = merge(SystemFiles, files);
     const ready = Promise.all([
-        initFS(merge(SystemFiles, files)),
-
-    ])
+        initFS(data),
+        initSystem(
+            FileSystem,
+            data["bin"] as InitData
+        )
+    ]);
 
     /** Start Terminal
      * 
