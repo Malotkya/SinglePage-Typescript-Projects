@@ -7,6 +7,8 @@ import { addToCleanup } from "@/CleanUp";
 import Role, {assignRoles, hasRole} from "./Role";
 import System from "..";
 
+export type UserId = string|null;
+
 //User Constants
 export const NO_USER = null;
 export const ROOT_USER_ID = "0";
@@ -14,7 +16,7 @@ export const ROOT_USER = "root";
 
 //Current User Persistance
 const USER_KEY = "Current:User_Id"
-let current_id = localStorage.getItem(USER_KEY) || NO_USER;
+let current_id:UserId = localStorage.getItem(USER_KEY) || NO_USER;
 addToCleanup(()=>{
     if(current_id)
         localStorage.setItem(USER_KEY, current_id.toString());
@@ -101,6 +103,15 @@ export async function login(username:string, password:string):Promise<boolean> {
     return current_id !== NO_USER;
 }
 
+/** Get User By Id
+ * 
+ * @param {UserId} id 
+ * @returns {Promise<UserData|null>}
+ */
+export function getUserById(id:UserId):Promise<db.UserData|null> {
+    return db.getUser(id);
+}
+
 /** Logout User
  * 
  */
@@ -136,9 +147,9 @@ const User = {
 
     /** Get User Id
      * 
-     * @returns {Promise<string|null>}
+     * @returns {Promise<UserId>}
      */
-    async id():Promise<string|null> {
+    async id():Promise<UserId> {
         return current_id;
     },
 
