@@ -42,59 +42,47 @@ async function toString(stat:SystemStats, name:string = stat.name):Promise<strin
     return string + ` ${name}`
 }
 
-const process:Record<string, FileSystemProcess> = {
-    ".": {
-        desc: "",
-        main: ()=>System.println(location)
+const process:Record<string, MainFunction> = {
+    ".": ()=>System.println(location),
+    "dir": async()=>{
+        const size = await fs.size(location);
+        System.println(`Reading: ${location}\n`);
+
+        const home = (await fs.stats(location))!;
+        System.println(await toString(home, "."));
+
+        if(location !== "/") {
+            const parrent = (await fs.stats(normalize(location, "..")))!;
+            System.println(await toString(parrent, ".."));
+        }
+        
+        for(const dir of (await fs.readdir(location)).sort()) {
+            const stat = (await fs.stats(join(location, dir)))!;
+            System.println(await toString(stat))
+        }
+
+        System.println("");
     },
-    "dir": {
-        desc: "List items in Directory",
-        main: async()=>{
-            const size = await fs.size(location);
-            System.println(`Reading: ${location}\n`);
-
-            const home = (await fs.stats(location))!;
-            System.println(await toString(home, "."));
-
-            if(location !== "/") {
-                const parrent = (await fs.stats(normalize(location, "..")))!;
-                System.println(await toString(parrent, ".."));
-            }
+    "mkdir": async(args)=>{
+        if(args[1] === undefined)
+            System.println("Error: No directory name specified!");
+        else
+            await fs.mkdir(relative(location, args[1]));
+    },
+    "cd": async(args)=>{
+        if(args[1] === undefined) {
+            System.println("Error: No directory name specified!");
+            return;
+        }
             
-            for(const dir of (await fs.readdir(location)).sort()) {
-                const stat = (await fs.stats(join(location, dir)))!;
-                System.println(await toString(stat))
-            }
+        const target = normalize(location, args[1]);
+        const data = await fs.stats(target);
+        if(data === null || !data.isDiretory()) {
+            System.println("Unable to find directory: " + args[1]);
+            return;
+        }
 
-            System.println("");
-        }
-    },
-    "mkdir": {
-        desc: "Make Directory",
-        main: async(args)=>{
-            if(args[1] === undefined)
-                System.println("Error: No directory name specified!");
-            else
-                await fs.mkdir(relative(location, args[1]));
-        }
-    },
-    "cd": {
-        desc: "Change Directory",
-        main: async(args)=>{
-            if(args[1] === undefined) {
-                System.println("Error: No directory name specified!");
-                return;
-            }
-                
-            const target = normalize(location, args[1]);
-            const data = await fs.stats(target);
-            if(data === null || !data.isDiretory()) {
-                System.println("Unable to find directory: " + args[1]);
-                return;
-            }
-
-            location = target;
-        }
+        location = target;
     }
 }
 export default process
