@@ -1,5 +1,6 @@
 import System, {start as startSystem, clear} from "./System";
 import { init as initFS, InitData as InitialFiles, FileSystem } from "./System/Files";
+import { functionToString } from "./System/Script";
 import {login, logout} from "./System/User";
 import SystemFiles from "./Operations";
 import Help from "./Help";
@@ -23,7 +24,7 @@ function merge(os:SystemFile, optional:SystemFile = {}):InitialFiles {
         if(os[name]) {
             switch (typeof os[name]) {
                 case "function":
-                    output[name] = ""+os[name];
+                    output[name] = functionToString(os[name]);
                     break;
 
                 case "object":
@@ -40,7 +41,7 @@ function merge(os:SystemFile, optional:SystemFile = {}):InitialFiles {
         } else {
             switch(typeof optional[name]) {
                 case "function":
-                    output[name] = ""+optional[name];
+                    output[name] = functionToString(optional[name]);
                     break;
 
                 case "object":
