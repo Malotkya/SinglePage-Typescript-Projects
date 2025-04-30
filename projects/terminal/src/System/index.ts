@@ -8,14 +8,13 @@ import History from "./History";
 import { initView, initIO, getView, setPrompt } from "./Terminal";
 import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
-import { executable } from "./Files";
+import { executable, InitData, readExecutableFile } from "./Files";
 import SystemIterator from "./Iterator";
 
 export {App};
 
 export type MainFunction = (a:Arguments)=>Promise<unknown>|unknown;
 export type HelpFunction = ()=>Promise<unknown>|unknown;
-export type StartFunction = ()=>Promise<void>
 
 export interface Process {
     readonly history?: History<string>
@@ -284,10 +283,13 @@ export function getHistory():History<string>|null{
  * 
  * @param value 
  */
-export function validateCall(value:string):string{
+export function validateCall(value:string, skipValidation?:boolean):string{
     if(typeof value !== "string")
         throw new TypeError("Call must be a string!");
-    value = value.toLocaleLowerCase();
+    value = value.toLocaleLowerCase().trim();
+
+    if(skipValidation)
+        return value;
     
     if(value.match(/^[a-z]\w+$/) === null)
         throw new Error("System call can only contain numbers and letters, and must start with a letter!");
@@ -324,6 +326,18 @@ export async function start(){
             continue;
        
         System.run(string);
+    }
+}
+
+export async function initSystem(bin:InitData):Promise<void> {
+    for(const name in bin) {
+        if(typeof bin[name] === "object") {
+            initSystem(bin[name]);
+        } else {
+            systemProcess.set(
+                validateCall(name, true), 
+                readExecutableFile(bin[name]))
+        }
     }
 }
 
