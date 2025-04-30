@@ -1,36 +1,59 @@
 import System, {start as startSystem, clear} from "./System";
 import { init as initFS, InitData as InitialFiles, FileSystem } from "./System/Files";
+import {login, logout} from "./System/User";
 import SystemFiles from "./Operations";
 import Help from "./Help";
 import SettingsApp from "./Settings";
 import Snake from "./Snake";
 
 export type StartFunction = ()=>Promise<void>
+export type SystemFile = {
+    [name:string]: string|Function|SystemFile
+}
 
 /** Merge Inital Files
  * 
  * @param {InitialFiles} os 
  * @param {InitialFiles} optional 
  */
-function merge(os:InitialFiles, optional:InitialFiles = {}):InitialFiles {
-    const output:InitialFiles = JSON.parse(JSON.stringify(os));
+function merge(os:SystemFile, optional:SystemFile = {}):InitialFiles {
+    const output:InitialFiles = {};
 
-    for(const name in optional){
-        switch(output[name]) {
-            case "object":
-                if(typeof optional[name] === "object") {
-                    output[name] = merge(output[name] as any, optional[name])
-                }
-            break;
+    for(const name of new Set(Object.keys(os).concat(Object.keys(optional)))) {
+        if(os[name]) {
+            switch (typeof os[name]) {
+                case "function":
+                    output[name] = ""+os[name];
+                    break;
 
-            case "string":
-                if(typeof optional[name] === "string") {
+                case "object":
+                    output[name] = merge(os[name], typeof optional[name] === "object"? optional: undefined);
+                    break;
+
+                case "string":
+                    output[name] = os[name];
+                    break;
+
+                default:
+                    output[name] = String(name);
+            }
+        } else {
+            switch(typeof optional[name]) {
+                case "function":
+                    output[name] = ""+optional[name];
+                    break;
+
+                case "object":
+                    output[name] = merge(optional[name]);
+                    break;
+
+                case "string":
                     output[name] = optional[name];
-                }
-                break;
+                    break;
 
-            default:
-                output[name] = JSON.parse(JSON.stringify(optional[name]));
+                default:
+                    output[name] = String(optional[name]);
+            }
         }
     }
 
@@ -60,7 +83,8 @@ export function init(files?:InitialFiles):StartFunction {
     });
     System.addFunction("clear", "Clears the terminal.", (args)=>clear(args[1]));
     System.addFunction("exit", "Closes the terminal.", ()=>{
-        System.println("Good Bie!")
+        System.println("Good Bie!");
+        logout();
         System.close();
     });
 
