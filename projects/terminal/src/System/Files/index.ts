@@ -42,32 +42,36 @@ export function init(data?:InitData) {
     return db.init(data);
 }
 
+export function parseExecutable(buffer:string, name?:string, skip?:boolean):Process {
+    if(skip === undefined)
+        skip = name === undefined;
+
+    const data:Record<string, string> =  {name: name!};
+    let match:RegExpMatchArray|null = buffer.match(/^([a-z]+):/im);
+    let n:string = "*";
+
+    while(match !== null) {
+        const index = buffer.indexOf(match[0]);
+        const newName = match[1].toLocaleLowerCase();
+        const value = buffer.substring(0, index);
+        buffer = buffer.substring(index+match[0].length);
+
+        data[n.toLocaleLowerCase().trim()] = value;
+        name = newName;
+
+        match = buffer.match(/^([a-z]+):/im);
+    }
+
+    data[n] = buffer
+
+    return fromFile(data, skip);
+}
+
 export async function executable(file:string, skip?:boolean):Promise<Process|null> {
     const {base} = Path.parse(file);
     try {
-        const data:Record<string, string> = {
-            name: base
-        };
-        let buffer = await db.executable(file, await User.id());
 
-        let match:RegExpMatchArray|null = buffer.match(/^([a-z]+):/im);
-        let name:string = "*";
-
-        while(match !== null) {
-            const index = buffer.indexOf(match[0]);
-            const newName = match[1].toLocaleLowerCase();
-            const value = buffer.substring(0, index);
-            buffer = buffer.substring(index+match[0].length);
-
-            data[name.toLocaleLowerCase().trim()] = value;
-            name = newName;
-
-            match = buffer.match(/^([a-z]+):/im);
-        }
-
-        data[name] = buffer;
-
-        return fromFile(data, skip);
+        return parseExecutable(await db.executable(file, await User.id()), base, skip);
 
     } catch (e){
         if(e instanceof FileError)
