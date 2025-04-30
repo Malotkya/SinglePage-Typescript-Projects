@@ -10,7 +10,6 @@ import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable } from "./Files";
 import SystemIterator from "./Iterator";
-import {login, logout} from "./User";
 
 export {App};
 
@@ -201,7 +200,6 @@ const System = {
      */
     close() {
         running = false;
-        logout();
         window.location.replace("/");
     },
 
