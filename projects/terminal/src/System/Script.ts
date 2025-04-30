@@ -14,12 +14,28 @@ import Arguments from "./Arguments";
 const AsyncFunction:typeof Function = Object.getPrototypeOf(async function(){}).constructor;
 
 // Availble Scope Items
-const ScriptScope = {
-    System: System,
-    fs: fs,
-    path: Path,
-    window: undefined,
-    globalThis: undefined
+function ScriptScope() {
+    return {
+        System: System,
+        fs: fs,
+        path: Path,
+        window: undefined,
+        globalThis: undefined
+    }
+}
+
+export function functionToString(fun:Function):string {
+    const value = (""+fun).replaceAll(/\s+/g, " ");
+
+    let match = value.match(/^.*?{(.*)}.*?$/);
+    if(match)
+        return match[1];
+
+    match = value.match(/^.*?=>(.*?)$/);
+    if(match)
+        return match[1];
+
+    return value;
 }
 
 /** Build Script Function
@@ -28,9 +44,10 @@ const ScriptScope = {
  * @returns {Function}
  */
 function buildScript<T extends Function>(data:string):T {
-    const script:Function = new AsyncFunction(`{${Object.keys(ScriptScope).join(",")}}`, "args", data);
+    const scope = ScriptScope();
+    const script:Function = new AsyncFunction(`{${Object.keys(scope).join(",")}}`, "args", data);
     return (async(args:Arguments|undefined)=>{
-        return script.bind(null, ScriptScope, args);
+        return script.bind(null, scope, args);
     }) as any;
 }
 
