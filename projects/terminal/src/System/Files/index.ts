@@ -11,6 +11,7 @@ import {Process} from "..";
 import { fromFile } from "../Script";
 import { FileError } from "./Errors";
 import User, {getUserById} from "../User";
+import FileStream, {ReadFileStream, WriteFileStream, ReadWriteFileStream} from "../Stream/File";
 export {FileSystem, InitData};
 
 ///////////////////////////// Option Interfaces /////////////////////////////
@@ -78,6 +79,29 @@ export async function executable(file:string, skip?:boolean):Promise<Process|nul
             return null;
 
         throw e;
+    }
+}
+
+/** Open File
+ * 
+ * @param {string} path 
+ * @returns {Promise<stream>}
+ */
+async function openfile(path:string, type:"ReadOnly"):Promise<ReadFileStream>
+async function openfile(path:string, type:"WriteOnly", mode:db.WriteFileType):Promise<WriteFileStream>
+async function openfile(path:string, type:"ReadWrite", mode:db.WriteFileType):Promise<ReadWriteFileStream>
+async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode?:db.WriteFileType):Promise<Stream>{ 
+    const conn = await db.openFile(path, await User.id(), type);
+
+    switch(type){
+        case "ReadOnly":
+            return new ReadFileStream(conn);
+
+        case "WriteOnly":
+            return new WriteFileStream(conn, mode!);
+
+        case "ReadWrite":
+            return new ReadWriteFileStream(conn, mode!);
     }
 }
 
@@ -309,14 +333,7 @@ const fs = {
         return await db.readFile(path, await User.id());
     },
 
-    /** Open File
-     * 
-     * @param {string} path 
-     * @returns {Promise<stream>}
-     */
-    openfile(path:string):Promise<Stream>{ 
-        throw new Error("Open File is not yet implemented!")
-    }
+    openfile
 }
 export default fs;
 

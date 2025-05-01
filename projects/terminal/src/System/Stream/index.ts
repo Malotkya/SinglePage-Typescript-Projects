@@ -40,32 +40,16 @@ export class ReadStream extends Stream {
     }
 
     async get(pattern?:string|RegExp):Promise<string> {
-        //Get Just First Char
-        if(pattern === undefined){
-            while(this.buffer.length < 0) {
-                await sleep();
-            }
-                
-
-            const char = this.buffer.charAt(0);
-            this._pos += 1;
-            return char;
-        }
-
         //Convert String Pattern into Regex capture everything before.
         if(typeof pattern === "string")
             pattern = new RegExp(`^(.*?)${pattern}`);
 
-        //Aquire Match
-        while(true){
-            const match = this.buffer.match(pattern);
-            if(match){
-                this._pos += this.buffer.indexOf(match[0]) + match[0].length;
+        while(true) {
+            const {value, pos} = getNext(this.buffer, 0, pattern);
 
-                if(typeof match[1] === "string")
-                    return match[1];
-
-                return match[0];
+            if(value){
+                this._pos += pos;
+                return value;
             }
 
             await sleep();
@@ -87,8 +71,10 @@ export class WriteStream extends Stream {
         super(ref);
     }
 
-    write(chunk:any) {
-        this._ref.value += betterToString(chunk);
+    write(chunk:any):void {
+        const s = betterToString(chunk);
+        this._ref.value += s
+        this._pos += s.length;
     }
 }
 
@@ -123,4 +109,33 @@ export function getHighlightedFromBuffer(buffer:string, map:HighlighMap, pos:Pos
     }
 
     return output;
+}
+
+export function getNext(buffer:string, pos:number, regex?:RegExp):{value:string|null, pos:number} {
+    if(regex === undefined){
+        if(buffer.length < 0)
+            return {value:null, pos:Number.NaN};
+
+        return {
+            value: buffer.charAt(0),
+            pos: pos+1
+        }
+    }
+
+    const match = buffer.match(regex);
+    if(match === null)
+        return {value:null, pos:Number.NaN};
+
+    pos += buffer.indexOf(match[0]) + match[0].length;
+
+    if(typeof match[1] === "string")
+        return {
+            value: match[1],
+            pos
+        }
+
+    return {
+        value: match[0],
+        pos
+    }
 }
