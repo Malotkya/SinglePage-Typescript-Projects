@@ -1,7 +1,7 @@
 /** /System/Stream/File
  * 
  */
-import Stream, {ReadStream, WriteStream, getNext} from ".";
+import Stream, {getNext} from ".";
 import FileConnection from "../Files/Connection";
 import { WriteFileType } from "../Files/Database";
 import { betterToString } from "@";
