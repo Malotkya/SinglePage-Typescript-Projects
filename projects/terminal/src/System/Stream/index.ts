@@ -4,40 +4,92 @@
  */
 import Position, { comparePositions } from "../Terminal/Position";
 import { HighlighMap } from "../Terminal/Bios";
+import { sleep } from "..";
+import { betterToString } from "@";
 
 export {InputStream, OutputStream} from "./IO";
 
-/** Basic Stream Interface
- * 
- */
-export default interface Stream {
-    flush(i?:number):string
-    readonly buffer:string
+export interface BufferReference {value:string}
+
+export default class Stream {
+    protected _ref:BufferReference;
+    protected _pos:number;
+
+    constructor(buffer:BufferReference){
+        this._ref = buffer;
+        this._pos = 0;
+    }
+
+    flush(){
+        this._pos = this.buffer.length;
+    }
+
+    get buffer():string {
+        return this._ref.value;
+    }
 }
 
-/** System Stream Interface
- * 
- * Requirements for the system to interact with the stream
- */
-export interface SystemStream extends Stream {
-    set(c:any):void
-    pull(m:HighlighMap, p:Position, w:number):string
+export class ReadStream extends Stream {
+
+    constructor(ref:BufferReference) {
+        super(ref);
+    }
+
+    get buffer():string {
+        return this._ref.value.substring(this._pos);
+    }
+
+    async get(pattern?:string|RegExp):Promise<string> {
+        //Get Just First Char
+        if(pattern === undefined){
+            while(this.buffer.length < 0) {
+                await sleep();
+            }
+                
+
+            const char = this.buffer.charAt(0);
+            this._pos += 1;
+            return char;
+        }
+
+        //Convert String Pattern into Regex capture everything before.
+        if(typeof pattern === "string")
+            pattern = new RegExp(`^(.*?)${pattern}`);
+
+        //Aquire Match
+        while(true){
+            const match = this.buffer.match(pattern);
+            if(match){
+                this._pos += this.buffer.indexOf(match[0]) + match[0].length;
+
+                if(typeof match[1] === "string")
+                    return match[1];
+
+                return match[0];
+            }
+
+            await sleep();
+        }
+    }
+
+    next():Promise<string> {
+        return this.get(/^(.*?)\s+/);
+    }
+
+    getln(): Promise<string>{
+        return this.get(/^(.*?)[\n\r]+/);
+    }
 }
 
-/** Read Stream 
- * 
- */
-export interface ReadStream extends Stream {
-    get(pattern?:string|RegExp):Promise<string>
-    getln():Promise<string>
-    next():Promise<string>
-}
+export class WriteStream extends Stream {
 
-/** Write Stream
- * 
- */
-export interface WriteStream extends Stream {
-    write(c:any):void
+    constructor(ref:BufferReference) {
+        super(ref);
+    }
+
+    write(chunk:any) {
+        this._ref.value += betterToString(chunk);
+    }
 }
 
 /** Get Highlighted Helper Function
@@ -48,7 +100,7 @@ export interface WriteStream extends Stream {
  * @param {number} width 
  * @returns {string}
  */
-export function getHighlighted(buffer:string, map:HighlighMap, pos:Position, width:number):string {
+export function getHighlightedFromBuffer(buffer:string, map:HighlighMap, pos:Position, width:number):string {
     const [start, end] = map;
     let output:string = "";
 
