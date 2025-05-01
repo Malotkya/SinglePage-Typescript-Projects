@@ -3,6 +3,7 @@
  * @author Alex Malotky
  */
 import * as db from "./Database";
+import Database from "../Database";
 import { InitData } from "./Database";
 import * as Path from "./Path";
 import FileSystem from "./Process";
@@ -10,6 +11,7 @@ import {Process} from "..";
 import { fromFile } from "../Script";
 import { FileError } from "./Errors";
 import User, {getUserById} from "../User";
+
 import FileStream, {ReadFileStream, WriteFileStream, ReadWriteFileStream} from "../Stream/File";
 export {FileSystem, InitData};
 
@@ -38,8 +40,10 @@ export interface WriteFileOptions {
     force?: boolean
 }
 
-export function init(data?:InitData) {
-    return db.init(data);
+export async function init(data?:InitData) {
+    const ref = Database("FileSystem", "readwrite");
+    await db.init(data, await ref.open());
+    ref.close();
 }
 
 export function parseExecutable(buffer:string, name?:string, skip?:boolean):Process {
@@ -69,15 +73,16 @@ export function parseExecutable(buffer:string, name?:string, skip?:boolean):Proc
 
 export async function executable(file:string, skip?:boolean):Promise<Process|null> {
     const {base} = Path.parse(file);
+    const ref = Database("FileSystem", "readonly");
     try {
-
-        return parseExecutable(await db.executable(file, await User.id()), base, skip);
-
+        return parseExecutable(await db.executable(file, await User.id(), await ref.open()), base, skip);
     } catch (e){
         if(e instanceof FileError)
             return null;
 
         throw e;
+    } finally {
+        ref.close();
     }
 }
 
@@ -89,8 +94,10 @@ export async function executable(file:string, skip?:boolean):Promise<Process|nul
 async function openfile(path:string, type:"ReadOnly"):Promise<ReadFileStream>
 async function openfile(path:string, type:"WriteOnly", mode:db.WriteFileType):Promise<WriteFileStream>
 async function openfile(path:string, type:"ReadWrite", mode:db.WriteFileType):Promise<ReadWriteFileStream>
-async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode?:db.WriteFileType):Promise<FileStream>{ 
-    const conn = await db.openFile(path, await User.id(), type);
+async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode?:db.WriteFileType):Promise<FileStream>{
+    const ref = Database("FileSystem", "readwrite"); 
+    const conn = await db.openFile(path, await User.id(), type, await ref.open());
+    ref.close();
 
     switch(type){
         case "ReadOnly":
@@ -118,10 +125,12 @@ const fs = {
      * @param {LinkOptions} opts 
      */
     async link(from:string, to:string, opts:LinkOptions = {}):Promise<void> {
+        const ref = Database("FileSystem", "readwrite");
         await db.createLink(from, to, {
             ...opts,
             user: await User.id()
-        });
+        }, await ref.open());
+        ref.close();
     },
 
     /** Unlink File or Directory
@@ -132,10 +141,12 @@ const fs = {
      * @param {UnlinkOptions} opts 
      */
     async unlink(path:string, opts:UnlinkOptions = {}):Promise<void> {
+        const ref = Database("FileSystem", "readwrite");
         db.unlink(path, {
             ...opts,
             user: await User.id()
-        })
+        }, await ref.open());
+        ref.close();
     },
 
     /** Remove File or Dirctory
@@ -144,16 +155,11 @@ const fs = {
      * @param {RemoveOptions} opts 
      */
     async rm(path:string, opts:RemoveOptions = {}):Promise<void> {
+        const ref = Database("FileSystem", "readwrite");
         const test = await db.remove(path, {
             ...opts,
             user: await User.id()
-        });
-    
-        if(test && test.length > 0) {
-            const e = new Error("Return list not empty!")
-            e.name = "Critical Error";
-            throw e;
-        }
+        }, await ref.open());
     },
 
     /** Get Stats
@@ -162,13 +168,14 @@ const fs = {
      * @returns {Promise<SystemStats|null>}
      */
     async stats(path:string):Promise<SystemStats|null> {
-        const info  = await db.getInfo(path);
+        const ref = Database("FileSystem", "readonly");
+
+        const info  = await db.getInfo(path, await ref.open());
         const about = Path.parse(path);
+        ref.close();
     
         if(info === undefined)
             return null;
-    
-        (info as db.FileDirectoryData)
     
         //Detect Successfull Link
         if(info.path !== about.path) {
@@ -223,7 +230,10 @@ const fs = {
      * @returns {Promise<number>}
      */
     async size(path:string):Promise<number> {
-        return db.getSize(path);
+        const ref = Database("FileSystem", "readonly");
+        const result =  await db.getSize(path, await ref.open());
+        ref.close();
+        return result;
     },
 
     /** File or Directory Exists
@@ -232,7 +242,10 @@ const fs = {
      * @returns {Promise<boolean>}
      */
     async exists(path:string):Promise<boolean>{
-        return (await db.getInfo(path)) !== undefined;
+        const ref = Database("FileSystem", "readonly");
+        const result = await db.getInfo(path, await ref.open());
+        ref.close();
+        return result !== undefined;
     },
 
     /** Move Directory or File
@@ -276,10 +289,12 @@ const fs = {
      * @param {MakeDirectoryOptions} opts 
      */
     async mkdir(path:string, opts:MakeDirectoryOptions = {}):Promise<void> {
-        db.createDirectory(path, {
+        const ref = Database("FileSystem", "readwrite");
+        await db.createDirectory(path, {
             ...opts,
             user: await User.id()
-        })
+        }, await ref.open());
+        ref.close();
     },
 
     /** Read Directory
@@ -288,17 +303,22 @@ const fs = {
      * @returns {Promise<string[]>}
      */
     async readdir(path:string):Promise<string[]> {
-        return await db.readDirectory(path, await User.id())
+        const ref = Database("FileSystem", "readonly");
+        const results = await db.readDirectory(path, await User.id(), await ref.open());
+        ref.close();
+        return results;
     },
 
     /** Make File
      * 
      */
     async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:string):Promise<void> {
+        const ref = Database("FileSystem", "readwrite");
         await db.createFile(path, {
             ...opts,
             user: await User.id()
-        }, data);
+        }, await ref.open(), data);
+        ref.close();
     },
 
     /** Write File
@@ -308,19 +328,21 @@ const fs = {
      * @param {WriteFileOptions} opts 
      */
     async writefile(path:string, data:string, opts:WriteFileOptions = {}):Promise<void> {
-        if(await this.exists(path)) {
+        const ref = Database("FileSystem", "readwrite");
+        const tx = await ref.open();
+        if(undefined !== await db.getInfo(path, tx as any)) {
             await db.writeToFile(path, {
                 user: await User.id(),
                 type: opts.type || "Override"
-            }, data);
+            }, data, tx);
 
         } else if(opts.force){
             await db.createFile(path, {
                 recursive: true,
                 user: await User.id()
-            }, data);
+            }, tx, data);
         }
-        
+        ref.close();
     },
 
     /** Read File
@@ -329,7 +351,10 @@ const fs = {
      * @returns {Promise<string>}
      */
     async readfile(path:string):Promise<string> {
-        return await db.readFile(path, await User.id());
+        const ref = Database("FileSystem", "readonly");
+        const result = await db.readFile(path, await User.id(), await ref.open());
+        ref.close();
+        return result;
     },
 
     openfile

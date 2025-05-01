@@ -2,8 +2,7 @@
  * 
  * @author Alex Malotky
  */
-import {IDBPObjectStore, IDBPTransaction} from "idb";
-import Database from "../Database";
+import { DatabaseTransaction } from "../Database";
 import { dirname, join, normalize, parse, parrent } from "./Path";
 import { validate } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
@@ -17,13 +16,6 @@ const DEFAULT_ROOT_MODE = 755;
 export interface InitData {
     [name:string]:string|InitData
 }
-
-const Stores = [
-    "Directory",
-    "File"
-] as const;
-
-type StoreType = typeof Stores[number]
 
 export interface FolderDirectoryData {
     type: "Directory"
@@ -58,41 +50,20 @@ export interface LinkDirectoryData{
     path: string
 }
 type DirectoryData = FolderDirectoryData|FileDirectoryData|LinkDirectoryData;
-type DirectoryStore<M extends IDBTransactionMode> = IDBPObjectStore<DirectoryData, ["Directory"], "Directory",  M>
-
 type FileData = string;
-type FileStore<M extends IDBTransactionMode> = IDBPObjectStore<FileData, ["File"], "File",  M>
 
-type FileSystemTransaction<M extends IDBTransactionMode> = IDBPTransaction<DirectoryData|FileData, typeof Stores, M>
-
-/** Get Database Connection
- * 
- * @returns {Promise<IDBPDatabase>}
- */
-async function getConn<M extends IDBTransactionMode>(name:"Directory", mode:M):Promise<DirectoryStore<M>>
-async function getConn<M extends IDBTransactionMode>(name:"File", mode:M):Promise<FileStore<M>>
-async function getConn<M extends IDBTransactionMode>(mode:M):Promise<FileSystemTransaction<M>>
-async function getConn<M extends IDBTransactionMode, N extends StoreType>(name:N|M, mode?:M):Promise<DirectoryStore<M>|FileStore<M>|FileSystemTransaction<M>>{
-    const db = await Database<DirectoryData|FileData>();
-
-    if(Stores.includes(name as any)) {
-        return db.transaction(name as N, mode!).objectStore(name as N) as any;
-    }
-    
-    return db.transaction(Stores, name as IDBTransactionMode) as FileSystemTransaction<M>;
-}
-
-
+type FileSystemTransaction<M extends IDBTransactionMode = "readonly"> = DatabaseTransaction<M, "FileSystem">
 
 interface DirectoryOptions {
     user: UserId,
     mode?: number,
     recursive?: boolean
+    soft?: boolean
 }
 //////////////////////// Private Helper Function /////////////////////////////////
 
-async function _dir(path:string, conn:DirectoryStore<any>):Promise<string[]> {
-    return (await conn.getAllKeys() as string[])
+async function _dir(path:string, tx:FileSystemTransaction<any>):Promise<string[]> {
+    return (await tx.objectStore("Directory").getAllKeys() as string[])
         .filter(s=>parrent(path, s))
         .map(dirname);
 }
@@ -102,8 +73,7 @@ async function _dir(path:string, conn:DirectoryStore<any>):Promise<string[]> {
  * @param {string} path 
  * @param {InitData} init 
  */
-async function _build(path:string, init:InitData) {
-    const tx = await getConn("readwrite");
+async function _build(path:string, init:InitData, tx:FileSystemTransaction<"readwrite">) {
     const dir  = tx.objectStore("Directory");
     const file = tx.objectStore("File");
     for(const name in init){
@@ -155,19 +125,63 @@ async function _build(path:string, init:InitData) {
             }
 
             //Populate Directory
-            await _build(filePath, init[name]);
+            await _build(filePath, init[name], tx);
         }
     }
+}
+
+async function _remove(path:string, opts:RemoveOptions, tx:FileSystemTransaction<"readwrite">):Promise<string[]> {
+    path = normalize(path);
+    const store = tx.objectStore("Directory");
+
+    const data:DirectoryData|undefined = await store.get(path);
+    if(data === undefined)
+        return [];
+
+    if(!validate(data.mode, data.owner, opts.user, "WriteOnly"))
+        throw new UnauthorizedError(path, "Write");
+
+    let files:string[];
+    switch(data.type){
+        case "Link":
+            files = await _remove(data.target, opts, tx);
+            break;
+
+        case "Directory":
+            const list = await _dir(path, tx);
+            if(list.length > 0){
+                if(opts.recursive) {
+                    files = [];
+                    for(const f of list){
+                        const sub = await _remove(join(path, f), opts, tx);
+                        if(sub)
+                            files = files.concat(sub);
+                    }
+                } else {
+                    throw new FileError("Delete", `${path} is not empty!`);
+                }
+            } else {
+                files = [];
+            }
+            break;
+
+        case "File":
+            files = [path];
+            break;
+    }
+
+    await store.delete(path);
+    return files;
 }
 
 
 ////////////////////////// Global Operations //////////////////////////////////////
 
-export async function init(data:InitData = {}):Promise<void> {
-    const conn = await getConn("Directory", "readwrite");
+export async function init(data:InitData = {}, tx:FileSystemTransaction<"readwrite">):Promise<void> {
+    const store = tx.objectStore("Directory");
 
-    if(await conn.get("/") === undefined) {
-        conn.put({
+    if(await store.get("/") === undefined) {
+        await store.put({
             type: "Directory",
             owner: ROOT_USER_ID,
             mode: DEFAULT_ROOT_MODE,
@@ -178,7 +192,7 @@ export async function init(data:InitData = {}):Promise<void> {
         } satisfies FolderDirectoryData, "/");
     }
 
-    await _build("/", data);
+    await _build("/", data, tx);
 }
 
 /** Get Directory Info
@@ -186,14 +200,13 @@ export async function init(data:InitData = {}):Promise<void> {
  * @param {string} path 
  * @returns 
  */
-export async function getInfo(path:string):Promise<DirectoryData|undefined> {
+export async function getInfo(path:string, tx:FileSystemTransaction):Promise<DirectoryData|undefined> {
     path = normalize(path);
-    const conn = await getConn("Directory", "readonly");
 
-    const data:DirectoryData|undefined = await conn.get(path);
+    const data:DirectoryData|undefined = await tx.objectStore("Directory").get(path);
 
     if(data?.type === "Link") {
-        const target = await getInfo(data.target);
+        const target = await getInfo(data.target, tx);
         if(target)
             return target;
     }
@@ -201,20 +214,20 @@ export async function getInfo(path:string):Promise<DirectoryData|undefined> {
     return data;
 }
 
-export async function getSize(path:string, rec?:DirectoryStore<"readonly">):Promise<number> {
+export async function getSize(path:string, tx:FileSystemTransaction):Promise<number> {
     path = normalize(path);
-    const conn = rec || await getConn("Directory", "readonly");
+    const store = tx.objectStore("Directory");
 
-    let data:DirectoryData|undefined = await conn.get(path);
+    let data:DirectoryData|undefined = await store.get(path);
     while(data?.type === "Link") {
-        data = await conn.get(data.target);
+        data = await store.get(data.target);
     }
 
     if(data === undefined)
         throw new FileError("Read", `${path} does not exist!`);
 
     if(data.type === "File") {
-        const file:string|undefined = await (await getConn("File", "readonly")).get(path);
+        const file:string|undefined = await tx.objectStore("File").get(path);
         if(file){
             return file.length;
         }
@@ -223,9 +236,9 @@ export async function getSize(path:string, rec?:DirectoryStore<"readonly">):Prom
     }
 
     let output = 0;
-    const list = await _dir(path, conn)
+    const list = await _dir(path, tx)
     for(const file of list) {
-        output += await getSize(join(path, file), conn);
+        output += await getSize(join(path, file), tx);
     }
 
     return output;
@@ -243,59 +256,13 @@ interface RemoveOptions {
  * @param {DirectoryTransaction} rec 
  * @returns {string|null}
  */
-export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryStore<"readwrite">):Promise<string[]|null> {
-    path = normalize(path);
-    const conn = rec || await getConn("Directory", "readwrite");
+export async function remove(path:string, opts:RemoveOptions, tx:FileSystemTransaction<"readwrite">):Promise<void> {
+    const files = await _remove(path, opts, tx);
+    const store = tx.objectStore("File");
 
-    const data:DirectoryData|undefined = await conn.get(path);
-    if(data === undefined)
-        return null;
-
-    if(!validate(data.mode, data.owner, opts.user, "WriteOnly"))
-        throw new UnauthorizedError(path, "Write");
-
-    let files:string[]|null;
-    switch(data.type){
-        case "Link":
-            files = await remove(data.target, opts, conn);
-            break;
-
-        case "Directory":
-            const list = await _dir(path, conn);
-            if(list.length > 0){
-                if(opts.recursive) {
-                    files = [];
-                    for(const f of list){
-                        const sub = await remove(join(path, f), opts, conn);
-                        if(sub)
-                            files = files.concat(sub);
-                    }
-                } else {
-                    throw new FileError("Delete", `${path} is not empty!`);
-                }
-            } else {
-                files = null;
-            }
-            break;
-
-        case "File":
-            files = [path];
-            break;
+    for(const f of files){
+        await store.delete(f);
     }
-
-    await conn.delete(path);
-
-    if(rec)
-        return files;
-
-    if(files) {
-        const fileConn = await getConn("File", "readwrite");
-        for(const file of files)
-            await fileConn.delete(file);
-    }
-        
-
-    return null;
 }
 
 ////////////////////////// Directory Operations //////////////////////////////////////
@@ -305,29 +272,35 @@ export async function remove(path:string, opts:RemoveOptions, rec?:DirectoryStor
  * @param {string} path 
  * @param {DirectoryOptions} opts 
  */
-export async function createDirectory(path:string, opts:DirectoryOptions, conn?:DirectoryStore<"readwrite">):Promise<DirectoryData> {
-    const {user, mode = DEFAULT_DRIECTORY_MODE} = opts;
+export async function createDirectory(path:string, opts:DirectoryOptions, tx:FileSystemTransaction<"readwrite">):Promise<DirectoryData> {
+    const {user, mode = DEFAULT_DRIECTORY_MODE, soft = false} = opts;
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
 
     path = normalize(path);
     const name = dirname(path);
-    conn = conn || await getConn("Directory", "readwrite");
+    const store = tx.objectStore("Directory")
 
-    if(await conn.get(path))
+    const info = await store.get(path);
+    if(info) {
+        if(soft)
+            return info;
+
         throw new FileError("Create", `${path} already exists!`);
+    }
+        
 
     const parrent = normalize(path, "..");
-    let data:DirectoryData|undefined = await conn.get(parrent);
+    let data:DirectoryData|undefined = await store.get(parrent);
 
     while(data?.type === "Link") {
         path = normalize(data.target, "..", name);
-        data = await conn.get(data.target);
+        data = await store.get(data.target);
     }
 
     if(data === undefined) {
         if(opts.recursive) {
-            data = await createDirectory(parrent, opts, conn);
+            data = await createDirectory(parrent, opts, tx);
         } else {
             throw new FileError("Create", `'${parrent}' does not exist!`);
         }
@@ -349,7 +322,7 @@ export async function createDirectory(path:string, opts:DirectoryOptions, conn?:
         links: 0
     };
 
-    await conn.add(output, path);
+    await store.add(output, path);
     return output;
 }
 
@@ -358,17 +331,20 @@ export async function createDirectory(path:string, opts:DirectoryOptions, conn?:
  * @param {string} path 
  * @returns {Promise<string[]>}
  */
-export async function readDirectory(path:string, user:UserId):Promise<string[]> {
+export async function readDirectory(path:string, user:UserId, tx:FileSystemTransaction):Promise<string[]> {
     path = normalize(path);
-    const conn = await getConn("Directory", "readonly");
-    const data:DirectoryData|undefined = await conn.get(path);
+
+    const data:DirectoryData|undefined = await tx.objectStore("Directory").get(path);
     if(data === undefined)
         throw new FileError("Read", `'${path}' does not Exist!`);
 
     if(data.type !== "Directory")
         throw new FileError("Read", `${path} is not a directory!`);
 
-    return await _dir(path, conn);
+    if(!validate(data.mode, data.owner, user, "ReadOnly"))
+        throw new UnauthorizedError(path, "Read");
+
+    return await _dir(path, tx);
 }
 
 //////////////////////////// Link Operations //////////////////////////////////////
@@ -379,7 +355,7 @@ export async function readDirectory(path:string, user:UserId):Promise<string[]> 
  * @param {string} to 
  * @param {DirectoryOptions} opts 
  */
-export async function createLink(from:string, to:string, opts:DirectoryOptions):Promise<void> {
+export async function createLink(from:string, to:string, opts:DirectoryOptions, tx:FileSystemTransaction<"readwrite">):Promise<void> {
     const {user, mode = DEFAULT_DRIECTORY_MODE} = opts;
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
@@ -387,22 +363,22 @@ export async function createLink(from:string, to:string, opts:DirectoryOptions):
     from = normalize(from);
     to = normalize(to);
     const name = dirname(to);
-    const conn = await getConn("Directory", "readwrite");
+    const store = tx.objectStore("Directory");
 
-    const target:DirectoryData|undefined = await conn.get(from);
+    const target:DirectoryData|undefined = await store.get(from);
 
     if(target === undefined)
         throw new FileError("Link", `${from} does not exists!`);
 
-    if((await conn.get(to)))
+    if((await store.get(to)))
         throw new FileError("Link", `${to} already exists!`);
 
     const parrent = normalize(to, "..");
-    let data:DirectoryData|undefined = await conn.get(parrent);
+    let data:DirectoryData|undefined = await store.get(parrent);
 
     while(data?.type === "Link") {
         to = normalize(data.target, "..", name);
-        data = await conn.get(data.target)
+        data = await store.get(data.target)
     }
 
     if(data === undefined)
@@ -412,10 +388,10 @@ export async function createLink(from:string, to:string, opts:DirectoryOptions):
         throw new FileError("Create", `${parrent} is not a directory!`);
 
     target.links++;
-    await conn.put(target, from);
+    await store.put(target, from);
 
     const {base, ext = undefined} = parse(to);
-    await conn.add({
+    await store.add({
         type: "Link",
         path: parrent,
         owner: user,
@@ -440,13 +416,13 @@ interface UnlinkOptions {
  * @param {UnlinkOptions} opts 
  * @returns 
  */
-export async function unlink(path:string, opts:UnlinkOptions):Promise<void> {
+export async function unlink(path:string, opts:UnlinkOptions, tx:FileSystemTransaction<"readwrite">):Promise<void> {
     const {force = false, recursive = false, user} = opts;
 
     path = normalize(path);
-    const conn = await getConn("Directory", "readwrite");
+    const store = tx.objectStore("Directory");
 
-    const data:DirectoryData|undefined = await conn.get(path);
+    const data:DirectoryData|undefined = await store.get(path);
     if(data === undefined)
         return;
 
@@ -462,15 +438,15 @@ export async function unlink(path:string, opts:UnlinkOptions):Promise<void> {
     }
         
     if(data.type === "Directory" && recursive) {
-        for(const file of await _dir(path, conn)) {
-            await unlink(join(path, file), opts);
+        for(const file of await _dir(path, tx)) {
+            await unlink(join(path, file), opts, tx);
         }
     }
     
-    await conn.delete(path);
+    await store.delete(path);
     
     if(data.type === "File") {
-        await (await getConn("File", "readwrite")).delete(path)
+        await tx.objectStore("File").delete(path)
     }
 }
 
@@ -489,57 +465,58 @@ interface FileOptions {
  * @param {DirectoryOptions} opts 
  * @param {string} data 
  */
-export async function createFile(path:string, opts:DirectoryOptions, data?:string):Promise<void> {
-    const {user, mode = DEFAULT_FILE_MODE} = opts;
+export async function createFile(path:string, opts:DirectoryOptions, tx:FileSystemTransaction<"readwrite">, data?:string):Promise<void> {
+    const {user, mode = DEFAULT_FILE_MODE, soft = false} = opts;
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
 
     path = normalize(path);
     const {base, ext} = parse(path);
-    const dirConn = await getConn("Directory", "readwrite");
+    const store = tx.objectStore("Directory");
 
-    if(await dirConn.get(path))
-        throw new FileError("Create", `${path} already Exists!`);
+    if((await store.get(path)) === undefined) {
 
-    const parrent = normalize(path, "..");
-    let info:DirectoryData|undefined = await dirConn.get(parrent);
+        const parrent = normalize(path, "..");
+        let info:DirectoryData|undefined = await store.get(parrent);
 
-    while(info?.type === "Link") {
-        path = normalize(info.target, "..", base);
-        info = await dirConn.get(info.target);
-    }
-        
-    if(info === undefined) {
-        if(opts.recursive) {
-            info = await createDirectory(parrent, opts, dirConn);
-        } else {
-            throw new FileError("Create", `'${parrent}' does not Exist!`);
+        while(info?.type === "Link") {
+            path = normalize(info.target, "..", base);
+            info = await store.get(info.target);
         }
+            
+        if(info === undefined) {
+            if(opts.recursive) {
+                info = await createDirectory(parrent, opts, tx);
+            } else {
+                throw new FileError("Create", `'${parrent}' does not Exist!`);
+            }
+        }
+
+        if(info.type !== "Directory")
+            throw new FileError("Create", `${parrent} is not a directory!`);
+
+        if(!validate(info.mode, info.owner, user, "WriteOnly"))
+            throw new UnauthorizedError(parrent, "Write");
+
+        const now = new Date();
+        await store.add({
+            type: "File",
+            base: base,
+            path: parrent,
+            ext: ext,
+            owner: user,
+            mode: mode,
+            created: now,
+            updated: now,
+            links: 0,
+            listeners: 0
+        } satisfies DirectoryData, path);
+    } else  if(!soft) {
+        throw new FileError("Create", `${path} already Exists!`);
     }
-
-    if(info.type !== "Directory")
-        throw new FileError("Create", `${parrent} is not a directory!`);
-
-    if(!validate(info.mode, info.owner, user, "WriteOnly"))
-        throw new UnauthorizedError(parrent, "Write");
-
-    const now = new Date();
-    await dirConn.add({
-        type: "File",
-        base: base,
-        path: parrent,
-        ext: ext,
-        owner: user,
-        mode: mode,
-        created: now,
-        updated: now,
-        links: 0,
-        listeners: 0
-    } satisfies DirectoryData, path);
 
     if(data){
-        const conn = await getConn("File", "readwrite");
-        await conn.add(data, path);
+        await tx.objectStore("File").add(data, path);
     }
 }
 
@@ -549,13 +526,13 @@ export async function createFile(path:string, opts:DirectoryOptions, data?:strin
  * @param {FileOptions} opts 
  * @param {string} data 
  */
-export async function writeToFile(path:string, opts:FileOptions, data:string):Promise<void> {
+export async function writeToFile(path:string, opts:FileOptions, data:string, tx:FileSystemTransaction<"readwrite">):Promise<void> {
     const {user, type} = opts;
     
     path = normalize(path);
-    const dirConn = await getConn("Directory", "readwrite");
+    const store = tx.objectStore("Directory");
 
-    const info:DirectoryData|undefined = await dirConn.get(path);
+    const info:DirectoryData|undefined = await store.get(path);
     if(info === undefined)
         throw new FileError("Write", `${path} does not exisit!`);
 
@@ -566,15 +543,15 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
         throw new UnauthorizedError(path, "Write");
 
     info.updated = new Date();
-    await dirConn.put(info, path);
+    await store.put(info, path);
 
-    const fileConn = await getConn("File", "readwrite");
+    const file = tx.objectStore("File");
 
     let buffer:string;
     if(type === "Override"){
         buffer = data;
     } else {
-        buffer = await fileConn.get(path) || "";
+        buffer = await file.get(path) || "";
         switch(type){
             case "Insert":
                 buffer = data + buffer.substring(data.length);
@@ -593,7 +570,7 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
         }
     }
     
-    await fileConn.put(buffer, path);
+    await file.put(buffer, path);
     new BroadcastChannel(path).postMessage({
         name: user,
         value: buffer
@@ -605,11 +582,10 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
  * @param {string} path 
  * @param {number} user 
  */
-export async function readFile(path:string, user:UserId):Promise<string> {
+export async function readFile(path:string, user:UserId, tx:FileSystemTransaction):Promise<FileData> {
     path = normalize(path);
-    const dirConn = await getConn("Directory", "readonly");
 
-    const info:DirectoryData|undefined = await dirConn.get(path);
+    const info:DirectoryData|undefined = await tx.objectStore("Directory").get(path);
     if(info === undefined)
         throw new FileError("Read", `'${path}' does not Exist!`);
 
@@ -619,15 +595,13 @@ export async function readFile(path:string, user:UserId):Promise<string> {
     if(!validate(info.mode, info.owner, user, "ReadOnly"))
         throw new UnauthorizedError(path, "Read");
 
-    const fileConn = await getConn("File", "readonly");
-    return await fileConn.get(path) || "";
+    return await await tx.objectStore("File").get(path) || "";
 }
 
-export async function openFile(path:string, user:UserId, mode:"ReadOnly"|"WriteOnly"|"ReadWrite"):Promise<FileConnection> {
+export async function openFile(path:string, user:UserId, mode:"ReadOnly"|"WriteOnly"|"ReadWrite", tx:FileSystemTransaction<"readwrite">):Promise<FileConnection> {
     path = normalize(path);
-    const dirConn = await getConn("Directory", "readwrite");
 
-    const info:DirectoryData|undefined = await dirConn.get(path);
+    const info:DirectoryData|undefined = await tx.objectStore("Directory").get(path);
     if(info === undefined)
         throw new FileError("Open",`'${path}' does not Exist!`);
 
@@ -638,22 +612,21 @@ export async function openFile(path:string, user:UserId, mode:"ReadOnly"|"WriteO
         throw new UnauthorizedError(path, mode);
 
     info.links += 1;
-    await dirConn.put(info, path);
+    await tx.objectStore("Directory").put(info, path);
 
-    const fileConn = await getConn("File", "readonly");
-    return new FileConnection(path, await fileConn.get(path) || "");
+    return new FileConnection(path, await tx.objectStore("File").get(path) || "");
 }
 
-export async function closeFile(conn:FileConnection):Promise<void> {
+export async function closeFile(conn:FileConnection, tx:FileSystemTransaction<"readwrite">):Promise<void> {
     const path = conn.fileName? normalize(conn.fileName): undefined;
     if(path) {
-        const dirConn = await getConn("Directory", "readwrite");
+        const store = tx.objectStore("Directory");
 
-        const info:DirectoryData|undefined = await dirConn.get(path);
+        const info:DirectoryData|undefined = await store.get(path);
         if(info && info.type === "File"){
             info.listeners -= 1;
 
-            dirConn.put(info, path);
+            store.put(info, path);
         }
     }
 }
@@ -662,13 +635,12 @@ export async function closeFile(conn:FileConnection):Promise<void> {
  * 
  * @param {string} path 
  * @param {UserId} user 
- * @returns {Promise<string>}
+ * @returns {Promise<FileData>}
  */
-export async function executable(path:string, user:UserId):Promise<string> {
+export async function executable(path:string, user:UserId, tx:FileSystemTransaction):Promise<FileData> {
     path = normalize(path);
-    const dirConn = await getConn("Directory", "readonly");
 
-    const info:DirectoryData|undefined = await dirConn.get(path);
+    const info:DirectoryData|undefined = await tx.objectStore("Directory").get(path);
     if(info === undefined)
         throw new FileError("Execute", `'${path}' does not Exist!`);
 
@@ -678,6 +650,5 @@ export async function executable(path:string, user:UserId):Promise<string> {
     if(!validate(info.mode, info.owner, user, "ExecuteOnly"))
         throw new UnauthorizedError(path, "Execute");
 
-    const fileConn = await getConn("File", "readonly");
-    return await fileConn.get(path) || "";
+    return await tx.objectStore("File").get(path) || "";
 }

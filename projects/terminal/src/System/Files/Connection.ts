@@ -3,6 +3,7 @@
  * @author Alex Malotky
  */
 import {writeToFile, closeFile} from "./Database";
+import Database from "../Database";
 
 //Write Message Interface
 interface WriteMessage {
@@ -41,16 +42,29 @@ export default class FileConnection {
 
     set value(v:string){
         this._v = v;
-        if(this.bc !== null)
-            writeToFile(this.bc.name, {user: this, type: "Override"}, v);
+        const ref = Database("FileSystem", "readwrite");
+        ref.open().then(async(tx)=>{
+            try {
+                if(this.bc !== null) {
+                    await writeToFile(this.bc.name, {user: this, type: "Override"}, v, tx);
+                }
+            } catch (e){
+                console.error(e);
+            }
+            ref.close();
+                
+        }).catch(()=>ref.close());
     }
 
     get fileName():string|null {
         return this.bc?.name || null
     }
 
-    close() {
-        if(this.bc !== null)
-            closeFile(this);
+    async close() {
+        if(this.bc !== null) {
+            const ref = Database("FileSystem", "readwrite");
+            await closeFile(this, await ref.open());
+            ref.close();
+        }  
     }
 }

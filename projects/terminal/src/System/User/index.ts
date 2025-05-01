@@ -6,6 +6,7 @@ import * as db from "./Database";
 import { addToCleanup } from "@/CleanUp";
 import Role, {assignRoles, hasRole} from "./Role";
 import System from "..";
+import Database from "../Database";
 
 export type UserId = string|null;
 
@@ -28,11 +29,14 @@ addToCleanup(()=>{
  * @param {string} password 
  */
 export async function init(username:string, password:string):Promise<void> {
-    if(await db.hasUser(ROOT_USER))
+    const ref = Database("User", "readwrite");
+    const tx = await ref.open();
+    if(await db.hasUser(ROOT_USER, tx as any))
         throw new Error("Root User already exists!");
 
-    await db.addUser(ROOT_USER, password, assignRoles("None"), ROOT_USER_ID);
-    current_id = await db.addUser(username, password, assignRoles(["Admin", "User"]));
+    await db.addUser(ROOT_USER, password, assignRoles("None"), tx, ROOT_USER_ID);
+    current_id = await db.addUser(username, password, assignRoles(["Admin", "User"]), tx);
+    ref.close();
 }
 
 /** Add User
@@ -48,10 +52,14 @@ export async function addUser(username:string, password:string, role:Role[]|Role
     else
         await User.assertRole("Admin");
 
-    if(await db.hasUser(username))
+    const ref = Database("User", "readwrite");
+    const tx = await ref.open();
+
+    if(await db.hasUser(username, tx as any))
         throw new Error("Username already exists!");
 
-    await db.addUser(username, password, assignRoles(role));
+    await db.addUser(username, password, assignRoles(role), tx);
+    ref.close();
 }
 
 /** Delete User
@@ -62,8 +70,9 @@ export async function deleteUser(username:string):Promise<void> {
     if((username !== await User.username()) && !(await User.isRole("Admin"))){
         await User.assertRoot();
     }
-
-    await db.deleteUser(username);
+    const ref = Database("User", "readwrite");
+    await db.deleteUser(username, await ref.open());
+    ref.close();
 }
 
 //Update User Options
@@ -82,10 +91,12 @@ export async function updateUser(username:string, opts:UpdateUserOptions):Promis
         await User.assertRoot();
     }
 
+    const ref = Database("User", "readwrite");
     await db.updateUser(username, {
         password: opts.password,
         role: opts.role? assignRoles(opts.role): undefined
-    });
+    }, await ref.open());
+    ref.close();
 }
 
 /** Login User
@@ -98,7 +109,11 @@ export async function login(username:string, password:string):Promise<boolean> {
     if(current_id !== NO_USER)
         throw new Error("User is already logged in!");
 
-    current_id = await db.validateUser(username, password);
+    const ref = Database("User", "readonly");
+    const tx = await ref.open();
+    current_id = await db.validateUser(username, password, tx);
+    user = await db.getUser(current_id, tx);
+    ref.close();
 
     return current_id !== NO_USER;
 }
@@ -108,8 +123,11 @@ export async function login(username:string, password:string):Promise<boolean> {
  * @param {UserId} id 
  * @returns {Promise<UserData|null>}
  */
-export function getUserById(id:UserId):Promise<db.UserData|null> {
-    return db.getUser(id);
+export async function getUserById(id:UserId):Promise<db.UserData|null> {
+    const ref = Database("User", "readonly");
+    const record = await db.getUser(id, await ref.open());
+    ref.close();
+    return record;
 }
 
 /** Logout User
@@ -129,7 +147,10 @@ async function currentUser():Promise<db.UserData|null> {
     if(user === null && current_id === NO_USER)
         return null;
 
-    user = await db.getUser(current_id);
+    const ref = Database("User", "readonly");
+    user = await db.getUser(current_id, await ref.open());
+    ref.close();
+
     if(user === null)
         current_id = NO_USER;
 
@@ -165,7 +186,11 @@ const User = {
         if(password === undefined)
             password = await System.prompt("[sudo] Password: ");
 
-        return (await db.validateUser(ROOT_USER, password)) !== null;
+        const ref = Database("User", "readonly");
+        const result = await db.validateUser(ROOT_USER, password, await ref.open());
+        ref.close();
+
+        return result !== null;
     },
 
     /** Asert Root
