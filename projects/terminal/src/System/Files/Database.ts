@@ -623,7 +623,7 @@ export async function readFile(path:string, user:UserId):Promise<string> {
     return await fileConn.get(path) || "";
 }
 
-export async function openFile(path:string, user:UserId):Promise<FileConnection> {
+export async function openFile(path:string, user:UserId, mode:"ReadOnly"|"WriteOnly"|"ReadWrite"):Promise<FileConnection> {
     path = normalize(path);
     const dirConn = await getConn("Directory", "readwrite");
 
@@ -634,8 +634,8 @@ export async function openFile(path:string, user:UserId):Promise<FileConnection>
     if(info.type !== "File")
         throw new FileError("Open", `${path} is not a file!`);
 
-    if(!validate(info.mode, info.owner, user, "ReadWrite"))
-        throw new UnauthorizedError(path, "ReadWrite");
+    if(!validate(info.mode, info.owner, user, mode))
+        throw new UnauthorizedError(path, mode);
 
     info.links += 1;
     await dirConn.put(info, path);
