@@ -8,6 +8,7 @@ import { dirname, join, normalize, parse, parrent } from "./Path";
 import { validate } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
 import { ROOT_USER_ID, UserId } from "../User";
+import FileConnection from "./Connection";
 
 const DEFAULT_DRIECTORY_MODE = 775;
 const DEFAULT_FILE_MODE = 664;
@@ -38,6 +39,7 @@ export interface FileDirectoryData{
     owner: UserId
     mode: number
     links:number
+    listeners: number
     created: Date
     updated: Date
     path: string
@@ -125,6 +127,7 @@ async function _build(path:string, init:InitData) {
                     base: base,
                     ext: ext,
                     links: 0,
+                    listeners: 0,
                     created: new Date(),
                     updated: new Date(),
                     path: path
@@ -175,7 +178,7 @@ export async function init(data:InitData = {}):Promise<void> {
         } satisfies FolderDirectoryData, "/");
     }
 
-   await _build("/", data);
+    await _build("/", data);
 }
 
 /** Get Directory Info
@@ -476,14 +479,14 @@ export async function unlink(path:string, opts:UnlinkOptions):Promise<void> {
 export type WriteFileType = "Prepend"|"Append"|"Override"|"Insert";
 
 interface FileOptions {
-    user: UserId,
+    user: UserId|FileConnection,
     type: WriteFileType
 }
 
 /** Create File
  * 
  * @param {string} path 
- * @param {FileOptions} opts 
+ * @param {DirectoryOptions} opts 
  * @param {string} data 
  */
 export async function createFile(path:string, opts:DirectoryOptions, data?:string):Promise<void> {
@@ -530,7 +533,8 @@ export async function createFile(path:string, opts:DirectoryOptions, data?:strin
         mode: mode,
         created: now,
         updated: now,
-        links: 0
+        links: 0,
+        listeners: 0
     } satisfies DirectoryData, path);
 
     if(data){
@@ -558,7 +562,7 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
     if(info.type !== "File")
         throw new FileError("Delete", `${path} is not a file!`);
 
-    if(!validate(info.mode, info.owner, user, "WriteOnly")) 
+    if( !(user instanceof FileConnection) && !validate(info.mode, info.owner, user, "WriteOnly")) 
         throw new UnauthorizedError(path, "Write");
 
     info.updated = new Date();
@@ -590,6 +594,10 @@ export async function writeToFile(path:string, opts:FileOptions, data:string):Pr
     }
     
     await fileConn.put(buffer, path);
+    new BroadcastChannel(path).postMessage({
+        name: user,
+        value: buffer
+    });
 }
 
 /** Read File
@@ -613,6 +621,41 @@ export async function readFile(path:string, user:UserId):Promise<string> {
 
     const fileConn = await getConn("File", "readonly");
     return await fileConn.get(path) || "";
+}
+
+export async function openFile(path:string, user:UserId):Promise<FileConnection> {
+    path = normalize(path);
+    const dirConn = await getConn("Directory", "readwrite");
+
+    const info:DirectoryData|undefined = await dirConn.get(path);
+    if(info === undefined)
+        throw new FileError("Open",`'${path}' does not Exist!`);
+
+    if(info.type !== "File")
+        throw new FileError("Open", `${path} is not a file!`);
+
+    if(!validate(info.mode, info.owner, user, "ReadWrite"))
+        throw new UnauthorizedError(path, "ReadWrite");
+
+    info.links += 1;
+    await dirConn.put(info, path);
+
+    const fileConn = await getConn("File", "readonly");
+    return new FileConnection(path, await fileConn.get(path) || "");
+}
+
+export async function closeFile(conn:FileConnection):Promise<void> {
+    const path = conn.fileName? normalize(conn.fileName): undefined;
+    if(path) {
+        const dirConn = await getConn("Directory", "readwrite");
+
+        const info:DirectoryData|undefined = await dirConn.get(path);
+        if(info && info.type === "File"){
+            info.listeners -= 1;
+
+            dirConn.put(info, path);
+        }
+    }
 }
 
 /** Read Executable

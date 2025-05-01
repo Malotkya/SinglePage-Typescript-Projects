@@ -12,11 +12,13 @@ export class UnauthorizedError extends Error {
     }
 }
 
+type FileErrorType = "Read"|"Write"|"Delete"|"Create"|"Link"|"Unlink"|"Execute"|"Open";
+
 /** File System Error
  * 
  */
 export class FileError extends Error {
-    constructor( type:"Read"|"Write"|"Delete"|"Create"|"Link"|"Unlink"|"Execute", message:string) {
+    constructor( type:FileErrorType, message:string) {
         super(message)
         this.name = `FileError [${type}]`
     }
