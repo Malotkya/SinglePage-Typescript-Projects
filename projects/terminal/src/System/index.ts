@@ -360,12 +360,10 @@ export async function initSystem(...args:(InitData|Record<string, MainFunction>)
  */
 export function clear(modifier:string) {
     if(modifier === "-a") {
-        stdin.flush();
         stdout.flush();
         history.clear();
         localStorage.clear();
     } else {
-        stdin.flush();
-        stdout.flush();
+        stdout.clear();
     }
 }
