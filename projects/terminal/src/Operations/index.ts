@@ -1,6 +1,12 @@
 import { InitData } from "../System/Files";
 
-const OS:InitData = {
-
-}
-export default OS;
+export default {
+    "bin": {},
+    "var": {},
+    "sys": {},
+    "tmp": {},
+    "home": {
+        "guest": {}
+    },
+    "root": {}
+} satisfies InitData;
