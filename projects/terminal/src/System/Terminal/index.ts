@@ -11,7 +11,7 @@ import { getHighlightedFromBuffer } from "../Stream";
 import { InputBuffer, OutputBuffer} from "../Stream/IO";
 import { getHistory } from "..";
 
-const DEFAUTL_PROMPT = "$ ";
+const DEFAUTL_PROMPT = "";
 let prompt = DEFAUTL_PROMPT;
 
 let view: View|null = null;

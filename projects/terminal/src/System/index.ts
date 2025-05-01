@@ -25,7 +25,8 @@ export interface Process {
     readonly main: MainFunction
 }
 
-const SYSTEM_NAME = "Terminal System";
+export const SYSTEM_NAME = "Terminal System";
+export const SYSTEM_PROMPT = "$ ";
 
 ///// Private Attributes of System ///////
 const systemProcess:Map<string, Process> = new Map();
@@ -258,7 +259,7 @@ const System = {
             await (getView()?.wait());
 
         } catch (e:any){
-            System.println(`${cmd[0]} crashed with error:\n${e.message || String(e)}`);
+            System.println(`${args[0]} crashed with error:\n${e.message || String(e)}`);
         }
         
         callstack.pop();
@@ -323,9 +324,8 @@ export async function start(){
     running = true;
 
     while(running) {
-        let string = await System.getln();
-        if(string === "")
-            continue;
+        let string = await System.prompt(SYSTEM_PROMPT);
+        System.println(SYSTEM_PROMPT+string);
        
         System.run(string);
     }
