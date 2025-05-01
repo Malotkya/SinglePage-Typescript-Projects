@@ -5,6 +5,8 @@
 import {openDB, IDBPDatabase, IDBPTransaction} from "idb";
 import { sleep } from ".";
 
+///////////////////// Database Structure Information ////////////////////
+
 const DatabaseVersion = 2;
 
 const Stores = {
@@ -19,6 +21,8 @@ const Indexes:Record<string, string[]> = {
 export type StoreType = keyof typeof Stores;
 export type DatabaseTransaction<M extends IDBTransactionMode, S extends StoreType> = IDBPTransaction<any, typeof Stores[S], M>
 
+
+///////////////////// Database Connection ////////////////////
 let db:IDBPDatabase<any>|undefined|null;
 openDB("Terminal", DatabaseVersion, {
     upgrade: async(db)=>{
@@ -41,25 +45,32 @@ openDB("Terminal", DatabaseVersion, {
     db = null;
 });
 
+/////////////////////////// Queue Information ////////////////////////////////////////
+
 interface QueueRef<M extends IDBTransactionMode, S extends StoreType>{
     open:()=>Promise<DatabaseTransaction<M, S>>
     close:()=>void;
 }
 
 const AutoCloseQueue = new FinalizationRegistry<QueueRef<any, any>>((value)=>value.close());
-const queue:QueueRef<any, any>[] = [];
+const QueueMap:Record<StoreType, QueueRef<any, any>[]> = {
+    "FileSystem": [],
+    "User": []
+}
 
 export default function Database<M extends IDBTransactionMode, S extends StoreType>(store:S, mode:M):QueueRef<M, S> {
     const ref:QueueRef<M, S> = {
         async open(){
-            queue.push(this);
-            while(queue[0] !== this) {
-                if(!queue.includes(this))
-                    throw new Error("Reference not in Queue!");
-                
-                await sleep(10);
+            if(mode.includes("write")) {
+                const queue = QueueMap[store];
+                queue.push(this);
+                while(queue[0] !== this) {
+                    if(!queue.includes(this))
+                        throw new Error("Reference not in Queue!");
+                    
+                    await sleep(10);
+                }
             }
-                
 
             while(db === undefined)
                 await sleep();
@@ -70,6 +81,7 @@ export default function Database<M extends IDBTransactionMode, S extends StoreTy
             return db.transaction(Stores[store], mode);
         },
         close() {
+            const queue = QueueMap[store];
             const i = queue.indexOf(this);
             if(i >= 0)
                 queue.splice(i, 1);
