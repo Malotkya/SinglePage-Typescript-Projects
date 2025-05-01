@@ -9,6 +9,9 @@ import { betterToString } from "@";
 
 export interface BufferReference {value:string}
 
+/** Base Stream Class
+ * 
+ */
 export default class Stream {
     protected _ref:BufferReference;
     protected _pos:number;
@@ -27,6 +30,9 @@ export default class Stream {
     }
 }
 
+/** Read Stream
+ * 
+ */
 export class ReadStream extends Stream {
 
     constructor(ref:BufferReference) {
@@ -63,6 +69,9 @@ export class ReadStream extends Stream {
     }
 }
 
+/** Write Stream
+ * 
+ */
 export class WriteStream extends Stream {
 
     constructor(ref:BufferReference) {
@@ -109,6 +118,13 @@ export function getHighlightedFromBuffer(buffer:string, map:HighlighMap, pos:Pos
     return output;
 }
 
+/** Get Next Helper
+ * 
+ * @param {string} buffer 
+ * @param {number} pos 
+ * @param {RegExp} regex 
+ * @returns {Object}
+ */
 export function getNext(buffer:string, pos:number, regex?:RegExp):{value:string|null, pos:number} {
     if(regex === undefined){
         if(buffer.length < 0)
