@@ -5,19 +5,15 @@
 import {BiosType, HighlighMap, claimBios, viewTemplate} from "./Bios";
 import View from "./View";
 import { KeyboardData } from "./Keyboard";
-import { MouseButton} from "./Mouse";
+import { MouseButton } from "./Mouse";
 import { comparePositions } from "./Position";
-import {InputStream, OutputStream, ReadStream, WriteStream, getHighlighted} from "../Stream";
+import { getHighlightedFromBuffer } from "../Stream";
+import { InputBuffer, OutputBuffer} from "../Stream/IO";
 import { getHistory } from "..";
 
 const DEFAUTL_PROMPT = "$ ";
 let prompt = DEFAUTL_PROMPT;
 
-type StdInput  = ReadStream&{hide:boolean};
-type StdOutput = WriteStream;
-
-const input = new InputStream();
-const output = new OutputStream();
 let view: View|null = null;
 let password = false;
 
@@ -30,14 +26,14 @@ let password = false;
 function getTerminalHighlighted(map:HighlighMap, width:number):string {
     const [_, end] = map;
     const pos = {x:0, y:0};
-    let buffer = output.pull(map, pos, width);
+    let buffer = getHighlightedFromBuffer(OutputBuffer.value, map, pos, width);
 
     if(comparePositions(pos, end) < 0){
-        buffer += getHighlighted(prompt, map, pos, width);
+        buffer += getHighlightedFromBuffer(prompt, map, pos, width);
     }
 
     if(comparePositions(pos, end) < 0) {
-        buffer += input.pull(map, pos, width);
+        buffer += getHighlightedFromBuffer(InputBuffer.value, map, pos, width);
     }
 
     return buffer;
@@ -59,13 +55,6 @@ export function initView(w?:number, h?:number): View {
     }
 
     return new View(template, clear);
-}
-
-export function initIO(): {stdin:StdInput, stdout:StdOutput} {
-    return {
-        stdin: input.getStdIn(),
-        stdout: output.getStdOut()
-    }
 }
 
 /** Terminal Interface
@@ -128,33 +117,34 @@ class TerminalInterface extends HTMLElement{
 
         switch(key){
             case "Backspace":
-                input.backspace();
+                InputBuffer.cursor -=1;
+                InputBuffer.delete();
                 break;
 
             case "Delete":
-                input.delete();
+                InputBuffer.delete();
                 break;
                     
             case "ArrowUp":
                 if(history){
                     history.index -= 1;
-                    input.set(history.current);
+                    InputBuffer.value = history.current;
                 }
                 break;
         
             case "ArrowDown":
                 if(history){
                     history.index += 1;
-                    input.set(history.current);
+                    InputBuffer.value = history.current;
                 }
                 break;
 
             case "ArrowLeft":
-                input.cursor--;
+                InputBuffer.cursor--;
                 break;
 
             case "ArrowRight":
-                input.cursor++;
+                InputBuffer.cursor++;
                 break;
 
             case "ControlLeft":
@@ -165,11 +155,11 @@ class TerminalInterface extends HTMLElement{
         
             case "Enter":
             case "NumpadEnter":
-                output.write(prompt+input.enter());
+                InputBuffer.value += "\n";
                 break;
         
             default:
-                input.write( value );
+                InputBuffer.add( value );
                 break;
         }
     }
@@ -181,7 +171,7 @@ class TerminalInterface extends HTMLElement{
     mouse(event: CustomEvent<MouseButton>) {
         if(event.detail === "Secondary") {
             navigator.clipboard.readText().then((string)=>{
-                input.set(string);
+                InputBuffer.value = string;
             });
         }
     }
@@ -190,14 +180,14 @@ class TerminalInterface extends HTMLElement{
      * 
      */
     render(event:Event) {
-        if(output.ready)
-            this.#bios.print(output.buffer);
+        this.#bios.print(OutputBuffer.value);
         
+        this.#bios.print(prompt);
         if(!password) {
-            this.#bios.print(prompt+input.buffer);
+            this.#bios.print(InputBuffer.value);
         }
     
-        this.#bios.cursor(input.cursor-input.buffer.length);
+        this.#bios.cursor(InputBuffer.cursor-InputBuffer.value.length);
         this.#bios.scroll();
     }
 

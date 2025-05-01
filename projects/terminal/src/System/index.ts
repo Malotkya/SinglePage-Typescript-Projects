@@ -5,7 +5,8 @@
 import App from "./App";
 import Arguments from "./Arguments";
 import History from "./History";
-import { initView, initIO, getView, setPrompt } from "./Terminal";
+import { initView, getView, setPrompt } from "./Terminal";
+import { InputStream, OutputStream } from "./Stream";
 import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable, InitData, parseExecutable } from "./Files";
@@ -31,7 +32,8 @@ const systemProcess:Map<string, Process> = new Map();
 const loadedProcess:Map<string, Process> = new Map();
 const history: History<string> = new History("System");
 const callstack: Process[] = [];
-const {stdin, stdout} = initIO();
+const stdin = new InputStream();
+const stdout = new OutputStream();
 let running = false;
 
 /** System Interface
