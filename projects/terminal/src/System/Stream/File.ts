@@ -10,7 +10,7 @@ import { sleep } from "..";
 /** File Stream
  * 
  */
-const FileStream = (C:typeof Stream) => class extends C{
+export default class FileStream extends Stream {
     declare _ref:FileConnection;
 
     constructor(conn:FileConnection) {
@@ -21,13 +21,11 @@ const FileStream = (C:typeof Stream) => class extends C{
         this._ref.close();
     }
 }
-type FileStream = ReturnType<typeof FileStream>
-export default FileStream;
 
 /** Write File Stream
  * 
  */
-export class WriteFileStream extends FileStream(WriteStream) {
+export class WriteFileStream extends FileStream {
     public mode:WriteFileType;
 
     constructor(value:FileConnection, mode:WriteFileType) {
@@ -68,27 +66,37 @@ export class WriteFileStream extends FileStream(WriteStream) {
 /** Read File Stream
  * 
  */
-export class ReadFileStream extends FileStream(ReadStream) {
-    get(pattern?:string|RegExp):Promise<string> {
-        //@ts-ignore
-        return super.get(pattern)
+export class ReadFileStream extends FileStream {
+    async get(pattern?:string|RegExp):Promise<string> {
+        //Convert String Pattern into Regex capture everything before.
+        if(typeof pattern === "string")
+            pattern = new RegExp(`^(.*?)${pattern}`);
+
+        while(true) {
+            const {value, pos} = getNext(this.buffer, 0, pattern);
+
+            if(value){
+                this._pos += pos;
+                return value;
+            }
+
+            await sleep();
+        }
     }
 
     next():Promise<string> {
-        //@ts-ignore
-        return super.next();
+        return this.get(/^(.*?)\s+/);
     }
 
-    getln():Promise<string> {
-        //@ts-ignore
-        return super.getln();
+    getln(): Promise<string>{
+        return this.get(/^(.*?)[\n\r]+/);
     }
 }
 
 /** Read Write File Stream
  * 
  */
-export class ReadWriteFileStream extends FileStream(Stream) {
+export class ReadWriteFileStream extends FileStream {
     public mode:WriteFileType;
     private _read:number;
     private _write:number;

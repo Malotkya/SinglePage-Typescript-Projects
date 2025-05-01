@@ -7,8 +7,6 @@ import { HighlighMap } from "../Terminal/Bios";
 import { sleep } from "..";
 import { betterToString } from "@";
 
-export {InputStream, OutputStream} from "./IO";
-
 export interface BufferReference {value:string}
 
 export default class Stream {

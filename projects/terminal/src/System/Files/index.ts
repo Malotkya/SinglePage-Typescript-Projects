@@ -2,7 +2,6 @@
  * 
  * @author Alex Malotky
  */
-import Stream from "../Stream";
 import * as db from "./Database";
 import { InitData } from "./Database";
 import * as Path from "./Path";
@@ -90,7 +89,7 @@ export async function executable(file:string, skip?:boolean):Promise<Process|nul
 async function openfile(path:string, type:"ReadOnly"):Promise<ReadFileStream>
 async function openfile(path:string, type:"WriteOnly", mode:db.WriteFileType):Promise<WriteFileStream>
 async function openfile(path:string, type:"ReadWrite", mode:db.WriteFileType):Promise<ReadWriteFileStream>
-async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode?:db.WriteFileType):Promise<Stream>{ 
+async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode?:db.WriteFileType):Promise<FileStream>{ 
     const conn = await db.openFile(path, await User.id(), type);
 
     switch(type){

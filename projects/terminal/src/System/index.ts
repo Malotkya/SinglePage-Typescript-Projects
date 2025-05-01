@@ -6,7 +6,7 @@ import App from "./App";
 import Arguments from "./Arguments";
 import History from "./History";
 import { initView, getView, setPrompt } from "./Terminal";
-import { InputStream, OutputStream } from "./Stream";
+import { InputStream, OutputStream } from "./Stream/IO";
 import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable, InitData, parseExecutable } from "./Files";
