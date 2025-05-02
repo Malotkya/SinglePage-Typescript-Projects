@@ -452,7 +452,7 @@ export async function unlink(path:string, opts:UnlinkOptions, tx:FileSystemTrans
 
 //////////////////////////// File Operations //////////////////////////////////////
 
-export type WriteFileType = "Prepend"|"Append"|"Override"|"Insert";
+export type WriteFileType = "Prepend"|"Append"|"Override"|"Insert"|"Rewrite";
 
 interface FileOptions {
     user: UserId|FileConnection,
@@ -548,16 +548,17 @@ export async function writeToFile(path:string, opts:FileOptions, data:string, tx
     const file = tx.objectStore("File");
 
     let buffer:string;
-    if(type === "Override"){
+    if(type === "Rewrite"){
         buffer = data;
     } else {
         buffer = await file.get(path) || "";
         switch(type){
-            case "Insert":
+            case "Override":
                 buffer = data + buffer.substring(data.length);
                 break;
     
             case "Prepend":
+            case "Insert":
                 buffer = data + buffer;
                 break;
     
