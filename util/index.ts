@@ -72,3 +72,69 @@ export function betterToString(value:any):string {
 
     return String(value);
 }
+
+export function regexSplit(value:string, seperator:RegExp):string[]{
+    const output:string[] = [];
+    let quotes:string|null = null;
+    let current:string = "";
+    let escaped:boolean = false;
+
+    for(const char of value){
+        if(escaped) {
+            current += unescape(char);
+            escaped = false;
+            continue;
+        }
+
+        switch(char){
+            case "'":
+                if(quotes === "single") {
+                    quotes = null;
+                } else if(quotes === null){
+                    quotes = "single";
+                }
+                current += char;
+                break;
+
+            case '"':
+                if(quotes === "double") {
+                    quotes = null;
+                } else if(quotes === null){
+                    quotes = "double";
+                }
+                current += char;
+                break;
+                
+            case "`":
+                if(quotes === "back") {
+                    quotes = null;
+                } else if(quotes === null){
+                    quotes = "back";
+                }
+                current += char;
+                break;
+
+            case "\\":
+                escaped = true;
+                break;
+
+            default:
+                if(quotes) {
+                    current += char
+                } else {
+                    if(char.match(seperator) && current) {
+                        output.push(current);
+                        current = "";
+                    } else {
+                        current += char
+                    }
+                } 
+        }
+    } //End For
+
+    if(current){
+        output.push(current);
+    }
+
+    return output;
+}

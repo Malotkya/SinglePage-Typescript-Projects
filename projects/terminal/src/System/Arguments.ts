@@ -2,6 +2,7 @@
  * 
  * @author Alex Malotky
  */
+import { regexSplit } from "@";
 
 /** Unescape Special Character
  * 
@@ -63,67 +64,9 @@ export default class Arguments extends Array<string> {
         this.#values = new Map();
         this.value = value;
 
-        let quotes:string|null = null;
-        let current:string = "";
-        let escaped:boolean = false;
-
-        for(const char of value){
-            if(escaped) {
-                current += unescape(char);
-                escaped = false;
-                continue;
-            }
-
-            switch(char){
-                case "'":
-                    if(quotes === "single") {
-                        quotes = null;
-                    } else if(quotes === null){
-                        quotes = "single";
-                    }
-                    current += char;
-                    break;
-
-                case '"':
-                    if(quotes === "double") {
-                        quotes = null;
-                    } else if(quotes === null){
-                        quotes = "double";
-                    }
-                    current += char;
-                    break;
-                
-                case "`":
-                    if(quotes === "back") {
-                        quotes = null;
-                    } else if(quotes === null){
-                        quotes = "back";
-                    }
-                    current += char;
-                    break;
-
-                case "\\":
-                    escaped = true;
-                    break;
-
-                default:
-                    if(quotes) {
-                        current += char
-                    } else {
-                        if(char.match(/\s/) && current) {
-                            this.push(current);
-                            insert(this.#values, current);
-                            current = "";
-                        } else {
-                            current += char
-                        }
-                    } 
-            }
-        } //End For
-
-        if(current){
-            this.push(current);
-            insert(this.#values, current);
+        for(const line of regexSplit(value, /\s/)) {
+            this.push(line);
+            insert(this.#values, line);
         }
     }
 
