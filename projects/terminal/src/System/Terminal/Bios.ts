@@ -4,7 +4,6 @@
  */
 import * as K from "./Keyboard";
 import * as M from './Mouse';
-import Registry from "../Registry";
 import Color from "@/Color";
 import Position, { normalizePositions, Dimensions } from "./Position";
 import {BiosView, ViewTemplate} from "./View";
@@ -15,63 +14,92 @@ export const Y_OFFSET = 5;
 const INTERFACE_OFFSET = 10;
 export const HIGHLIGHT_OFFSET = 1;
 
-
 export type HighlighMap = [Position, Position];
 
-interface RenderContext extends CanvasRenderingContext2D {
+interface RenderContext extends CanvasRenderingContext2D, Dimensions {
     readonly interface: HTMLElement
+    backgroundColor: Color
+    fontColor: Color
+    fontFace: string
+    fontSize: number
+    char: Dimensions
 }
 
 let ctx:RenderContext|null = null;
 let view:BiosView|null = null;
 
 /////// Environment Variables modified by user. ///////
-let background:Color = Registry.on("Background_Color", (v)=>background = v);
-let font:Color = Registry.on("Font_Color", (v)=>font = v);
-let width:number = Registry.on("Screen_Width", (v)=>{
-    width = v
-    if(ctx){
-        v *= char.width;
-        ctx.interface.style.width = `${v}px`;
-        ctx.canvas.width = v;
-    }
-});
-let height:number = Registry.on("Screen_Height", (v)=>{
-    height = v
-    if(ctx){
-        v *= char.height;
-        ctx.interface.style.height = `${v}px`;
-        ctx.canvas.height = v;
-    }
-});
+export function setWidth(value:number){
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
 
-////// Environment Variable modified by bios. ///////
-let fontSize:number = Registry.on("Font_Size", (v)=>{
-    fontSize = v;
-    char.width = v * RATIO;
-    char.height = v;
-    if(ctx){
-        const w = width * char.width;
-        const h = (height * char.height)+Y_OFFSET;
+    ctx.width = value;
+    value *= ctx.char.width;
+    ctx.interface.style.width = `${value}px`;
+    ctx.canvas.width = value;
+}
+
+export function setHeight(value:number){
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+
+    ctx.height = value;
+    value *= ctx.char.height;
+    ctx.interface.style.height = `${value+INTERFACE_OFFSET}px`;
+    ctx.canvas.height = value;
+}
+
+interface FontData {
+    color?:Color
+    size?:number
+}
+
+export function setFont(data:FontData) {
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+
+    const {size, color} = data;
+
+    if(color)
+        ctx.fontColor = color;
+
+    if(size){
+        ctx.fontSize = size;
+        ctx.fontFace = `${size}px monospace`;
+        ctx.char.width = size * RATIO;
+        ctx.char.height = size;
+        const w = ctx.width * ctx.char.width;
+        const h = ctx.height * ctx.char.height+Y_OFFSET;
         ctx.interface.style.width = `${w}px`;
         ctx.canvas.width = w;
         ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
         ctx.canvas.height = h;
     }
-})
-const char:Dimensions = {
-    width: fontSize * RATIO,
-    height: fontSize
+
 }
-let fontFace:string = `${fontSize-1}px monospace`;
-let x:number = 0;
-let y:number = 0;
-let growHeight:number = height;
+
+export function setBackgroundColor(value:Color){
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+
+    ctx.backgroundColor = value;
+}
+
+////// Environment Variable modified by bios. ///////
 let highlightMap:HighlighMap|null = null;
 let scrollLocked:boolean = true;
+let x:number = 0;
+let y:number = 0;
+let growHeight:number = 0;
 
 
 //////////////// Event Listeners ////////////////////
+
+interface BiosInitData extends Dimensions{
+    backgroundColor:Color,
+    fontColor:Color
+    fontSize:number
+}
 
 /** Claim Bios
  * 
@@ -82,7 +110,7 @@ let scrollLocked:boolean = true;
  * @param {HTMLElement} target 
  * @returns {BiosType}
  */
-export function claimBios(target:HTMLElement) {
+export function claimBios(target:HTMLElement, data:BiosInitData) {
     if(ctx !== null)
         throw new Error("Bios has already been claimed by another element!");
 
@@ -92,11 +120,6 @@ export function claimBios(target:HTMLElement) {
     const gl = canvas.getContext("2d", {alpha: false});
     if(gl === null)
         throw new Error("Unable to Initalize 2D Context!");
-
-    target.style.width  = `${width * char.width}px`;
-    target.style.height = `${(height * char.height)+Y_OFFSET+INTERFACE_OFFSET}px`;
-    canvas.width  = width * char.width;
-    canvas.height = (height * char.height)+Y_OFFSET;
 
     canvas.addEventListener("keyup", (e)=>K.reportKeyUp(e));
     canvas.addEventListener("keydown", (e)=>{
@@ -112,16 +135,16 @@ export function claimBios(target:HTMLElement) {
     });
 
     canvas.addEventListener("mousedown", (e)=>{
-        M.reportMouseDown(e, char);
+        M.reportMouseDown(e, ctx!.char);
         target.dispatchEvent(new CustomEvent("mouse", {detail: M.getButton(e.button)}))
     });
     canvas.addEventListener("mousemove", (e)=>{
-        const update = normalizePositions(M.reportMouseMove(e, char), {x, y});
+        const update = normalizePositions(M.reportMouseMove(e, ctx!.char), {x, y});
         if(update)
             highlightMap = update;
     });
     canvas.addEventListener("mouseup", (e)=>{
-        highlightMap = normalizePositions(M.reportMouseUp(e, char), {x, y});
+        highlightMap = normalizePositions(M.reportMouseUp(e, ctx!.char), {x, y});
     });
 
     target.addEventListener("scrollend", ()=>{
@@ -129,8 +152,22 @@ export function claimBios(target:HTMLElement) {
         canvas.focus();
     });
 
-    (gl as any).interface = target;
+    const {width, height, fontSize, fontColor, backgroundColor} = data;
+
     ctx = gl as RenderContext;
+    (ctx as any).interface = target;
+    ctx.char = {
+        width: fontSize * RATIO,
+        height: fontSize
+    };
+
+    growHeight = Math.max(growHeight, height);
+    
+    setFont({size: fontSize, color: fontColor});
+    setBackgroundColor(backgroundColor);
+    setWidth(width);
+    setHeight(height);
+    
 
     target.appendChild(canvas);
     canvas.focus();
@@ -138,7 +175,7 @@ export function claimBios(target:HTMLElement) {
 
     return {
         get size():number {
-            return char.height;
+            return ctx!.char.height;
         },
 
         get width():number {
@@ -201,7 +238,7 @@ export function releaseBio(target:HTMLElement) {
  * 
  */
 function clear(): void {
-    ctx!.fillStyle = background.toString();
+    ctx!.fillStyle = ctx!.backgroundColor.toString();
     ctx!.fillRect( 0, 0, ctx!.canvas.width, ctx!.canvas.height);
     x = 0;
     y = 0;
@@ -212,8 +249,8 @@ function clear(): void {
  */
 function grow(): void {
     if(y >= growHeight) {
-        growHeight += height;
-        ctx!.canvas.height = growHeight * char.height;
+        growHeight += ctx!.height;
+        ctx!.canvas.height = growHeight * ctx!.char.height;
     }
 }
 
@@ -223,20 +260,20 @@ function grow(): void {
  * @param {number} y
  */
 function inverse(x:number, y:number) {
-    x = ((x+1)*char.width) - HIGHLIGHT_OFFSET;
-    y = ((y+1)*char.height)- Y_OFFSET - HIGHLIGHT_OFFSET;
+    x = ((x+1)*ctx!.char.width) - HIGHLIGHT_OFFSET;
+    y = ((y+1)*ctx!.char.height)- Y_OFFSET - HIGHLIGHT_OFFSET;
 
-    const image = ctx!.getImageData(x, y, char.width, char.height);
+    const image = ctx!.getImageData(x, y, ctx!.char.width, ctx!.char.height);
 
     for(let i=0; i<image.data.length; i+=4){
-        if(background.equals(image.data[i], image.data[i+1], image.data[i+2])) {
-            image.data[i]   = font.red;
-            image.data[i+1] = font.green;
-            image.data[i+2] = font.blue;
+        if(ctx!.backgroundColor.equals(image.data[i], image.data[i+1], image.data[i+2])) {
+            image.data[i]   = ctx!.fontColor.red;
+            image.data[i+1] = ctx!.fontColor.green;
+            image.data[i+2] = ctx!.fontColor.blue;
         } else {
-            image.data[i]   = background.red;
-            image.data[i+1] = background.green;
-            image.data[i+2] = background.blue;
+            image.data[i]   = ctx!.backgroundColor.red;
+            image.data[i+1] = ctx!.backgroundColor.green;
+            image.data[i+2] = ctx!.backgroundColor.blue;
         }
     }
 
@@ -257,11 +294,11 @@ function highlight(){
             inverse(x, y);
         }
     } else {
-        for(let x = start.x; x < width; x++) {
+        for(let x = start.x; x < ctx!.width; x++) {
             inverse(x, y);
         }
         while(++y < end.y) {
-            for(let x = 0; x< width; x++){
+            for(let x = 0; x< ctx!.width; x++){
                 inverse(x, y);
             }
         }
@@ -294,9 +331,9 @@ export function put(x:number, y:number, c:string) {
     if(ctx === null)
         throw new Error("Bio is not yet claimed!");
 
-    ctx.fillStyle = font.toString();
-    ctx.font = fontFace;
-    ctx.fillText(c.charAt(0), (x+1)*char.width, ((y+1)*char.height)+Y_OFFSET)
+    ctx.fillStyle = ctx!.fontColor.toString();
+    ctx.font = ctx!.fontFace;
+    ctx.fillText(c.charAt(0), (x+1)*ctx!.char.width, ((y+1)*ctx!.char.height)+Y_OFFSET)
 }
 
 /** Print String
@@ -317,7 +354,7 @@ export function print(s:string){
             put(x, y, char);
             x++;
 
-            if(x > width) {
+            if(x > ctx!.width) {
                 x = 0;
                 y++;
             }
@@ -334,12 +371,12 @@ export function cursor(cx:number = 0, cy:number = 0) {
     y += cy;
 
     while(x < 0){
-        x += width;
+        x += ctx!.width;
         y--;
     }
 
-    while(x > width){
-        x -= width;
+    while(x > ctx!.width){
+        x -= ctx!.width;
         y++;
     }
 
@@ -357,10 +394,10 @@ export function scroll(targetHeight:number = y, override:boolean = scrollLocked)
     if(targetHeight < 0 || targetHeight >= growHeight || override === false)
         return;
 
-    const top    = Math.floor((ctx.interface.scrollTop) / char.height);
-    const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / char.height)-2;
+    const top    = Math.floor((ctx.interface.scrollTop) / ctx!.char.height);
+    const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / ctx!.char.height)-2;
     if(targetHeight < top || targetHeight > bottom){
-        ctx.interface.scrollTop = ((targetHeight - height + 2) * char.height) + Y_OFFSET;
+        ctx.interface.scrollTop = ((targetHeight - ctx!.height + 2) * ctx!.char.height) + Y_OFFSET;
     }
     scrollLocked = true;
 }
@@ -375,7 +412,7 @@ export type PixelFunction = (m:PixelMatrix)=>void;
 */
 export function viewTemplate(): {template: ViewTemplate, init:(view:BiosView|null)=>void}
 export function viewTemplate(width:number,  height:number): {template: ViewTemplate, init:(view:BiosView|null)=>void}
-export function viewTemplate(w:number = width * char.width, h:number = height * char.height): {template: ViewTemplate, init:(view:BiosView|null)=>void}{
+export function viewTemplate(w:number = ctx!.width * ctx!.char.width, h:number = ctx!.height * ctx!.char.height): {template: ViewTemplate, init:(view:BiosView|null)=>void}{
     if(ctx === null)
         throw new Error("Bio is not yet claimed!");
     
@@ -391,13 +428,13 @@ export function viewTemplate(w:number = width * char.width, h:number = height * 
     ctx.interface.style.width = `${w}px`;
     ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
 
-    let size:Dimensions = JSON.parse(JSON.stringify(char));
+    let size:Dimensions = JSON.parse(JSON.stringify(ctx!.char));
     return {
         init:(v:BiosView|null)=>{
             view = v
             if(v === null){
-                const w = width * char.width;
-                const h = (height * char.height)+Y_OFFSET;
+                const w = ctx!.width * ctx!.char.width;
+                const h = (ctx!.height * ctx!.char.height)+Y_OFFSET;
 
                 ctx!.canvas.width = w;
                 ctx!.canvas.height = h;
@@ -407,12 +444,12 @@ export function viewTemplate(w:number = width * char.width, h:number = height * 
         },
         template: {
             font: {
-                width: char.width,
-                height: char.height,
-                color: font
+                width: ctx!.char.width,
+                height: ctx!.char.height,
+                color: ctx!.fontColor
             },
             background: {
-                color: background,
+                color: ctx!.backgroundColor,
                 width: w,
                 height: h
             },

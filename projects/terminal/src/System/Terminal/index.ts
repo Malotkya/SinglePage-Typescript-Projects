@@ -3,13 +3,14 @@
  * @author Alex Malotky
  */
 import {BiosType, HighlighMap, claimBios, viewTemplate} from "./Bios";
+import OpenRegistry from "../Registry";
 import View from "./View";
 import { KeyboardData } from "./Keyboard";
 import { MouseButton } from "./Mouse";
 import { comparePositions } from "./Position";
 import { getHighlightedFromBuffer } from "../Stream";
 import { InputBuffer, OutputBuffer} from "../Stream/IO";
-import { getHistory } from "..";
+import { getHistory, sleep } from "..";
 
 const DEFAUTL_PROMPT = "";
 let prompt = DEFAUTL_PROMPT;
@@ -62,32 +63,54 @@ export function initView(w?:number, h?:number): View {
  * Acts as the interface between the User and the System through the Bios.
  */
 class TerminalInterface extends HTMLElement{
-    #bios: BiosType;
+    #bios: BiosType|null|undefined;
 
     constructor(){
         super();
-        this.#bios = claimBios(this);
+        OpenRegistry("terminal", {
+            height: "number",
+            width: "number",
+            background: {
+                color: "color"
+            },
+            font: {
+                color: "color",
+                size: "number"
+            }
+        }).then((reg)=>{
+            this.#bios = claimBios(this, {
+                backgroundColor: reg.get("background").get("color"),
+                fontColor: reg.get("font").get("color"),
+                fontSize: reg.get("font").get("size"),
+                width: reg.get("width"),
+                height: reg.get("height")
+            });
+        }).catch(e=>{
+            console.error(e);
+            this.#bios = null;
+        })
+        
 
         
-        this.addEventListener("keyboard", (event:CustomEventInit<KeyboardData>)=>{
+        this.addEventListener("keyboard", async(event:CustomEventInit<KeyboardData>)=>{
             if(event.detail === undefined)
                 throw new Error("Missing Keyboard Detail!");
 
             if(view !== null){
-                view.keyboard(event as any);
+                await view.keyboard(event as any);
             } else {
-                this.keyboard(event as any);
+                await this.keyboard(event as any);
             }
         });
 
-        this.addEventListener("mouse", (event:CustomEventInit<MouseButton>)=>{
+        this.addEventListener("mouse", async(event:CustomEventInit<MouseButton>)=>{
             if(event.detail === undefined)
                 throw new Error("Missing Mouse Detail!");
 
             if(view !== null){
-                view.mouse(event as any);
+                await view.mouse(event as any);
             } else {
-                this.mouse(event as any);
+                await this.mouse(event as any);
             }
         });
         
@@ -95,23 +118,35 @@ class TerminalInterface extends HTMLElement{
          * 
          * Handles the render event
          */
-        this.addEventListener("render", (event:Event)=>{
+        this.addEventListener("render", async(event:Event)=>{
             if(view !== null){
-                view.render(event);
+                await view.render(event);
             } else {
-                this.render(event);
+                await this.render(event);
             }
         });
+    }
+
+    async assertReady():Promise<BiosType> {
+        while(this.#bios === undefined)
+            await sleep();
+        
+        if(this.#bios === null)
+            throw new Error("The bios has failed to initiate!");
+
+        return this.#bios;
     }
 
     /** Input Event Handler
      * 
      * Handles keys being pressed
      * 
-     * @param {CustomEvent} Event
+     * @param {CustomEvent} event
      */
-    keyboard(event:CustomEvent<KeyboardData>) {
-        this.#bios.scroll(undefined, true);
+    async keyboard(event:CustomEvent<KeyboardData>) {
+        const bios = await this.assertReady();
+
+        bios.scroll(undefined, true);
         const history = getHistory();
         const {key, value} = event.detail;
 
@@ -149,8 +184,8 @@ class TerminalInterface extends HTMLElement{
 
             case "ControlLeft":
             case "ControlRight":
-                if(this.#bios.Keyboard.isKeyPressed("KeyC"))
-                    this.copy(this.#bios.highlight);
+                if(bios.Keyboard.isKeyPressed("KeyC"))
+                    await this.copy(bios.highlight);
                 break;
         
             case "Enter":
@@ -168,7 +203,7 @@ class TerminalInterface extends HTMLElement{
      * 
      * @param event 
      */
-    mouse(event: CustomEvent<MouseButton>) {
+    async mouse(event: CustomEvent<MouseButton>) {
         if(event.detail === "Secondary") {
             navigator.clipboard.readText().then((string)=>{
                 InputBuffer.value = string;
@@ -179,21 +214,25 @@ class TerminalInterface extends HTMLElement{
     /** Render Event Listener
      * 
      */
-    render(event:Event) {
-        this.#bios.print(OutputBuffer.value);
+    async render(event:Event) {
+        const bios = await this.assertReady();
+
+        bios.print(OutputBuffer.value);
         
-        this.#bios.print(prompt);
+        bios.print(prompt);
         if(!password) {
-            this.#bios.print(InputBuffer.value);
+            bios.print(InputBuffer.value);
         }
     
-        this.#bios.cursor(InputBuffer.cursor-InputBuffer.value.length);
-        this.#bios.scroll();
+        bios.cursor(InputBuffer.cursor-InputBuffer.value.length);
+        bios.scroll();
     }
 
-    copy(map:HighlighMap|null):void {
+    async copy(map:HighlighMap|null):Promise<void> {
+        const bios = await this.assertReady();
+
         if(map){
-            navigator.clipboard.writeText(getTerminalHighlighted(map, this.#bios.width));
+            navigator.clipboard.writeText(getTerminalHighlighted(map, bios.width));
         }
     }
 }
