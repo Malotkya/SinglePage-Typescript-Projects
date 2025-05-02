@@ -4,7 +4,6 @@ import { functionToString } from "./System/Script";
 import {login, logout} from "./System/User";
 import SystemFiles from "./Operations";
 import Help from "./Help";
-import SettingsApp from "./Settings";
 import Snake from "./Snake";
 
 export type StartFunction = ()=>Promise<void>
@@ -85,7 +84,6 @@ export function init(files?:InitialFiles):StartFunction {
     });
 
     System.addApp(new Help());
-    System.addApp(new SettingsApp());
     System.addApp(new Snake());
 
     const data = merge(SystemFiles, files);
