@@ -20,8 +20,9 @@ const AutoCloseRegistry = new FinalizationRegistry<WeakRef<FileConnection>>((val
  * 
  */
 export default class FileConnection {
-    protected bc:BroadcastChannel|null;
+    private bc:BroadcastChannel|null;
     private _v:string;
+    private _l:((s:string)=>any)|undefined;
 
     constructor(path:string, value:string) {
         this.bc = new BroadcastChannel(path);
@@ -31,9 +32,17 @@ export default class FileConnection {
         AutoCloseRegistry.register(ref, ref);
 
         this.bc.addEventListener("message", (ev:MessageEvent<WriteMessage>)=>{
-            if(ev.data.name !== this)
+            if(ev.data.name !== this) {
                 this._v = ev.data.value;
+                if(this._l)
+                    this._l(this._v);
+            }
+                
         });
+    }
+
+    onUpdate(listener:(s:string)=>any){
+        this._l = listener;
     }
 
     get value():string {
