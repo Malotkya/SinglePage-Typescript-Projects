@@ -1,6 +1,7 @@
 {
     "extends": "../../tsconfig.json",
     "compilerOptions": {
-        "outDir": "./public"
+        "outDir": "./public",
+        "types": ["./global.d.ts"]
     }
 }
