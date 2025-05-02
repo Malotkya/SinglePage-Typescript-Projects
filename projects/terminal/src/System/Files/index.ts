@@ -92,9 +92,9 @@ export async function executable(file:string, skip?:boolean):Promise<Process|nul
  * @returns {Promise<stream>}
  */
 async function openfile(path:string, type:"ReadOnly"):Promise<ReadFileStream>
-async function openfile(path:string, type:"WriteOnly", mode:db.WriteFileType):Promise<WriteFileStream>
-async function openfile(path:string, type:"ReadWrite", mode:db.WriteFileType):Promise<ReadWriteFileStream>
-async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode?:db.WriteFileType):Promise<FileStream>{
+async function openfile(path:string, type:"WriteOnly", mode?:db.WriteFileType):Promise<WriteFileStream>
+async function openfile(path:string, type:"ReadWrite", mode?:db.WriteFileType):Promise<ReadWriteFileStream>
+async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode:db.WriteFileType = "Append"):Promise<FileStream>{
     const ref = Database("FileSystem", "readwrite"); 
     const conn = await db.openFile(path, await User.id(), type, await ref.open());
     ref.close();
@@ -104,10 +104,10 @@ async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mo
             return new ReadFileStream(conn);
 
         case "WriteOnly":
-            return new WriteFileStream(conn, mode!);
+            return new WriteFileStream(conn, mode);
 
         case "ReadWrite":
-            return new ReadWriteFileStream(conn, mode!);
+            return new ReadWriteFileStream(conn, mode);
     }
 }
 
