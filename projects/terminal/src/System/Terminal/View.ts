@@ -67,9 +67,9 @@ export interface BiosView {
 }
 
 export interface SystemView {
-    keyboard:(e:CustomEvent<KeyboardData>)=>void
-    mouse:(e:CustomEvent<MouseButton>)=>void
-    render:(e:Event)=>void
+    keyboard:(e:CustomEvent<KeyboardData>)=>Promise<void>
+    mouse:(e:CustomEvent<MouseButton>)=>Promise<void>
+    render:(e:Event)=>Promise<void>
     close: ()=>void
 }
 
@@ -129,19 +129,19 @@ export default class View implements BiosView, SystemView, UserView{
         return this._background.height;
     }
 
-    keyboard(event:CustomEvent<KeyboardData>){
+    async keyboard(event:CustomEvent<KeyboardData>){
         if(this.callbacks["keyboard"])
-            this.callbacks["keyboard"](event);
+            await this.callbacks["keyboard"](event);
     }
 
-    mouse(event:CustomEvent<MouseButton>){
+    async mouse(event:CustomEvent<MouseButton>){
         if(this.callbacks["mouse"])
-            this.callbacks["mouse"](event);
+            await this.callbacks["mouse"](event);
     }
 
-    render(event:Event){
+    async render(event:Event){
         if(this.callbacks["render"])
-            this.callbacks["render"](event);
+            await this.callbacks["render"](event);
     }
 
     print(x:number, y:number, text:string) {
