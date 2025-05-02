@@ -37,21 +37,32 @@ function getAliases(configPath, alias = {}){
  *          path: string
  *      },
  *      alias?: Record<string, string>
+ *      assets?:string[]
  * }} opts 
  * @returns {import("webpack").Configuration}
  */
 function SingleEntry(opts){
-    const {mode = "development", entry, output, alias} = opts
+    const {mode = "development", entry, output, alias, assets} = opts
+
+    const rules = [
+        {
+            test: /\.tsx?$/,
+            use: 'ts-loader',
+            exclude: /node_modules/
+        }
+    ];
+
+    if(assets) {
+        rules.push({
+            test: new RegExp(`\\.(${assets.join("|")})$`),
+            use: "raw-loader"
+        })
+    }
+
     return {
         mode, entry, output,
         module: {
-            rules: [
-                {
-                    test: /\.tsx?$/,
-                    use: 'ts-loader',
-                    exclude: /node_modules/
-                }
-            ]
+            rules
         },
         resolve: {
             extensions: [".ts", ".js"],
@@ -70,12 +81,13 @@ function SingleEntry(opts){
 *          filename: string,
 *          path: string
 *      },
-*      alias?: Record<string, string>
+*      alias?: Record<string, string>,
+*      assets?:string[]
 * }} opts 
 * @returns {import("webpack").Configuration}
 */
 function MultipleEntry(opts){
-   const {mode, entry, output, style, alias} = opts
+   const {mode, entry, output, style, alias, assets} = opts
    const rules = [
         {
             test: /\.tsx?$/,
@@ -100,6 +112,13 @@ function MultipleEntry(opts){
             ]
         });
    }
+
+   if(assets) {
+    rules.push({
+        test: new RegExp(`\\.(${assets.join("|")})$`),
+        use: "raw-loader"
+    })
+}
 
    return {
        mode, output,
