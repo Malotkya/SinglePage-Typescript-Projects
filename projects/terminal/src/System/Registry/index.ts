@@ -5,283 +5,61 @@
  * 
  * @author Alex Malotky
  */
-import { SystemRegisterKey, SystemRegisterMap, RegisterMap, SystemRegisterTypeMap, RegisterType, RegisterTypeKey, RegisterKey } from "./types";
-import { SystemRegister, isSystemRegisterKey, isResterTypeKey, SystemRegisterKeys, extractType } from "./types";
-import Color from "@/Color";
-import {storageListener} from "@/Storage";
-import Defaults from "./Defaults";
+import OpenConfigFile, {GlobalConfig, ConfigFile, Section, ConfigSection} from "./ConfigFile";
+import {RegisterTypes, RegisterTypeMap, toRegesterType, ConfigTypeMap, fromRegertserType, isRegisterValue} from "./types";
 
-export type {SystemRegisterKey as SystemSettingsName, SystemRegisterTypeMap as SystemSettingsMap, RegisterType, RegisterKey}
+type ObjectFormat  = Record<string, RegisterTypes>;
+type RegisterFormat = Record<string, RegisterTypes|ObjectFormat>;
 
-const REGISTER_KEY = "System:Registry";
+type TypeFormat<T extends RegisterTypes> = ConfigTypeMap[T];
+type SectionFormat<OF extends ObjectFormat, K extends (keyof OF)&string>
+    = Record<K, TypeFormat<OF[K]>>&ConfigSection;
+type GlobalFormat<RF extends RegisterFormat, K extends(keyof RF)&string>
+    = Record<K,
+        RF[K] extends ObjectFormat
+            ? SectionFormat<RF[K], (keyof RF[K])&string>
+            : RF[K] extends RegisterTypes
+                ? TypeFormat<RF[K]>
+                : never
+    >&GlobalConfig;
 
-interface RegisterStoreValue {
-    type: RegisterTypeKey,
-    value: string
+interface RegisterObject<OF extends ObjectFormat> {
+    get<K extends keyof OF>(key:K):RegisterTypeMap[OF[K]]
+    set<K extends keyof OF>(key:K, value:RegisterTypeMap[OF[K]]):void
 }
 
-type Register = SystemRegisterTypeMap & {
-    [K in string]: RegisterType
-};
-
-/** Get Register Type from Regsiter Store Value
- * 
- * @param {RegisterStoreValue} store 
- * @returns {RegisterType}
- */
-function fromRegisterStoreValue<T extends RegisterTypeKey>(store:RegisterStoreValue):RegisterMap[T] {
-    switch(store.type){
-        case "color":
-            return Color.from(store.value) as RegisterMap[T];
-
-        case "number":
-            return Number(store.value) as RegisterMap[T];
-
-        case "bool":
-            return (store.value.toLocaleUpperCase() === "TRUE" || store.value === "1") as RegisterMap[T];
-
-        case "string":
-            return store.value as RegisterMap[T];
-
-        default:
-            throw new Error(`Unknown type '${store.type}'`);
-    }
-}
-
-/** Get Regsiter Store Value from Regsiter Type
- * 
- * @param {RegisterType} value 
- * @returns {RegisterStoreValue}
- */
-function toRegisterStoreValue(value:RegisterType):RegisterStoreValue{
-    let type = extractType(value);
-    if(type !== "string") {
-        if(typeof type.toString !== "function")
-            throw new Error(`Unkown Rester Type: ${type}!`);
-
-        return {
-            type: type,
-            value: value.toString()
-        }
+export class Register<F extends RegisterFormat> {
+    private _f:F;
+    private _c: ConfigFile<GlobalFormat<F, (keyof F)&string>>;
+    constructor(format:F, config:ConfigFile<GlobalFormat<F, (keyof F)&string>>){
+        this._f = format;
+        this._c = config;
     }
 
-    return {
-        type: type,
-        value: value as string
-    }
-}
-
-/** Get Register from Local Storage or String
- * 
- * @param {string} string 
- * @returns {Register}
- */
-function getRegister(string:string|null = localStorage.getItem(REGISTER_KEY)):Register {
-    try {
-        if(string !== null) {
-            const buffer:any = JSON.parse(string);
-            const list = Object.keys(buffer);
-            for(const key of SystemRegisterKeys) {
-                if(buffer[key] === undefined)
-                    throw new Error("Register missing system value: " + key);
-
-                if(buffer[key].type !== SystemRegister[key])
-                    throw new Error(`Register system type mismatch: Expected ${SystemRegister[key]} but got ${buffer[key].type}`);
-
-                buffer[key] = fromRegisterStoreValue(buffer[key]);
-
-                const index = list.indexOf(key);
-                list.splice(index, 1);
+    get<K extends (keyof F)&string>(key:K):
+            F[K] extends ObjectFormat? RegisterObject<F[K]>: F[K] extends RegisterTypes? RegisterTypeMap[F[K]]: never {
+        if(typeof this._f[key] === "object") { 
+            const get = <k extends (keyof F[K])&string>(k:k) => {
+                toRegesterType((this._c.get(key) as Section<any, any>).get(k), this._f[key][k] as RegisterTypes);
             }
-
-            for(let name of list){
-                if(!isResterTypeKey(buffer[name].type))
-                    throw new Error("Register has invalid type: " + name);
-
-                buffer[name].value = fromRegisterStoreValue(buffer[name]);
+            const set = <k extends (keyof F[K])&string, t extends RegisterTypeMap[(F[K]&ObjectFormat)[k]]&RegisterTypes>(k:k, value:t) => {
+                (this._c.get(key) as Section<K, any>).set(k, fromRegertserType(value));
             }
-
-            return buffer;
-        }    
-    } catch (e){
-        //Console.debug(e);
+            return {
+                get, set
+            } as F[K] extends ObjectFormat? RegisterObject<F[K]>: F[K] extends RegisterTypes? RegisterTypeMap[F[K]]: never;
+        } 
+        return toRegesterType(this._c.get(key), this._f[key] as RegisterTypes) as  F[K] extends ObjectFormat? RegisterObject<F[K]>: F[K] extends RegisterTypes? RegisterTypeMap[F[K]]: never
     }
 
-    const value:Register = <any>{};
-    value.Background_Color = Defaults.Background_Color.clone();
-    value.Font_Color       = Defaults.Font_Color.clone();
-    value.Font_Size        = Defaults.Font_Size.valueOf();
-    value.Screen_Height    = Defaults.Screen_Height.valueOf();
-    value.Screen_Width     = Defaults.Screen_Width.valueOf();
-    setRegister(value);
-    return value;
-}
+    set<K extends (keyof F)&string, T extends RegisterTypeMap[F[K]&RegisterTypes]>(key:K, type:T) {
+        if(!isRegisterValue(type))
+            throw new Error("Cannot set value as Register Object!");
 
-/** Set Regsiter to Local Storage
- * 
- * @param {Register} value 
- */
-function setRegister(value:Register = RegisterStore) {
-    const store:Record<string, RegisterStoreValue> = {};
-
-    for(const name in value) {
-        store[name] = toRegisterStoreValue(value[name]);
-    }
-
-    localStorage.setItem(REGISTER_KEY, JSON.stringify(store));
-}
-
-const listeners:Record<string, Function[]> = {};
-let RegisterStore:Register = getRegister();
-storageListener(REGISTER_KEY, (value)=>{
-    RegisterStore = getRegister(value);
-}, false);
-
-/** Set Regsiter Value
- * 
- * @param {SystemRegisterKey|RegisterKey} name 
- * @param {RegisterType} value 
- */
-function setRegisterValue<K extends SystemRegisterKey, T extends SystemRegisterMap[K]>(name:K, value:RegisterMap[T]):void
-function setRegisterValue<K extends RegisterKey, T extends RegisterTypeKey>(name:K, value:RegisterMap[T]):void
-function setRegisterValue(name:SystemRegisterKey|RegisterKey,  value:RegisterType):void {
-    const type = extractType(value);
-
-    if(isSystemRegisterKey(name) && type !== SystemRegister[name]) {
-        throw new TypeError(`System Regester ${name} can only be '${SystemRegister[name]}' but was atempted to be '${type}'!`);
-    }
-
-    if(!isResterTypeKey(type))
-        throw new TypeError(`${type} is not a Regester Type!`);
-
-    RegisterStore[name] = value;
-    setRegister();
-}
-
-/** Batch Regiseter Values
- * 
- * @param {Array} list 
- */
-function batchRegisterValues(list:{name:SystemRegisterKey|RegisterKey,  value:RegisterType}[]) {
-    try {
-        for(const {name, value} of list) {
-            const type = extractType(value);
-    
-            if(isSystemRegisterKey(name) && type !== SystemRegister[name]) {
-                throw new TypeError(`System Regester ${name} can only be '${SystemRegister[name]}' but was atempted to be '${type}'!`);
-            }
-    
-            if(!isResterTypeKey(type))
-                throw new TypeError(`${type} is not a Regester Type!`);
-    
-            RegisterStore[name] = value;
-        }
-    } catch (e){
-        throw e;
-    } finally {
-        setRegister()
+        this._c.set(key, fromRegertserType(type) as any);
     }
 }
 
-interface RegisterValue {
-    readonly type: RegisterTypeKey|"undefined",
-    readonly value: RegisterType,
-    readonly number: number,
-    readonly string: string,
-    readonly boolean: boolean,
-    readonly color: Color
-}
-
-/** Get Register Value
- * 
- * @param {SystemRegisterKey|RegisterKey} name 
- */
-function getRegisterValue<K extends SystemRegisterKey>(name:K):RegisterMap[SystemRegisterMap[K]]
-function getRegisterValue<K extends RegisterKey>(name:K):RegisterValue
-function getRegisterValue(name:SystemRegisterKey|RegisterKey):RegisterType|RegisterValue {
-    if(isSystemRegisterKey(name)) {
-        return RegisterStore[name];
-    }
-
-    const value:RegisterType|undefined = RegisterStore[name];
-    if(value === undefined) {
-        return {
-            value: <any>null,
-            get type():RegisterTypeKey|"undefined"{
-                return "undefined";
-            },
-            get number(){
-                return 0;
-            },
-            get string(){
-                return "undefined";
-            },
-            get boolean() {
-                return false;
-            },
-            get color():Color {
-                throw new TypeError("'undefined' can't be converted into a color!'");
-            }
-        } satisfies RegisterValue
-    }
-
-    return {
-        value: value,
-        get type() {
-            return extractType(value)
-        },
-        get number() {
-            const n = Number(this.value);
-            if(isNaN(n))
-                throw new TypeError(`'${value}' can't be converted into a number!`);
-            return n;
-        },
-        get string() {
-            return String(this.value);
-        },
-        get boolean() {
-            switch(this.type) {
-                case "string":
-                    return (this.value as string).toUpperCase() === "TRUE";
-
-                case "number":
-                    return (this.value as number) === 1;
-
-                case "bool":
-                    return this.value as boolean;
-
-                default:
-                    throw new TypeError(`'${value}' can't be converted into a boolean!`);
-            }
-        },
-        get color() {
-            if(this.type === "color")
-                return this.value as Color;
-
-            try {
-                return Color.from(String(this.value))
-            } catch (e){
-                throw new TypeError(`'${value}' can't be converted into a Color!`)
-            }
-        }
-    } satisfies RegisterValue
-}
-
-type ValueListener<T> = (value:T)=>Promise<unknown>|unknown;
-
-function onValueChange<K extends SystemRegisterKey>(name:K, listener:ValueListener<RegisterMap[SystemRegisterMap[K]]>):RegisterMap[SystemRegisterMap[K]]
-function onValueChange<K extends RegisterKey>(name:K, listener:ValueListener<RegisterValue>):RegisterValue
-function onValueChange(name:SystemRegisterKey|RegisterKey, listener:ValueListener<RegisterType>|ValueListener<RegisterValue>):RegisterType|RegisterValue {
-    if(!Array.isArray(listeners[name]))
-        listeners[name] = [];
-
-    listeners[name].push(listener);
-    return getRegisterValue(name);
-}
-
-export default {
-    set: setRegisterValue,
-    get: getRegisterValue,
-    batch: batchRegisterValues,
-    on: onValueChange
+export default async function OpenRegister<F extends RegisterFormat>(value:string, format:F) {
+    return new Register(format, await OpenConfigFile<GlobalFormat<F, (keyof F)&string>>(`/etc/${value}.cf`));
 }

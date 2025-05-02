@@ -6,52 +6,88 @@
  * @author Alex Malotky
  */
 import Color from "@/Color";
+import { ConfigValue } from "./ConfigFile";
 
-const RegisterTypeKeys = [
+export type RegisterTypeMap = {
+    "color": Color,
+    "string": string,
+    "number": number,
+    "bool": boolean
+}
+export type RegisterTypes = keyof RegisterTypeMap;
+export type RegisterValue = RegisterTypeMap[keyof RegisterTypeMap];
+
+export interface ConfigTypeMap extends Record<RegisterTypes, ConfigValue> {
+    "color": string,
+    "string": string,
+    "number": number
+    "bool": boolean
+}
+
+const RegisterTypeKeys:RegisterTypes[] = [
     "color",
     "number",
     "string",
     "bool"
 ] as const;
-export type RegisterTypeKey = typeof RegisterTypeKeys[number];
 
-export type RegisterMap = {
-    "color": Color,
-    "number": number,
-    "string": string,
-    "bool": boolean
+export function toRegesterType<T extends RegisterTypes>(value:any, type:T):RegisterTypeMap[T] {
+    switch(type) {
+        case "color":
+            if(typeof value !== "string")
+                throw new TypeError(`Color expected string got ${typeof value}!`);
+
+            return Color.from(value) as RegisterTypeMap[T];
+
+        case "bool":
+            if(typeof value !== "boolean")
+                throw new TypeError(`Bool expected bolean got ${typeof value}`);
+
+            return value as RegisterTypeMap[T];
+
+        case "number":
+            if(typeof value !== "number")
+                throw new TypeError(`Number expected number got ${typeof value}`);
+
+            return value as RegisterTypeMap[T];
+
+        case "string":
+            if(typeof value !== "string")
+                throw new TypeError(`String expected string got ${typeof value}`);
+
+            return value as RegisterTypeMap[T];
+
+        default:
+            throw new TypeError("Invalid Type!");
+    }
 }
-export type RegisterType = RegisterMap[keyof RegisterMap];
 
-export type RegisterKey = string;
-
-export const SystemRegister = {
-    "Background_Color": "color",
-    "Font_Color": "color",
-    "Font_Size": "number",
-    "Screen_Width": "number",
-    "Screen_Height": "number",
-} as const;
-export const SystemRegisterKeys = Object.keys(SystemRegister) as SystemRegisterKey[];
-
-export type SystemRegisterMap = typeof SystemRegister;
-export type SystemRegisterKey = keyof SystemRegisterMap;
-
-export type SystemRegisterTypeMap = {
-    [K in SystemRegisterKey]: RegisterMap[SystemRegisterMap[K]]
-}
-
-export function extractType<K extends RegisterTypeKey>(value:RegisterMap[K]):K {
+export function fromRegertserType(value:RegisterValue): ConfigValue {
     if(value instanceof Color)
-        return "color" as K;
+        return value.toString();
 
-    return typeof value as K;
+    return value;
 }
 
-export function isSystemRegisterKey(value:string):value is SystemRegisterKey {
-    return SystemRegisterKeys.includes(value as any);
+export function isRegisterValue(value:unknown):value is RegisterValue {
+    switch(typeof value){
+        case "string":
+            return true;
+
+        case "number":
+            return true;
+
+        case "boolean":
+            return true;
+
+        case "object":
+            return value instanceof Color;
+
+        default:
+            return false;
+    }
 }
 
-export function isResterTypeKey(value:string):value is RegisterTypeKey {
+export function isResterType(value:string):value is RegisterTypes {
     return RegisterTypeKeys.includes(value as any);
 }
