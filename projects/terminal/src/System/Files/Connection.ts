@@ -12,9 +12,7 @@ interface WriteMessage {
 }
 
 //Auto Close Connections 
-const AutoCloseRegistry = new FinalizationRegistry<WeakRef<FileConnection>>((value)=>{
-    value.deref()?.close();
-});
+const AutoCloseRegistry = new FinalizationRegistry<Function>((value)=>value());
 
 /** File Connection
  * 
@@ -29,7 +27,7 @@ export default class FileConnection {
         this._v = value;
 
         const ref = new WeakRef(this);
-        AutoCloseRegistry.register(ref, ref);
+        AutoCloseRegistry.register(ref, ()=>ref.deref()?.close());
 
         this.bc.addEventListener("message", (ev:MessageEvent<WriteMessage>)=>{
             if(ev.data.name !== this) {
