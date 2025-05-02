@@ -6,5 +6,6 @@ module.exports = SingleEntry({
     output: {
         filename: "index.js",
         path: path.join(__dirname, "public")
-    }
+    },
+    assets: ["cf"]
 });
