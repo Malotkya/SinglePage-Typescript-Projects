@@ -55,6 +55,11 @@ export class WriteFileStream extends FileStream {
                 break;
             }
 
+            case "Rewrite":
+                this._ref.value = s;
+                this._pos = s.length;
+                break;
+
             case "Append":
             default:
                 this._ref.value += s;
@@ -90,6 +95,14 @@ export class ReadFileStream extends FileStream {
 
     getln(): Promise<string>{
         return this.get(/^(.*?)[\n\r]+/);
+    }
+
+    reset(){
+        this._pos = 0;
+    }
+
+    onUpdate(listener:()=>any){
+        this._ref.onUpdate(listener);
     }
 }
 
@@ -131,6 +144,11 @@ export class ReadWriteFileStream extends FileStream {
                 break;
             }
 
+            case "Rewrite":
+                this._ref.value = s;
+                this._write = s.length;
+                break;
+
             case "Append":
             default:
                 this._ref.value += s;
@@ -166,5 +184,13 @@ export class ReadWriteFileStream extends FileStream {
     flush(){
         this._read = this.buffer.length;
         this._write = this.buffer.length;
+    }
+
+    reset(){
+        this._read = 0;
+    }
+
+    onUpdate(listener:()=>any){
+        this._ref.onUpdate(listener);
     }
 }
