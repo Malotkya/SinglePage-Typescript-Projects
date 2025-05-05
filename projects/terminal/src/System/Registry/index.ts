@@ -40,7 +40,7 @@ export class Register<F extends RegisterFormat> {
             F[K] extends ObjectFormat? RegisterObject<F[K]>: F[K] extends RegisterTypes? RegisterTypeMap[F[K]]: never {
         if(typeof this._f[key] === "object") { 
             const get = <k extends (keyof F[K])&string>(k:k) => {
-                toRegesterType((this._c.get(key) as Section<any, any>).get(k), this._f[key][k] as RegisterTypes);
+                return toRegesterType((this._c.get(key) as Section<any, any>).get(k), this._f[key][k] as RegisterTypes);
             }
             const set = <k extends (keyof F[K])&string, t extends RegisterTypeMap[(F[K]&ObjectFormat)[k]]&RegisterTypes>(k:k, value:t) => {
                 (this._c.get(key) as Section<K, any>).set(k, fromRegertserType(value));
