@@ -4,9 +4,9 @@
  */
 import {ReadStream, WriteStream, BufferReference} from "../Stream";
 import { writeToFile, createFile, readFile } from "../Files/Database";
+import { assertReady } from "../Files";
 import { ROOT_USER_ID } from "../User";
-import Database from "../Database";
-
+import { sleep } from "..";
 
 //File Locations
 const STDIN_FILE = "/sys/stdin";
@@ -15,29 +15,32 @@ const STDOUT_FILE = "/sys/stdout";
 //IO Values
 let input:string = "";
 let output:string = "";
+let ready:boolean = false;
 
 //Load values from the System
-const ref = Database("FileSystem", "readwrite");
-ref.open().then(async(tx)=>{
+assertReady("readwrite").then(async(ref)=>{
+    const tx = await ref.open();
     try {
         await createFile(STDIN_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
         await createFile(STDOUT_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
-        output = await readFile(STDOUT_FILE, ROOT_USER_ID, tx as any);
+        ready = true;
+        const start = await readFile(STDOUT_FILE, ROOT_USER_ID, tx as any);
+        if(start)
+            OutputBuffer.value = start + output;
     } catch (e){
         console.error(e)
     }  finally {
         ref.close();
     }
-}).catch(e=>{
-    console.error(e);
-    ref.close();
-})
+}).catch(console.error);
 
 /** Save Helper Function
  * 
  */
 async function save(file:string, value:string) {
-    const ref = Database("FileSystem", "readwrite");
+    while(!ready)
+        await sleep();
+    const ref = await assertReady("readwrite");
     await writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, value, await ref.open());
     ref.close();
 }
@@ -46,6 +49,7 @@ async function save(file:string, value:string) {
 let cursor:number = 0;
 //stdin Buffer
 export const InputBuffer = {
+    hide: false,
 
     /** Add at Cursor
      * 
@@ -100,11 +104,8 @@ export const InputBuffer = {
  * Wrapper around stdin Buffer
  */
 export class InputStream extends ReadStream {
-    private _h:boolean;
-
     constructor() {
         super(InputBuffer);
-        this._h = false;
     }
 
     flush() {
@@ -114,17 +115,11 @@ export class InputStream extends ReadStream {
     }
 
     set hide(v:boolean){
-        this._h = v;
+        InputBuffer.hide = v;
     }
 
     get hide():boolean {
-        return this._h
-    }
-
-    get buffer(){
-        if(this._h)
-            return "";
-        return super.buffer;
+        return InputBuffer.hide
     }
 }
 
