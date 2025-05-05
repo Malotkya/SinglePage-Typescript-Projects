@@ -38,7 +38,7 @@ ref.open().then(async(tx)=>{
  */
 async function save(file:string, value:string) {
     const ref = Database("FileSystem", "readwrite");
-    await writeToFile(file, {user:ROOT_USER_ID, type: "Override"}, value, await ref.open());
+    await writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, value, await ref.open());
     ref.close();
 }
 
