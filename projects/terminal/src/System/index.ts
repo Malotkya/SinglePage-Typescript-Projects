@@ -11,6 +11,7 @@ import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable, InitData, parseExecutable } from "./Files";
 import SystemIterator from "./Iterator";
+import { init } from "./User";
 
 export {App};
 
@@ -157,6 +158,7 @@ const System = {
         stdin.flush();
         stdin.hide = password;
         const output = await stdin.getln();
+        this.println(message+(password?"":output));
         stdin.hide = false;
         return output;
     },
@@ -326,6 +328,10 @@ export function sleep(s:number = 100): Promise<void>{
     return new Promise((r)=>window.setTimeout(r,s));
 }
 
+export function isRunning(){
+    return running;
+}
+
 /** Start System
  * 
  */
@@ -336,6 +342,8 @@ export async function start(){
     callstack.push(<any>System);
     stdin.flush();
     running = true;
+
+    await init();
 
     while(running) {
         let string = await System.prompt(SYSTEM_PROMPT);
