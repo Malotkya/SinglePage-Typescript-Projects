@@ -5,10 +5,6 @@ import fs from "../Files";
 import { ReadWriteFileStream } from "../Stream/File";
 import { regexSplit } from "@";
 
-//Parsing Regex
-const NameRegex = /^(\s*\[)(.+)(\].*?)$/;
-const LineRegex =/^(.*?)=(.*?)(;.*?)$/;
-
 /** Config Parsing Error
  * 
  */
@@ -63,22 +59,23 @@ interface SectionValue<K extends string, V extends ConfigValue> {
  * @returns {SectionValue|string}
  */
 function parseLine(s:string, i:number):string|SectionValue<any, any>{
-    const match = s.match(LineRegex);
-    if(match === null) {
-        switch(s.trim().charAt(0)){
-            case "":
-            case ";":
-                return s;
+    switch(s.trim().charAt(0)){
+        case "":
+        case ";":
+            return s;
 
-            default:
+        default:
+            const split = s.indexOf("=");
+            const comment = s.indexOf(";");
+
+            if(split < 1)
                 throw new ConfigError(i+1, 'Unable to parse line!');
-        }
-    }
-        
-    return {
-        key: match[1],
-        value: getValue(match[2]),
-        postfix: match[3]
+
+            return {
+                key: s.substring(0, split),
+                value: s.substring(split+1, comment<0?undefined:comment),
+                postfix: comment<0?"":s.substring(comment)
+            }
     }
 }
 
@@ -95,14 +92,17 @@ export class Section<N extends string, T extends ConfigSection>{
         if(name === undefined)
             throw new TypeError("No Name Line!");
 
-        const match = name.match(NameRegex);
-        if(match === null)
-            throw new ConfigError(0, "Unable to parse name line!");
+        const start = name.indexOf("[")
+        const end = name.indexOf("]");
+
+        if(start < 0 || end < 0)
+            throw new ConfigError(0, "Unable to parse Name line!");
+            
 
         this._name = {
-            prefix: name[1],
-            value: name[2] as N,
-            postfix: name[3]
+            prefix: name.substring(0, start+1),
+            value: name.substring(start+1, end) as N,
+            postfix: name.substring(end)
         };
 
         this._value = lines.map(parseLine);
@@ -167,6 +167,7 @@ export class ConfigFile<T extends GlobalConfig> {
         this._value = [];
 
         file.onUpdate(()=>this.init());
+        this.init();
     }
 
     init(){
@@ -189,7 +190,7 @@ export class ConfigFile<T extends GlobalConfig> {
                     return line as any;
             } else if(typeof line === "object") {
                 if(line.key.trim() === key)
-                    return line as any;
+                    return line.value as any;
             }
         }
 
