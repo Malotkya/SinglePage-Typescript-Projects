@@ -303,6 +303,20 @@ export function validateCall(value:string, skipValidation?:boolean):string{
     return value;
 }
 
+export function formatSystemDate(date:Date, format:"Date"|"Time"|"DateTime" = "DateTime"):string {
+    let output:string = "";
+    if(format.includes("Date")) {
+        const [month, day, year] = date.toLocaleDateString().split("/");
+        output += ` ${month}`.slice(-2) + "/" + `0${day}`.slice(-2) + "/" + year;
+    }
+
+    if(format.includes("Time")) {
+        output += `  ${date.toLocaleTimeString()}`.slice(-12);
+    }
+
+    return output.trim();
+}
+
 /** Sleep
  *  
  * @param s 

@@ -4,7 +4,7 @@
  * 
  * @author Alex Malotky
  */
-import System, {MainFunction} from "..";
+import System, {MainFunction, formatSystemDate} from "..";
 import {normalize, relative, join} from "./Path";
 import fs, {SystemStats} from ".";
 
@@ -30,7 +30,7 @@ export function currentLocation():string {
  * @returns {Promise<string>}
  */
 async function toString(stat:SystemStats, name:string = stat.name):Promise<string> {
-    let string = `${stat.created.toLocaleDateString()} ${stat.created.toLocaleTimeString()}`;
+    let string = formatSystemDate(stat.created);
     
     if(stat.isFile()) {
         const size = await fs.size(stat.path + "/" + stat.name);
