@@ -37,25 +37,28 @@ export function toRegesterType<T extends RegisterTypes>(value:any, type:T):Regis
             if(typeof value !== "string")
                 throw new TypeError(`Color expected string got ${typeof value}!`);
 
-            return Color.from(value) as RegisterTypeMap[T];
-
-        case "bool":
-            if(typeof value !== "boolean")
-                throw new TypeError(`Bool expected bolean got ${typeof value}`);
-
-            return value as RegisterTypeMap[T];
+            return Color.from(value.trim()) as RegisterTypeMap[T];
 
         case "number":
-            if(typeof value !== "number")
-                throw new TypeError(`Number expected number got ${typeof value}`);
-
-            return value as RegisterTypeMap[T];
-
+            return Number(value) as RegisterTypeMap[T];
+    
         case "string":
-            if(typeof value !== "string")
-                throw new TypeError(`String expected string got ${typeof value}`);
+            return String(value) as RegisterTypeMap[T];
 
-            return value as RegisterTypeMap[T];
+        case "bool":
+            switch(typeof value) {
+                case "string":
+                    return (value.toLocaleLowerCase().trim() === "true") as RegisterTypeMap[T];
+
+                case "number":
+                    return (value === 1) as RegisterTypeMap[T];
+
+                case "boolean":
+                    return value as RegisterTypeMap[T];
+
+                default:
+                    return Boolean(value) as RegisterTypeMap[T];
+            }
 
         default:
             throw new TypeError("Invalid Type!");
