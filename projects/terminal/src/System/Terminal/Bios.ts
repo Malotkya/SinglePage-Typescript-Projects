@@ -29,61 +29,7 @@ let ctx:RenderContext|null = null;
 let view:BiosView|null = null;
 
 /////// Environment Variables modified by user. ///////
-export function setWidth(value:number){
-    if(ctx === null)
-        throw new Error("Bio is not yet claimed!");
 
-    ctx.width = value;
-    value *= ctx.char.width;
-    ctx.interface.style.width = `${value}px`;
-    ctx.canvas.width = value;
-}
-
-export function setHeight(value:number){
-    if(ctx === null)
-        throw new Error("Bio is not yet claimed!");
-
-    ctx.height = value;
-    value *= ctx.char.height;
-    ctx.interface.style.height = `${value+INTERFACE_OFFSET}px`;
-    ctx.canvas.height = value;
-}
-
-interface FontData {
-    color?:Color
-    size?:number
-}
-
-export function setFont(data:FontData) {
-    if(ctx === null)
-        throw new Error("Bio is not yet claimed!");
-
-    const {size, color} = data;
-
-    if(color)
-        ctx.fontColor = color;
-
-    if(size){
-        ctx.fontSize = size;
-        ctx.fontFace = `${size}px monospace`;
-        ctx.char.width = size * RATIO;
-        ctx.char.height = size;
-        const w = ctx.width * ctx.char.width;
-        const h = ctx.height * ctx.char.height+Y_OFFSET;
-        ctx.interface.style.width = `${w}px`;
-        ctx.canvas.width = w;
-        ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
-        ctx.canvas.height = h;
-    }
-
-}
-
-export function setBackgroundColor(value:Color){
-    if(ctx === null)
-        throw new Error("Bio is not yet claimed!");
-
-    ctx.backgroundColor = value;
-}
 
 ////// Environment Variable modified by bios. ///////
 let highlightMap:HighlighMap|null = null;
@@ -154,37 +100,36 @@ export function claimBios(target:HTMLElement, data:BiosInitData) {
 
     const {width, height, fontSize, fontColor, backgroundColor} = data;
 
-    ctx = gl as RenderContext;
-    (ctx as any).interface = target;
-    ctx.char = {
+    growHeight = Math.max(growHeight, height);
+    const char:Dimensions = {
         width: fontSize * RATIO,
         height: fontSize
     };
 
-    growHeight = Math.max(growHeight, height);
     
-    setFont({size: fontSize, color: fontColor});
-    setBackgroundColor(backgroundColor);
-    setWidth(width);
-    setHeight(height);
-    
+    (gl as any).interface = target;
+    (gl as RenderContext).char = char;
+    (gl as RenderContext).width = width;
+    (gl as RenderContext).height = height;
+    (gl as RenderContext).backgroundColor = backgroundColor;
+    (gl as RenderContext).fontColor = fontColor;
+    (gl as RenderContext).fontSize = fontSize;
+    (gl as RenderContext).fontFace = `${fontSize-1}px monospace`;
+
+    const w = width * char.width;
+    const h = height * char.height+Y_OFFSET;
+    (gl as RenderContext).interface.style.width = `${w}px`;
+    (gl as RenderContext).canvas.width = w;
+    (gl as RenderContext).interface.style.height = `${h+INTERFACE_OFFSET}px`;
+    (gl as RenderContext).canvas.height = h;
+
+    ctx = (gl as RenderContext);
 
     target.appendChild(canvas);
     canvas.focus();
     render();
 
     return {
-        get size():number {
-            return ctx!.char.height;
-        },
-
-        get width():number {
-            return width;
-        },
-
-        get height():number {
-            return height;
-        },
 
         get x() {
             return x;
@@ -212,6 +157,69 @@ export function claimBios(target:HTMLElement, data:BiosInitData) {
 
         get highlight():HighlighMap|null {
             return highlightMap
+        },
+
+        get width():number{
+            return ctx?.width || 0;
+        },
+
+        set width(value:number){
+            if(ctx){
+                ctx.width = value;
+                value *= ctx.char.width;
+                ctx.interface.style.width = `${value}px`;
+                ctx.canvas.width = value;
+            }
+        },
+
+        get height():number {
+            return ctx?.height || 0;
+        },
+
+        set height(value:number){
+            if(ctx){
+                ctx.height = value;
+                value *= ctx.char.height;
+                ctx.interface.style.height = `${value+INTERFACE_OFFSET}px`;
+                ctx.canvas.height = value;
+            }
+        },
+
+        get background():Color {
+            return ctx?.backgroundColor || new Color(0, 0, 0);
+        },
+
+        set background(value:Color) {
+            if(ctx)
+                ctx.backgroundColor = value;
+        },
+
+        get font():Color {
+            return ctx?.fontColor || new Color(0, 0, 0);
+        },
+
+        set font(value:Color){
+            if(ctx)
+                ctx.fontColor = value;
+        },
+
+        get size():number {
+            return ctx?.fontSize || 0;
+        },
+
+        set size(value:number){
+            if(ctx){
+                ctx.fontSize = value;
+                ctx.fontFace = `${value-1}px monospace`;
+                ctx.char.width = value * RATIO;
+                ctx.char.height = value;
+                const w = ctx.width * ctx.char.width;
+                const h = ctx.height * ctx.char.height+Y_OFFSET;
+                ctx.interface.style.width = `${w}px`;
+                ctx.canvas.width = w;
+                ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+                ctx.canvas.height = h;
+            }
         },
 
         put, print, scroll, cursor
