@@ -3,8 +3,8 @@
  * @author Alex Malotky
  */
 import {hashPassword, verifyPassword} from "@/Crypto";
-import Database from "../Database";
 import { writeToFile, readFile, getInfo, createFile } from "../Files/Database";
+import { assertReady } from "../Files";
 import { ROOT_USER_ID } from ".";
 import System from "..";
 import { assignRoles } from "./Role";
@@ -23,17 +23,22 @@ export interface UserData {
 }
 
 export async function init():Promise<UserData|null> {
-    const ref = Database("FileSystem", "readwrite");
-    const tx = await ref.open();
+    const ref1 = await assertReady("readonly");
+    const test = await getInfo(USER_FILE, await ref1.open())
+    ref1.close();
 
-    if(await getInfo(USER_FILE, tx as any))
+    if(test) 
         return null;
+    
 
+    System.println("Welcome to the terminal emulator.  Please create an account.");
     const username = await System.prompt("Username: ");
     const password = await System.prompt("Password: ", true);
     const id = crypto.randomUUID();
     const role = assignRoles(["Admin", "User"])
 
+    const ref2 = await assertReady("readwrite");
+    const tx = await ref2.open();
     await createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
         ROOT_USER_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"root"+"\n"
         + id+SEPERATOR+role+username
@@ -42,6 +47,7 @@ export async function init():Promise<UserData|null> {
         ROOT_USER_ID+SEPERATOR+await hashPassword(password)+"\n"
         +id+SEPERATOR+await hashPassword(password)
     )
+    ref2.close();
 
     return {
         id, username, role,
@@ -61,7 +67,7 @@ export async function addUser(username:string, password:string, role:number, id?
     id = id || crypto.randomUUID();
     const hash = await hashPassword(password); 
 
-    const ref = Database("FileSystem", "readwrite");
+    const ref = await assertReady("readwrite");
     const tx = await ref.open();
     await writeToFile(USER_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+role+SEPERATOR+username, tx);
     await writeToFile(HASH_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+hash, tx);
@@ -95,7 +101,7 @@ export async function getUserById(id:string|null):Promise<UserData|null> {
     if(id === null)
         return null;
 
-    const ref = Database("FileSystem", "readonly");
+    const ref = await assertReady("readonly");
     const buffer = await readFile(USER_FILE, ROOT_USER_ID, await ref.open());
     ref.close();
     
@@ -115,7 +121,7 @@ interface UserUpdate {
  */
 export async function updateUser(username:string, data:UserUpdate):Promise<void> {
     const {role, password} = data;
-    const ref = Database("FileSystem", "readwrite");
+    const ref = await assertReady("readwrite");
     const tx = await ref.open();
 
     const buffer = (await readFile(USER_FILE, ROOT_USER_ID, tx as any)).split("\n");
@@ -164,7 +170,7 @@ export async function updateUser(username:string, data:UserUpdate):Promise<void>
  */
 export async function deleteUser(username:string):Promise<void> {
 
-    const ref = Database("FileSystem", "readwrite");
+    const ref = await assertReady("readwrite");
     const tx = await ref.open();
 
     const users = (await readFile(USER_FILE, ROOT_USER_ID, tx as any)).split("\n");
@@ -201,7 +207,7 @@ export async function deleteUser(username:string):Promise<void> {
  * @returns {Promise<string|null>}
  */
 export async function validateUser(username:string, password:string):Promise<UserData|null> {
-    const ref = Database("FileSystem", "readonly");
+    const ref = await assertReady("readonly");
     const tx = await ref.open();
 
     const buffer = await readFile(USER_FILE, ROOT_USER_ID, tx);
