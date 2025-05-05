@@ -10,13 +10,8 @@ import { sleep } from ".";
 const DatabaseVersion = 2;
 
 const Stores = {
-    FileSystem: ["File", "Directory"],
-    User: ["User"]
+    FileSystem: ["File", "Directory"]
 } as const;
-
-const Indexes:Record<string, string[]> = {
-    "User": ["username"]
-}
 
 export type StoreType = keyof typeof Stores;
 export type DatabaseTransaction<M extends IDBTransactionMode, S extends StoreType> = IDBPTransaction<any, typeof Stores[S], M>
@@ -28,13 +23,7 @@ openDB("Terminal", DatabaseVersion, {
     upgrade: async(db)=>{
         for(const i in Stores) {
             for(const name of Stores[i as StoreType]) {
-                const s = db.createObjectStore(name);
-
-                if(Indexes[name]) {
-                    for(const index of Indexes[name]) {
-                        s.createIndex(index, index, {unique: true});
-                    }
-                }
+                db.createObjectStore(name);
             }
         }
     }
@@ -55,7 +44,6 @@ interface QueueRef<M extends IDBTransactionMode, S extends StoreType>{
 const AutoCloseQueue = new FinalizationRegistry<QueueRef<any, any>>((value)=>value.close());
 const QueueMap:Record<StoreType, QueueRef<any, any>[]> = {
     "FileSystem": [],
-    "User": []
 }
 
 export default function Database<M extends IDBTransactionMode, S extends StoreType>(store:S, mode:M):QueueRef<M, S> {

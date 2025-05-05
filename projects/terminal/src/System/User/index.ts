@@ -6,7 +6,6 @@ import * as db from "./Database";
 import { addToCleanup } from "@/CleanUp";
 import Role, {assignRoles, hasRole} from "./Role";
 import System from "..";
-import Database from "../Database";
 
 export type UserId = string|null;
 
@@ -28,15 +27,21 @@ addToCleanup(()=>{
  * @param {string} username 
  * @param {string} password 
  */
-export async function init(username:string, password:string):Promise<void> {
-    const ref = Database("User", "readwrite");
-    const tx = await ref.open();
-    if(await db.hasUser(ROOT_USER, tx as any))
-        throw new Error("Root User already exists!");
+export async function init():Promise<void> {
+    const start = await db.init();
+    if(start){
+        current_id = start.id;
+        user = start;
+    }
+}
 
-    await db.addUser(ROOT_USER, password, assignRoles("None"), tx, ROOT_USER_ID);
-    current_id = await db.addUser(username, password, assignRoles(["Admin", "User"]), tx);
-    ref.close();
+/** Get User By Id
+ * 
+ * @param {string} id 
+ * @returns {UserData}
+ */
+export function getUserById(id:string|null):Promise<db.UserData|null> {
+    return db.getUserById(id);
 }
 
 /** Add User
@@ -52,14 +57,7 @@ export async function addUser(username:string, password:string, role:Role[]|Role
     else
         await User.assertRole("Admin");
 
-    const ref = Database("User", "readwrite");
-    const tx = await ref.open();
-
-    if(await db.hasUser(username, tx as any))
-        throw new Error("Username already exists!");
-
-    await db.addUser(username, password, assignRoles(role), tx);
-    ref.close();
+    await db.addUser(username, password, roles);
 }
 
 /** Delete User
@@ -70,9 +68,7 @@ export async function deleteUser(username:string):Promise<void> {
     if((username !== await User.username()) && !(await User.isRole("Admin"))){
         await User.assertRoot();
     }
-    const ref = Database("User", "readwrite");
-    await db.deleteUser(username, await ref.open());
-    ref.close();
+    await db.deleteUser(username);
 }
 
 //Update User Options
@@ -91,12 +87,10 @@ export async function updateUser(username:string, opts:UpdateUserOptions):Promis
         await User.assertRoot();
     }
 
-    const ref = Database("User", "readwrite");
     await db.updateUser(username, {
         password: opts.password,
         role: opts.role? assignRoles(opts.role): undefined
-    }, await ref.open());
-    ref.close();
+    });
 }
 
 /** Login User
@@ -109,25 +103,16 @@ export async function login(username:string, password:string):Promise<boolean> {
     if(current_id !== NO_USER)
         throw new Error("User is already logged in!");
 
-    const ref = Database("User", "readonly");
-    const tx = await ref.open();
-    current_id = await db.validateUser(username, password, tx);
-    user = await db.getUser(current_id, tx);
-    ref.close();
+    const u = await db.validateUser(username, password);
+    if(u) {
+        current_id = u.id;
+        user = u;
+    } else {
+        current_id = NO_USER;
+        user = null;
+    }
 
     return current_id !== NO_USER;
-}
-
-/** Get User By Id
- * 
- * @param {UserId} id 
- * @returns {Promise<UserData|null>}
- */
-export async function getUserById(id:UserId):Promise<db.UserData|null> {
-    const ref = Database("User", "readonly");
-    const record = await db.getUser(id, await ref.open());
-    ref.close();
-    return record;
 }
 
 /** Logout User
@@ -135,6 +120,7 @@ export async function getUserById(id:UserId):Promise<db.UserData|null> {
  */
 export function logout() {
     current_id = NO_USER;
+    user = null;
 }
 
 //Current User Cached
@@ -146,10 +132,8 @@ let user:db.UserData|null = null;
 async function currentUser():Promise<db.UserData|null> {
     if(user === null && current_id === NO_USER)
         return null;
-
-    const ref = Database("User", "readonly");
-    user = await db.getUser(current_id, await ref.open());
-    ref.close();
+    else if(user === null)
+        user = await db.getUserById(current_id);
 
     if(user === null)
         current_id = NO_USER;
@@ -184,13 +168,9 @@ const User = {
             return true;
 
         if(password === undefined)
-            password = await System.prompt("[sudo] Password: ");
+            password = await System.prompt("[sudo] Password: ", true);
 
-        const ref = Database("User", "readonly");
-        const result = await db.validateUser(ROOT_USER, password, await ref.open());
-        ref.close();
-
-        return result !== null;
+        return null !== await db.validateUser(ROOT_USER, password)
     },
 
     /** Asert Root
