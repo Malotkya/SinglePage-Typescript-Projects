@@ -52,7 +52,7 @@ export interface LinkDirectoryData{
 type DirectoryData = FolderDirectoryData|FileDirectoryData|LinkDirectoryData;
 type FileData = string;
 
-type FileSystemTransaction<M extends IDBTransactionMode = "readonly"> = DatabaseTransaction<M, "FileSystem">
+export type FileSystemTransaction<M extends IDBTransactionMode = "readonly"> = DatabaseTransaction<M, "FileSystem">
 
 interface DirectoryOptions {
     user: UserId,
@@ -457,6 +457,7 @@ export type WriteFileType = "Prepend"|"Append"|"Override"|"Insert"|"Rewrite";
 interface FileOptions {
     user: UserId|FileConnection,
     type: WriteFileType
+    force?:boolean
 }
 
 /** Create File
@@ -527,14 +528,23 @@ export async function createFile(path:string, opts:DirectoryOptions, tx:FileSyst
  * @param {string} data 
  */
 export async function writeToFile(path:string, opts:FileOptions, data:string, tx:FileSystemTransaction<"readwrite">):Promise<void> {
-    const {user, type} = opts;
+    const {user, type, force} = opts;
     
     path = normalize(path);
     const store = tx.objectStore("Directory");
 
     const info:DirectoryData|undefined = await store.get(path);
-    if(info === undefined)
-        throw new FileError("Write", `${path} does not exisit!`);
+    if(info === undefined) {
+        if(force){
+            await createFile(path, {
+                user: user as UserId,
+                recursive: true
+            }, tx, data);
+            return 
+        } else {
+            throw new FileError("Write", `${path} does not exisit!`);
+        }
+    }
 
     if(info.type !== "File")
         throw new FileError("Delete", `${path} is not a file!`);
