@@ -15,7 +15,7 @@ const Stores = {
 
 export type StoreType = keyof typeof Stores;
 export type DatabaseTransaction<M extends IDBTransactionMode, S extends StoreType> = IDBPTransaction<any, typeof Stores[S], M>
-
+let count = 0;
 
 ///////////////////// Database Connection ////////////////////
 let db:IDBPDatabase<any>|undefined|null;
@@ -36,27 +36,34 @@ openDB("Terminal", DatabaseVersion, {
 
 /////////////////////////// Queue Information ////////////////////////////////////////
 
-interface QueueRef<M extends IDBTransactionMode, S extends StoreType>{
+export interface QueueRef<M extends IDBTransactionMode, S extends StoreType>{
+    readonly ref:{
+        readonly index:number
+    }
     open:()=>Promise<DatabaseTransaction<M, S>>
     close:()=>void;
 }
 
-const AutoCloseQueue = new FinalizationRegistry<QueueRef<any, any>>((value)=>value.close());
-const QueueMap:Record<StoreType, QueueRef<any, any>[]> = {
-    "FileSystem": [],
-}
+const AutoCloseQueue = new FinalizationRegistry<QueueRef<any, any>>((value)=>{
+    console.debug("Dangling Connection Closed!", value.ref.index);
+    value.close()
+});
+const queue:QueueRef<any, any>[] = [];
 
 export default function Database<M extends IDBTransactionMode, S extends StoreType>(store:S, mode:M):QueueRef<M, S> {
-    const ref:QueueRef<M, S> = {
+    const index = ++count;
+    //console.trace(index);
+    const ref = {index};
+    const obj:QueueRef<M, S> = {
+        ref,
         async open(){
             if(mode.includes("write")) {
-                const queue = QueueMap[store];
                 queue.push(this);
-                while(queue[0] !== this) {
-                    if(!queue.includes(this))
-                        throw new Error("Reference not in Queue!");
-                    
+                let index = queue.indexOf(this);
+                while(index > 0) {
                     await sleep(10);
+
+                    index = queue.indexOf(this);
                 }
             }
 
@@ -69,14 +76,15 @@ export default function Database<M extends IDBTransactionMode, S extends StoreTy
             return db.transaction(Stores[store], mode);
         },
         close() {
-            const queue = QueueMap[store];
             const i = queue.indexOf(this);
             if(i >= 0)
                 queue.splice(i, 1);
+
+            AutoCloseQueue.unregister(this.ref);
         }
     };
 
-    AutoCloseQueue.register(new WeakRef(ref), ref);
+    AutoCloseQueue.register(new WeakRef(obj), obj, ref);
 
-    return ref;
+    return obj;
 }
