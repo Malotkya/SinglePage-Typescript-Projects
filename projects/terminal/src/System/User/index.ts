@@ -32,6 +32,16 @@ export async function init():Promise<void> {
     if(start){
         current_id = start.id;
         user = start;
+    } else if(current_id === NO_USER){
+        let username = await System.prompt("Username: ");
+        let password = await System.prompt("Password: ", true);
+
+        while((await login(username, password)) === false){
+            System.println("Incorect username or password!\n");
+
+            username = await System.prompt("Username: ");
+            password = await System.prompt("Password: ", true);
+        }
     }
 }
 
