@@ -10,13 +10,12 @@ import { MouseButton } from "./Mouse";
 import { comparePositions } from "./Position";
 import { getHighlightedFromBuffer } from "../Stream";
 import { InputBuffer, OutputBuffer} from "../Stream/IO";
-import { getHistory, sleep } from "..";
+import { getHistory, sleep, isRunning } from "..";
 
 const DEFAUTL_PROMPT = "";
 let prompt = DEFAUTL_PROMPT;
 
 let view: View|null = null;
-let password = false;
 
 /** Get Highlight String Helper
  * 
@@ -67,31 +66,8 @@ class TerminalInterface extends HTMLElement{
 
     constructor(){
         super();
-        OpenRegistry("terminal", {
-            height: "number",
-            width: "number",
-            background: {
-                color: "color"
-            },
-            font: {
-                color: "color",
-                size: "number"
-            }
-        }).then((reg)=>{
-            this.#bios = claimBios(this, {
-                backgroundColor: reg.get("background").get("color"),
-                fontColor: reg.get("font").get("color"),
-                fontSize: reg.get("font").get("size"),
-                width: reg.get("width"),
-                height: reg.get("height")
-            });
-        }).catch(e=>{
-            console.error(e);
-            this.#bios = null;
-        })
-        
+        sleep(50).then(()=>this.init())
 
-        
         this.addEventListener("keyboard", async(event:CustomEventInit<KeyboardData>)=>{
             if(event.detail === undefined)
                 throw new Error("Missing Keyboard Detail!");
@@ -125,6 +101,36 @@ class TerminalInterface extends HTMLElement{
                 await this.render(event);
             }
         });
+    }
+
+    async init(){
+        while(!isRunning())
+            await sleep();
+        
+        try {
+            const reg = await OpenRegistry("terminal", {
+                height: "number",
+                width: "number",
+                background: {
+                    color: "color"
+                },
+                font: {
+                    color: "color",
+                    size: "number"
+                }
+            });
+            this.#bios = claimBios(this, {
+                backgroundColor: reg.get("background").get("color"),
+                fontColor: reg.get("font").get("color"),
+                fontSize: reg.get("font").get("size"),
+                width: reg.get("width"),
+                height: reg.get("height")
+            });
+        }catch (e){
+            console.error(e);
+            this.#bios = null;
+        }
+        
     }
 
     async assertReady():Promise<BiosType> {
@@ -220,7 +226,7 @@ class TerminalInterface extends HTMLElement{
         bios.print(OutputBuffer.value);
         
         bios.print(prompt);
-        if(!password) {
+        if(!InputBuffer.hide) {
             bios.print(InputBuffer.value);
         }
     
