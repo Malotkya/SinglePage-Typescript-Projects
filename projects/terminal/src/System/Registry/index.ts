@@ -43,6 +43,9 @@ export class Register<F extends RegisterFormat> {
                 return toRegesterType((this._c.get(key) as Section<any, any>).get(k), this._f[key][k] as RegisterTypes);
             }
             const set = <k extends (keyof F[K])&string, t extends RegisterTypeMap[(F[K]&ObjectFormat)[k]]&RegisterTypes>(k:k, value:t) => {
+                if(this._c.type === "ReadOnly")
+                    throw new Error("Register is readonly!");
+
                 (this._c.get(key) as Section<K, any>).set(k, fromRegertserType(value));
             }
             return {
@@ -56,10 +59,13 @@ export class Register<F extends RegisterFormat> {
         if(!isRegisterValue(type))
             throw new Error("Cannot set value as Register Object!");
 
+        if(this._c.type === "ReadOnly")
+            throw new Error("Register is readonly!");
+
         this._c.set(key, fromRegertserType(type) as any);
     }
 }
 
-export default async function OpenRegister<F extends RegisterFormat>(value:string, format:F) {
-    return new Register(format, await OpenConfigFile<GlobalFormat<F, (keyof F)&string>>(`/etc/${value}.cf`));
+export default async function OpenRegister<F extends RegisterFormat>(value:string, format:F, mode:"ReadOnly"|"ReadWrite" = "ReadOnly") {
+    return new Register(format, await OpenConfigFile<GlobalFormat<F, (keyof F)&string>>(`/etc/${value}.cf`, mode));
 }

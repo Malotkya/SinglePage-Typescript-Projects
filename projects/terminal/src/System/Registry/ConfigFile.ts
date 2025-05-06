@@ -2,7 +2,7 @@
  * 
  */
 import fs from "../Files";
-import { ReadWriteFileStream } from "../Stream/File";
+import { ReadFileStream, ReadWriteFileStream } from "../Stream/File";
 import { regexSplit } from "@";
 
 /** Config Parsing Error
@@ -158,12 +158,11 @@ export type GlobalConfig = Record<string, ConfigSection|ConfigValue>;
  * 
  */
 export class ConfigFile<T extends GlobalConfig> {
-    private _file:ReadWriteFileStream
+    private _file:ReadWriteFileStream|ReadFileStream
     private _value:Array<string|SectionValue<any, any>|Section<any, any>>;
 
-    constructor(file:ReadWriteFileStream){
+    constructor(file:ReadWriteFileStream|ReadFileStream){
         this._file = file;
-        this._file.mode = "Rewrite";
         this._value = [];
 
         file.onUpdate(()=>this.init());
@@ -234,7 +233,12 @@ export class ConfigFile<T extends GlobalConfig> {
     }
 
     update() {
-        this._file.write(this.toString());
+        if(this._file instanceof ReadWriteFileStream)
+            this._file.write(this.toString());
+    }
+
+    get type():"ReadOnly"|"ReadWrite" {
+        return this._file instanceof ReadWriteFileStream? "ReadWrite": "ReadOnly";
     }
 }
 
@@ -270,6 +274,6 @@ function nextSection(lines:string[]):[lines:string[], name:string] {
  * @param {string} path 
  * @returns {Promise<ConfigFile>}
  */
-export default async function OpenConfigFile<T extends GlobalConfig>(path:string):Promise<ConfigFile<T>> {
-    return new ConfigFile(await fs.openfile(path, "ReadWrite", "Rewrite"));
+export default async function OpenConfigFile<T extends GlobalConfig>(path:string, mode:"ReadWrite"|"ReadOnly"):Promise<ConfigFile<T>> {
+    return new ConfigFile(await fs.openfile(path, mode as "ReadWrite", "Rewrite"));
 }
