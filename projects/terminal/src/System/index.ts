@@ -348,6 +348,7 @@ export async function start(){
     running = true;
 
     await initUsers();
+    await System.resetProcess();
     history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 
     while(running) {
