@@ -39,7 +39,7 @@ export async function init():Promise<UserData|null> {
 
     await createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID},  await ref.open(),
         ROOT_USER_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"root"+"\n"
-        + id+SEPERATOR+role+username
+        + id+SEPERATOR+role+SEPERATOR+username
     );
     ref.close();
     const hash1 = await hashPassword(password);
