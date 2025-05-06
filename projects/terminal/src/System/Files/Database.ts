@@ -4,17 +4,13 @@
  */
 import { DatabaseTransaction } from "../Database";
 import { dirname, join, normalize, parse, parrent } from "./Path";
-import { validate } from "./Mode";
+import { validate, DEFAULT_DRIECTORY_MODE, DEFAULT_FILE_MODE, DEFAULT_ROOT_MODE, formatMode } from "./Mode";
 import { FileError, UnauthorizedError } from "./Errors";
 import { ROOT_USER_ID, UserId } from "../User";
 import FileConnection from "./Connection";
 
-const DEFAULT_DRIECTORY_MODE = 775;
-const DEFAULT_FILE_MODE = 664;
-const DEFAULT_ROOT_MODE = 755;
-
 export interface InitData {
-    [name:string]:string|InitData
+    [name:string]:[number, string|InitData]
 }
 
 export interface FolderDirectoryData {
@@ -78,22 +74,24 @@ async function _build(path:string, init:InitData, tx:FileSystemTransaction<"read
     const file = tx.objectStore("File");
     for(const name in init){
         const filePath = join(path, name);
-        let data:DirectoryData|undefined = await dir.get(filePath);
+        let info:DirectoryData|undefined = await dir.get(filePath);
+        let [mode, data] = init[name];
+        mode = isNaN(mode)? DEFAULT_ROOT_MODE: formatMode(mode);
 
         //Build File
-        if(typeof init[name] === "string") {
+        if(typeof data === "string") {
             
             //Update
-            if(data) {
-                (data as FileDirectoryData).updated = new Date();
+            if(info) {
+                (info as FileDirectoryData).updated = new Date();
 
             //Create
             } else {
                 const [base, ext = ""] = name.split(".");
-                data = {
+                info = {
                     type: "File",
                     owner: ROOT_USER_ID,
-                    mode: DEFAULT_ROOT_MODE,
+                    mode: mode,
                     base: base,
                     ext: ext,
                     links: 0,
@@ -105,18 +103,18 @@ async function _build(path:string, init:InitData, tx:FileSystemTransaction<"read
             }
 
             //Save
-            await dir.put(data, filePath);
-            await file.put(init[name], filePath);
+            await dir.put(info, filePath);
+            await file.put(data, filePath);
 
         //Build Directory
         } else {
 
             //Create
-            if(data === undefined){
+            if(info === undefined){
                 await dir.add({
                     type: "Directory",
                     owner: ROOT_USER_ID,
-                    mode: DEFAULT_ROOT_MODE,
+                    mode: mode,
                     links: 0,
                     created: new Date(),
                     base: name,
@@ -125,7 +123,7 @@ async function _build(path:string, init:InitData, tx:FileSystemTransaction<"read
             }
 
             //Populate Directory
-            await _build(filePath, init[name], tx);
+            await _build(filePath, data, tx);
         }
     }
 }
