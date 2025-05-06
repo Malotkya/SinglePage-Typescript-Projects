@@ -45,7 +45,7 @@ export default class History {
     }
 
     get current():string{
-        return this.list[this._index];
+        return this.list[this._index] || "";
     }
 
     get index():number {
