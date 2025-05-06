@@ -6,6 +6,9 @@ export default {
     "etc": {
         "terminal.cf": [775, terminal]
     },
+    "var": {
+        "who": ""
+    },
     "sys": {},
     "tmp": {},
     "home": {
