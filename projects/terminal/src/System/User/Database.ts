@@ -23,9 +23,9 @@ export interface UserData {
 }
 
 export async function init():Promise<UserData|null> {
-    const ref1 = await assertReady("readonly");
-    const test = await getInfo(USER_FILE, await ref1.open())
-    ref1.close();
+    const ref = await assertReady("readwrite");
+    const test = await getInfo(USER_FILE, (await ref.open()) as any)
+    ref.close();
 
     if(test) 
         return null;
@@ -37,18 +37,18 @@ export async function init():Promise<UserData|null> {
     const id = crypto.randomUUID();
     const role = assignRoles(["Admin", "User"])
 
-    const ref2 = await assertReady("readwrite");
-    const tx = await ref2.open();
-    await createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
+    await createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID},  await ref.open(),
         ROOT_USER_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"root"+"\n"
         + id+SEPERATOR+role+username
     );
-    await createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
-        ROOT_USER_ID+SEPERATOR+await hashPassword(password)+"\n"
-        +id+SEPERATOR+await hashPassword(password)
+    ref.close();
+    const hash1 = await hashPassword(password);
+    const hash2 = await hashPassword(password);
+    await createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, await ref.open(),
+        ROOT_USER_ID+SEPERATOR+hash1+"\n"
+        +id+SEPERATOR+hash2
     )
-    ref2.close();
-
+    ref.close();
     return {
         id, username, role,
         home: "/home/"+username
