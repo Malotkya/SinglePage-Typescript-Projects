@@ -11,7 +11,7 @@ export default class History {
     private _path:string;
 
     constructor(id:string) {
-        this._path = join("~", ".history", id);
+        this._path = join("~", "history", id);
         fs.mkfile(this._path, {recursive: true, soft: true});
         this.list = [];
         this._index = -1;
@@ -19,8 +19,13 @@ export default class History {
     }
 
     async init() {
-        this.list = (await fs.readfile(this._path)).split("\n");
-        this._index = this.list.length;
+        try {
+            this.list = (await fs.readfile(this._path)).split("\n");
+            this._index = this.list.length;
+        } catch (e){
+            //Do Nothing
+        }
+        
     }
 
     clear() {
