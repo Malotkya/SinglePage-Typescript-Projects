@@ -145,7 +145,10 @@ export function relative(from:string, to:string):string {
     assertPath(to, "To");
 
     if(from === to)
-        return ".";
+        return to;
+
+    if(to[0] === "~")
+        return to;
 
     const path = _relative(_normalize(from), _normalize(to));
     if(typeof path === "string")
