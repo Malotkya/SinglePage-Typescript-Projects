@@ -75,5 +75,5 @@ export function formatMode(value:number):number {
     const group = _format(Math.floor(value / 10));
     const other = _format(Math.floor(value));
 
-    return (user * 100) + (group * 10) * other;
+    return (user * 100) + (group * 10) + other;
 }
