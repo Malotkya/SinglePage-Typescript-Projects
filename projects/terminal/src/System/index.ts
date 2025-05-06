@@ -12,6 +12,7 @@ import { executable, InitData, parseExecutable, currentLocation } from "./Files"
 import SystemIterator from "./Iterator";
 import { init as initUsers } from "./User";
 import { extract } from "../Initalize";
+import { loadScripts } from "./Script";
 
 export {App};
 
@@ -109,8 +110,11 @@ const System = {
         loadedProcess.set(call, data);
     },
 
-    clearProcesses() {
+    async resetProcess() {
         loadedProcess.clear();
+        for(const process of await loadScripts("/bin")){
+            this.loadProcess(process);
+        }
     },
 
     /** Get App
@@ -384,10 +388,8 @@ export async function initSystem(...args:(InitData|Record<string, MainFunction>)
 export function clear(modifier:string) {
     if(modifier === "-a") {
         stdout.clear();
-        for(const name in history)
-            history[name].clear();
+        history[SYSTEM_NAME].clear();
     } else {
         stdout.clear();
-        stdin.flush();
     }
 }
