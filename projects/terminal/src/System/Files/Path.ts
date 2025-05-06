@@ -36,8 +36,9 @@ function assertPath(path:string, name:string = "Path"):void {
  * @param {string} path 
  * @returns {string[]}
  */
-function _normalize(path:string):string[] {    
-    const list = path.split(SEP);
+function _normalize(path:string|string[]):string[] {   
+
+    const list = Array.isArray(path)? path: path.split(SEP);
     
     let i = 0;
     while(i < list.length){
@@ -140,21 +141,21 @@ function _pathsEqual(lhs:string[], rhs:string[]):boolean {
  * @param {string} to 
  * @returns {string}
  */
-export function relative(from:string, to:string):string {
-    assertPath(from, "From");
-    assertPath(to, "To");
+export function relative(path:string):string {
+    assertPath(path);
 
-    if(from === to)
-        return to;
+    const location = currentLocation();
+    if(location === path)
+        return location;
 
-    if(to[0] === "~")
-        return to;
-
-    const path = _relative(_normalize(from), _normalize(to));
-    if(typeof path === "string")
+    if(path[0] === "~")
         return path;
 
-    return _format(path);
+    let list = path.split(SEP);
+    if(path[0] !== SEP)
+        list = location.split(SEP).concat(list);
+        
+    return _format(_normalize(list));
 }
 
 export async function format(value:string):Promise<string> {
