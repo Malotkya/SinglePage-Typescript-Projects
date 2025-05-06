@@ -3,7 +3,7 @@
  * @author Alex Malotky
  */
 import {hashPassword, verifyPassword} from "@/Crypto";
-import { writeToFile, readFile, getInfo, createFile } from "../Files/Database";
+import { writeToFile, readFile, getInfo, createFile, createDirectory } from "../Files/Database";
 import { assertReady } from "../Files";
 import { ROOT_USER_ID } from ".";
 import System from "..";
@@ -44,14 +44,17 @@ export async function init():Promise<UserData|null> {
     ref.close();
     const hash1 = await hashPassword(password);
     const hash2 = await hashPassword(password);
-    await createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, await ref.open(),
+    const tx = await ref.open();
+    await createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
         ROOT_USER_ID+SEPERATOR+hash1+"\n"
         +id+SEPERATOR+hash2
     )
+    const home = "/home/"+username;
+    await createDirectory(home, {recursive: true, soft: true, user: id}, tx);
     ref.close();
+
     return {
-        id, username, role,
-        home: "/home/"+username
+        id, username, role, home
     }
 }
 
@@ -71,6 +74,7 @@ export async function addUser(username:string, password:string, role:number, id?
     const tx = await ref.open();
     await writeToFile(USER_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+role+SEPERATOR+username, tx);
     await writeToFile(HASH_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+hash, tx);
+    await createDirectory("/home/"+username, {recursive: true, soft: true, user: id}, tx);
     ref.close();
 
     return id;
@@ -84,7 +88,7 @@ function _find(index:number, value:string, data:string):UserData|null {
                 id: data[0],
                 role: Number(data[1]),
                 username: data[2],
-                home: '/home/'+data[2]
+                home: data[0] === ROOT_USER_ID? "/root": '/home/'+data[2]
             }
         }
     }
