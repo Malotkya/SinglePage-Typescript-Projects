@@ -8,6 +8,8 @@ export default {
     },
     "sys": {},
     "tmp": {},
-    "home": {},
+    "home": {
+        "guest": {}
+    },
     "root": {}
 } satisfies SystemDirectory;
