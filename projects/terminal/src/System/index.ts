@@ -384,8 +384,10 @@ export async function initSystem(...args:(InitData|Record<string, MainFunction>)
 export function clear(modifier:string) {
     if(modifier === "-a") {
         stdout.clear();
-        //History.clear();
+        for(const name in history)
+            history[name].clear();
     } else {
         stdout.clear();
+        stdin.flush();
     }
 }
