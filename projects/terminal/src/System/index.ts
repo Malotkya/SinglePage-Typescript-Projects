@@ -12,6 +12,7 @@ import { currentLocation } from "./Files/Process";
 import { executable, InitData, parseExecutable } from "./Files";
 import SystemIterator from "./Iterator";
 import { init } from "./User";
+import { extract } from "../Initalize";
 
 export {App};
 
@@ -356,22 +357,23 @@ export async function start(){
 export async function initSystem(...args:(InitData|Record<string, MainFunction>)[]):Promise<void> {
     for(const bin of args){
         for(const name in bin) {
-            switch(typeof bin[name]) {
+            const value = extract(bin[name]);
+            switch(typeof value) {
                 case "object":
-                    initSystem(bin[name]);
+                    initSystem(value as InitData)
                     break;
 
                 case "function":
                     systemProcess.set(
                         validateCall(name, true),
-                        {call: name, main: bin[name] }
+                        {call: name, main: value as MainFunction }
                     );
                     break;
 
                 default:
                     systemProcess.set(
                         validateCall(name, true), 
-                        parseExecutable(bin[name]))
+                        parseExecutable(value))
             }
         }
     }
