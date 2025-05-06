@@ -37,15 +37,14 @@ openDB("Terminal", DatabaseVersion, {
 /////////////////////////// Queue Information ////////////////////////////////////////
 
 export interface QueueRef<M extends IDBTransactionMode, S extends StoreType>{
-    readonly ref:{
-        readonly index:number
-    }
+    readonly index:number
+    tx?:DatabaseTransaction<M, S>
     open:()=>Promise<DatabaseTransaction<M, S>>
     close:()=>void;
 }
 
 const AutoCloseQueue = new FinalizationRegistry<QueueRef<any, any>>((value)=>{
-    console.debug("Dangling Connection Closed!", value.ref.index);
+    console.debug("Dangling Connection Closed!", value.index);
     value.close()
 });
 const queue:QueueRef<any, any>[] = [];
@@ -53,9 +52,8 @@ const queue:QueueRef<any, any>[] = [];
 export default function Database<M extends IDBTransactionMode, S extends StoreType>(store:S, mode:M):QueueRef<M, S> {
     const index = ++count;
     //console.trace(index);
-    const ref = {index};
-    const obj:QueueRef<M, S> = {
-        ref,
+    return {
+        index,
         async open(){
             if(mode.includes("write")) {
                 queue.push(this);
@@ -65,6 +63,8 @@ export default function Database<M extends IDBTransactionMode, S extends StoreTy
 
                     index = queue.indexOf(this);
                 }
+                if(index < 0)
+                    console.warn("Reference removed from queue before ready!", index)
             }
 
             while(db === undefined)
@@ -73,18 +73,16 @@ export default function Database<M extends IDBTransactionMode, S extends StoreTy
             if(db === null)
                 throw new Error("Connection is closed!");
 
-            return db.transaction(Stores[store], mode);
+            this.tx = db.transaction(Stores[store], mode);
+            AutoCloseQueue.register(new WeakRef(this), this, this.tx);
+            return this.tx;
         },
         close() {
+            AutoCloseQueue.unregister(this.tx!);
             const i = queue.indexOf(this);
             if(i >= 0)
                 queue.splice(i, 1);
-
-            AutoCloseQueue.unregister(this.ref);
+            this.tx = undefined;
         }
     };
-
-    AutoCloseQueue.register(new WeakRef(obj), obj, ref);
-
-    return obj;
 }
