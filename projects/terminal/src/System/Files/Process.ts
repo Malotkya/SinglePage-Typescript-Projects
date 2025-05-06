@@ -56,7 +56,7 @@ export default {
             return;
         }
         try {
-            await fs.mkdir(relative(currentLocation(), args[1]));
+            await fs.mkdir(relative(args[1]));
         } catch (e){
 
         }
@@ -69,7 +69,7 @@ export default {
         }
         
         try {
-            await fs.cd(args[1])
+            await fs.cd(relative(args[1]))
         } catch (e){
             System.println(e);
         }
