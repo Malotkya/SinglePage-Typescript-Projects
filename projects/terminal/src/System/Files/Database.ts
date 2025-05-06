@@ -81,12 +81,8 @@ async function _build(path:string, init:InitData, tx:FileSystemTransaction<"read
         //Build File
         if(typeof data === "string") {
             
-            //Update
-            if(info) {
-                (info as FileDirectoryData).updated = new Date();
-
             //Create
-            } else {
+            if(info  === undefined) {
                 const [base, ext = ""] = name.split(".");
                 info = {
                     type: "File",
@@ -100,11 +96,11 @@ async function _build(path:string, init:InitData, tx:FileSystemTransaction<"read
                     updated: new Date(),
                     path: path
                 } satisfies FileDirectoryData;
-            }
 
-            //Save
-            await dir.put(info, filePath);
-            await file.put(data, filePath);
+                //Save
+                await dir.put(info, filePath);
+                await file.put(data, filePath);
+            }
 
         //Build Directory
         } else {
