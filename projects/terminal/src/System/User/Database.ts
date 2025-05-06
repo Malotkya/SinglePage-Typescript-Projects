@@ -6,13 +6,14 @@ import {hashPassword, verifyPassword} from "@/Crypto";
 import { writeToFile, readFile, getInfo, createFile, createDirectory } from "../Files/Database";
 import { assertReady } from "../Files";
 import { ROOT_USER_ID } from ".";
-import System from "..";
+import System, {formatSystemDate} from "..";
 import { assignRoles } from "./Role";
 
 const SEPERATOR = "    ";
 
 const USER_FILE = "/etc/passwd";
 const HASH_FILE = "/etc/shadow";
+const WHO_ID    = "/var/who";
 
 //User Database Data
 export interface UserData {
@@ -94,22 +95,6 @@ function _find(index:number, value:string, data:string):UserData|null {
     }
 
     return null;
-}
-
-/** Get User
- * 
- * @param {string} id 
- * @returns {Promise<UserData|null>}
- */
-export async function getUserById(id:string|null):Promise<UserData|null> {
-    if(id === null)
-        return null;
-
-    const ref = await assertReady("readonly");
-    const buffer = await readFile(USER_FILE, ROOT_USER_ID, await ref.open());
-    ref.close();
-    
-    return _find(0, id, buffer);;
 }
 
 //Update UserData Interface
@@ -230,4 +215,51 @@ export async function validateUser(username:string, password:string):Promise<Use
     }
 
     return null;
+}
+
+export async function login(username:string, password:string):Promise<UserData|null> {
+    const user = await validateUser(username, password);
+
+    if(user === null || user === undefined)
+        return null;
+
+    const ref = await assertReady("readwrite");
+    const tx = await ref.open();
+    await writeToFile(WHO_ID, {user:ROOT_USER_ID, type: "Rewrite"}, user.id, tx);
+    ref.close();
+    return user;
+}
+
+export async function logout():Promise<void> {
+    const ref = await assertReady("readwrite");
+    const tx = await ref.open();
+    await writeToFile(WHO_ID, {user:ROOT_USER_ID, type: "Rewrite"}, "", tx);
+    ref.close();
+}
+
+export async function getUserById(id:string|null = null):Promise<UserData|null> {
+
+    const ref = await assertReady("readonly");
+    const tx = await ref.open();
+    if(id === null) {
+        id = await readFile(WHO_ID, ROOT_USER_ID, tx);
+    }
+    
+
+    if(id === "") {
+        ref.close();;
+        return null;
+    }
+    
+    const buffer = await readFile(USER_FILE, ROOT_USER_ID, tx);
+    ref.close();
+    
+    return _find(0, id, buffer);
+}
+
+export async function logUser(type:"Login"|"Logout", status:"Failed"|"Succeeded", username:string):Promise<void> {
+    const string = `${formatSystemDate(new Date(), "DateTime")} ${type}-${status}: ${username}\n`;
+    const ref = await assertReady("readwrite");
+    await writeToFile("/var/log/user", {user:ROOT_USER_ID, type: "Append", force: true}, string, await ref.open());
+    ref.close();
 }

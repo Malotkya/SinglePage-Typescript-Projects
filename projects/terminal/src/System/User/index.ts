@@ -3,7 +3,6 @@
  * @author Alex Malotky
  */
 import * as db from "./Database";
-import { addToCleanup } from "@/CleanUp";
 import Role, {assignRoles, hasRole} from "./Role";
 import System from "..";
 import fs from "../Files";
@@ -15,14 +14,6 @@ export const NO_USER = null;
 export const ROOT_USER_ID = "0";
 export const ROOT_USER = "root";
 
-//Current User Persistance
-const USER_KEY = "Current:User_Id"
-let current_id:UserId = ROOT_USER_ID;
-addToCleanup(()=>{
-    if(current_id)
-        localStorage.setItem(USER_KEY, current_id.toString());
-});
-
 /** Init User System
  * 
  * @param {string} username 
@@ -31,12 +22,11 @@ addToCleanup(()=>{
 export async function init():Promise<void> {
     const start = await db.init();
     if(start){
-        current_id = start.id;
         user = start;
-        fs.cd(user.home);
+        await fs.cd(user.home);
     } else {
-        current_id = localStorage.getItem(USER_KEY) || NO_USER;
-        if(current_id === NO_USER){
+        user = await db.getUserById();
+        if(user === NO_USER){
         
             let username = await System.prompt("Username: ");
             let password = await System.prompt("Password: ", true);
@@ -47,6 +37,11 @@ export async function init():Promise<void> {
                 username = await System.prompt("Username: ");
                 password = await System.prompt("Password: ", true);
             }
+
+            
+        } else {
+            db.logUser("Login", "Succeeded", user.username);
+            await fs.cd(user.home);
         }
     }
 }
@@ -121,51 +116,45 @@ export async function updateUser(username:string, opts:UpdateUserOptions):Promis
  * @returns {Promise<boolean>}
  */
 export async function login(username:string, password:string):Promise<boolean> {
-    if(current_id !== NO_USER)
+    if(user !== NO_USER || await db.getUserById()) {
+        await db.logUser("Login", "Failed", username);
         throw new Error("User is already logged in!");
-
-    const u = await db.validateUser(username, password);
-    if(u) {
-        current_id = u.id;
-        user = u;
-        fs.cd(u.home);
-    } else {
-        current_id = NO_USER;
-        user = null;
-        fs.cd("/home/guest");
     }
 
-    return current_id !== NO_USER;
+    user = await db.login(username, password);
+    if(user){
+        await db.logUser("Login", "Succeeded", username);
+        await fs.cd(user.home);
+    } else {
+        await db.logUser("Login", "Failed", username);
+    }
+    return user !== NO_USER;
 }
 
 /** Logout User
  * 
  */
-export function logout() {
-    current_id = NO_USER;
+export async function logout() {
+    await db.logout();
+    await db.logUser("Logout", "Succeeded", user?.username || "guest");
     user = null;
     fs.cd("/home/guest");
 }
 
 //Current User Cached
-let user:db.UserData|null = null;
+let user:db.UserData|null = NO_USER;
 /** Get Current User
  * 
  * @returns {Promise<UserData|null>}
  */
 async function currentUser():Promise<db.UserData|null> {
-    if(user === null && current_id === NO_USER) {
-        return null;
-    } else if(user === null){
+    if(user === null){
         try {
-            user = await db.getUserById(current_id);
+            user = await db.getUserById();
         } catch (e){
             console.warn(e);
         }
     }
-
-    if(user === null)
-        current_id = NO_USER;
 
     return user;
 }
@@ -184,7 +173,7 @@ const User = {
      * @returns {Promise<UserId>}
      */
     async id():Promise<UserId> {
-        return current_id;
+        return user?.id || null;
     },
 
     /**
