@@ -15,6 +15,16 @@ import User, {getUserById} from "../User";
 import FileStream, {ReadFileStream, WriteFileStream, ReadWriteFileStream} from "../Stream/File";
 export {FileSystem, InitData};
 
+let location:string = "/";
+
+/** Get Current Location
+ * 
+ * @returns {string}
+ */
+export function currentLocation():string {
+    return location;
+}
+
 let ready:boolean = false;
 export async function assertReady<M extends IDBTransactionMode>(mode:M):Promise<QueueRef<M, "FileSystem">> {
     while(!ready)
@@ -36,6 +46,7 @@ export interface UnlinkOptions {
 
 export interface MakeDirectoryOptions {
     recursive?: boolean
+    soft?: boolean
     chmod?: number
 }
 
@@ -81,6 +92,7 @@ export function parseExecutable(buffer:string, name?:string, skip?:boolean):Proc
 }
 
 export async function executable(file:string, skip?:boolean):Promise<Process|null> {
+    file = await Path.format(file);
     const {base} = Path.parse(file);
     const ref = await assertReady("readonly");
     try {
@@ -104,6 +116,8 @@ async function openfile(path:string, type:"ReadOnly"):Promise<ReadFileStream>
 async function openfile(path:string, type:"WriteOnly", mode?:db.WriteFileType):Promise<WriteFileStream>
 async function openfile(path:string, type:"ReadWrite", mode?:db.WriteFileType):Promise<ReadWriteFileStream>
 async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode:db.WriteFileType = "Append"):Promise<FileStream>{
+    path = await Path.format(path);
+
     const ref = await assertReady("readwrite"); 
     const conn = await db.openFile(path, await User.id(), type, await ref.open());
     ref.close();
@@ -126,6 +140,23 @@ async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mo
  * 
  */
 const fs = {
+
+    /** Change Current Location to Directory
+     * 
+     * @param {string} path 
+     */
+    async cd(path:string):Promise<void> {
+        path = await Path.format(path);
+
+        const data = await this.stats(path);
+        if(data === null){
+            throw new Error("Unable to find directory: " + path);
+        } else if(!data.isDiretory()) {
+            throw new Error(`${path} is not a directory!`);
+        }
+
+        location = path;
+    },
 
     /** Link to File or Directory
      * 
@@ -150,6 +181,8 @@ const fs = {
      * @param {UnlinkOptions} opts 
      */
     async unlink(path:string, opts:UnlinkOptions = {}):Promise<void> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readwrite");
         db.unlink(path, {
             ...opts,
@@ -164,8 +197,10 @@ const fs = {
      * @param {RemoveOptions} opts 
      */
     async rm(path:string, opts:RemoveOptions = {}):Promise<void> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readwrite");
-        const test = await db.remove(path, {
+        await db.remove(path, {
             ...opts,
             user: await User.id()
         }, await ref.open());
@@ -177,6 +212,8 @@ const fs = {
      * @returns {Promise<SystemStats|null>}
      */
     async stats(path:string):Promise<SystemStats|null> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readonly");
 
         const info  = await db.getInfo(path, await ref.open());
@@ -239,6 +276,8 @@ const fs = {
      * @returns {Promise<number>}
      */
     async size(path:string):Promise<number> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readonly");
         const result =  await db.getSize(path, await ref.open());
         ref.close();
@@ -251,6 +290,8 @@ const fs = {
      * @returns {Promise<boolean>}
      */
     async exists(path:string):Promise<boolean>{
+        path = await Path.format(path);
+
         const ref = await assertReady("readonly");
         const result = await db.getInfo(path, await ref.open());
         ref.close();
@@ -263,6 +304,9 @@ const fs = {
      * @param {string} to 
      */
     async move(from:string, to:string):Promise<void> {
+        from = await Path.format(from);
+        to   = await Path.format(to);
+
         throw new Error("Move is not yet implemented!");
     },
 
@@ -272,6 +316,9 @@ const fs = {
      * @param {string} to 
      */
     async copy(from:string, to:string):Promise<void> {
+        from = await Path.format(from);
+        to   = await Path.format(to);
+
         throw new Error("Copy is not yet implemented!");
     },
 
@@ -289,6 +336,8 @@ const fs = {
      * @param {string} path 
      */
     async chmod(path:string, value:number){
+        path = await Path.format(path);
+
         throw new Error("Change Mode is not yet implemented!")
     },
 
@@ -298,6 +347,8 @@ const fs = {
      * @param {MakeDirectoryOptions} opts 
      */
     async mkdir(path:string, opts:MakeDirectoryOptions = {}):Promise<void> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readwrite");
         await db.createDirectory(path, {
             ...opts,
@@ -312,6 +363,8 @@ const fs = {
      * @returns {Promise<string[]>}
      */
     async readdir(path:string):Promise<string[]> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readonly");
         const results = await db.readDirectory(path, await User.id(), await ref.open());
         ref.close();
@@ -322,6 +375,8 @@ const fs = {
      * 
      */
     async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:string):Promise<void> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readwrite");
         await db.createFile(path, {
             ...opts,
@@ -337,6 +392,8 @@ const fs = {
      * @param {WriteFileOptions} opts 
      */
     async writefile(path:string, data:string, opts:WriteFileOptions = {}):Promise<void> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readwrite");
         const tx = await ref.open();
         if(undefined !== await db.getInfo(path, tx as any)) {
@@ -360,6 +417,8 @@ const fs = {
      * @returns {Promise<string>}
      */
     async readfile(path:string):Promise<string> {
+        path = await Path.format(path);
+
         const ref = await assertReady("readonly");
         const result = await db.readFile(path, await User.id(), await ref.open());
         ref.close();

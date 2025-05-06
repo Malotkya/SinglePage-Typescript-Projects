@@ -7,21 +7,7 @@
 import System, {MainFunction, formatSystemDate} from "..";
 import {normalize, relative, join} from "./Path";
 import fs, {SystemStats} from ".";
-
-let location:string = "/";
-
-interface FileSystemProcess {
-    desc: string
-    main: MainFunction
-}
-
-/** Get Current Location
- * 
- * @returns {string}
- */
-export function currentLocation():string {
-    return location;
-}
+import { currentLocation } from ".";
 
 /** System Stats To String Helper
  * 
@@ -42,9 +28,10 @@ async function toString(stat:SystemStats, name:string = stat.name):Promise<strin
     return string + ` ${name}`
 }
 
-const process:Record<string, MainFunction> = {
-    ".": ()=>System.println(location),
+export default {
+    ".": ()=>System.println(currentLocation()),
     "dir": async()=>{
+        const location = currentLocation();
         const size = await fs.size(location);
         System.println(`Reading: ${location}\n`);
 
@@ -52,7 +39,7 @@ const process:Record<string, MainFunction> = {
         System.println(await toString(home, "."));
 
         if(location !== "/") {
-            const parrent = (await fs.stats(normalize(location, "..")))!;
+            const parrent = (await fs.stats(location))!;
             System.println(await toString(parrent, ".."));
         }
         
@@ -64,25 +51,27 @@ const process:Record<string, MainFunction> = {
         System.println("");
     },
     "mkdir": async(args)=>{
-        if(args[1] === undefined)
+        if(args[1] === undefined) {
             System.println("Error: No directory name specified!");
-        else
-            await fs.mkdir(relative(location, args[1]));
+            return;
+        }
+        try {
+            await fs.mkdir(relative(currentLocation(), args[1]));
+        } catch (e){
+
+        }
+            
     },
     "cd": async(args)=>{
         if(args[1] === undefined) {
             System.println("Error: No directory name specified!");
             return;
         }
-            
-        const target = normalize(location, args[1]);
-        const data = await fs.stats(target);
-        if(data === null || !data.isDiretory()) {
-            System.println("Unable to find directory: " + args[1]);
-            return;
+        
+        try {
+            await fs.cd(args[1])
+        } catch (e){
+            System.println(e);
         }
-
-        location = target;
     }
-}
-export default process
+} satisfies Record<string, MainFunction>;
