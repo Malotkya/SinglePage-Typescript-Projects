@@ -6,6 +6,7 @@ import * as db from "./Database";
 import { addToCleanup } from "@/CleanUp";
 import Role, {assignRoles, hasRole} from "./Role";
 import System from "..";
+import fs from "../Files";
 
 export type UserId = string|null;
 
@@ -32,6 +33,7 @@ export async function init():Promise<void> {
     if(start){
         current_id = start.id;
         user = start;
+        fs.cd(user.home);
     } else {
         current_id = localStorage.getItem(USER_KEY) || NO_USER;
         if(current_id === NO_USER){
@@ -54,8 +56,13 @@ export async function init():Promise<void> {
  * @param {string} id 
  * @returns {UserData}
  */
-export function getUserById(id:string|null):Promise<db.UserData|null> {
-    return db.getUserById(id);
+export async function getUserById(id:string|null):Promise<db.UserData|null> {
+    try {
+        return await db.getUserById(id);
+    } catch (e){
+        console.warn(e);
+        return null;
+    }
 }
 
 /** Add User
@@ -121,9 +128,11 @@ export async function login(username:string, password:string):Promise<boolean> {
     if(u) {
         current_id = u.id;
         user = u;
+        fs.cd(u.home);
     } else {
         current_id = NO_USER;
         user = null;
+        fs.cd("/home/guest");
     }
 
     return current_id !== NO_USER;
@@ -135,6 +144,7 @@ export async function login(username:string, password:string):Promise<boolean> {
 export function logout() {
     current_id = NO_USER;
     user = null;
+    fs.cd("/home/guest");
 }
 
 //Current User Cached
@@ -144,10 +154,15 @@ let user:db.UserData|null = null;
  * @returns {Promise<UserData|null>}
  */
 async function currentUser():Promise<db.UserData|null> {
-    if(user === null && current_id === NO_USER)
+    if(user === null && current_id === NO_USER) {
         return null;
-    else if(user === null)
-        user = await db.getUserById(current_id);
+    } else if(user === null){
+        try {
+            user = await db.getUserById(current_id);
+        } catch (e){
+            console.warn(e);
+        }
+    }
 
     if(user === null)
         current_id = NO_USER;
@@ -170,6 +185,17 @@ const User = {
      */
     async id():Promise<UserId> {
         return current_id;
+    },
+
+    /**
+     * 
+     */
+    async home():Promise<string> {
+        const c = await currentUser();
+        if(c === null)
+            return "/home/guest";
+
+        return c.home;
     },
 
     /** Is Root
