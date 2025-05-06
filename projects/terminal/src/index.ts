@@ -1,69 +1,19 @@
 import System, {start as startSystem, clear, initSystem} from "./System";
-import { init as initFS, InitData as InitialFiles, FileSystem, InitData } from "./System/Files";
-import { functionToString } from "./System/Script";
+import { init as initFS, FileSystem, InitData } from "./System/Files";
+import { merge, SystemDirectory } from "./Initalize";
 import {login, logout} from "./System/User";
 import SystemFiles from "./Operations";
 import Help from "./Help";
 import Snake from "./Snake";
 
 export type StartFunction = ()=>Promise<void>
-export type SystemFile = {
-    [name:string]: string|Function|SystemFile
-}
 
-/** Merge Inital Files
- * 
- * @param {InitialFiles} os 
- * @param {InitialFiles} optional 
- */
-function merge(os:SystemFile, optional:SystemFile = {}):InitialFiles {
-    const output:InitialFiles = {};
 
-    for(const name of new Set(Object.keys(os).concat(Object.keys(optional)))) {
-        if(os[name]) {
-            switch (typeof os[name]) {
-                case "function":
-                    output[name] = functionToString(os[name]);
-                    break;
-
-                case "object":
-                    output[name] = merge(os[name], typeof optional[name] === "object"? optional: undefined);
-                    break;
-
-                case "string":
-                    output[name] = os[name];
-                    break;
-
-                default:
-                    output[name] = String(name);
-            }
-        } else {
-            switch(typeof optional[name]) {
-                case "function":
-                    output[name] = functionToString(optional[name]);
-                    break;
-
-                case "object":
-                    output[name] = merge(optional[name]);
-                    break;
-
-                case "string":
-                    output[name] = optional[name];
-                    break;
-
-                default:
-                    output[name] = String(optional[name]);
-            }
-        }
-    }
-
-    return output;
-}
 
 /** Initalize Terminal Operating System
  * 
  */
-export function init(files?:InitialFiles):StartFunction {
+export function init(files?:SystemDirectory):StartFunction {
 
     System.addFunction("about", "Displays more information about the terminal app.", ()=>{
         System.println("This is an attempt to see what I can create in this environement.");
@@ -91,7 +41,7 @@ export function init(files?:InitialFiles):StartFunction {
         initFS(data),
         initSystem(
             FileSystem,
-            data["bin"] as InitData
+            data["bin"][1] as InitData
         )
     ]);
 
