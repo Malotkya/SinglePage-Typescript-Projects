@@ -16,7 +16,7 @@ export const ROOT_USER = "root";
 
 //Current User Persistance
 const USER_KEY = "Current:User_Id"
-let current_id:UserId = localStorage.getItem(USER_KEY) || NO_USER;
+let current_id:UserId = ROOT_USER_ID;
 addToCleanup(()=>{
     if(current_id)
         localStorage.setItem(USER_KEY, current_id.toString());
@@ -32,15 +32,19 @@ export async function init():Promise<void> {
     if(start){
         current_id = start.id;
         user = start;
-    } else if(current_id === NO_USER){
-        let username = await System.prompt("Username: ");
-        let password = await System.prompt("Password: ", true);
-
-        while((await login(username, password)) === false){
-            System.println("Incorect username or password!\n");
-
-            username = await System.prompt("Username: ");
-            password = await System.prompt("Password: ", true);
+    } else {
+        current_id = localStorage.getItem(USER_KEY) || NO_USER;
+        if(current_id === NO_USER){
+        
+            let username = await System.prompt("Username: ");
+            let password = await System.prompt("Password: ", true);
+    
+            while((await login(username, password)) === false){
+                System.println("Incorect username or password!\n");
+    
+                username = await System.prompt("Username: ");
+                password = await System.prompt("Password: ", true);
+            }
         }
     }
 }
