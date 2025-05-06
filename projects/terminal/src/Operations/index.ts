@@ -1,15 +1,13 @@
-import { InitData } from "../System/Files";
+import { SystemDirectory } from "../Initalize";
 import terminal from "./terminal.cf";
 
 export default {
     "bin": {},
     "etc": {
-        "terminal.cf": terminal
+        "terminal.cf": [775, terminal]
     },
     "sys": {},
     "tmp": {},
-    "home": {
-        "guest": {}
-    },
+    "home": {},
     "root": {}
-} satisfies InitData;
+} satisfies SystemDirectory;
