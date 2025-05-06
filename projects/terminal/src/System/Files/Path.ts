@@ -4,6 +4,8 @@
  * 
  * @author Alex Malotky
  */
+import User from "../User";
+import { currentLocation } from ".";
 
 export const SEP = "/";
 interface PathInfo {
@@ -152,6 +154,18 @@ export function relative(from:string, to:string):string {
     return _format(path);
 }
 
+export async function format(value:string):Promise<string> {
+    assertPath(value);
+
+    if(value[0] === "~") {
+        return await User.home() + value.substring(1);
+    } else if(value[0] === ".") {
+        return currentLocation() + value.substring(1);
+    }
+
+    return value;
+}
+
 /** Normalize Path
  * 
  * Removes Empty, ".", and ".." while fixing path structure.
@@ -180,7 +194,20 @@ export function join(...args:string[]):string {
     if(args.length === 0)
         throw new TypeError("Path must be a string!");
 
-    return "/"+args.flatMap(s=>s.split(SEP))
+    let start:string;
+    switch(args[0]) {
+        case ".":
+        case "~":
+            start = args[0]+SEP;
+            args.shift();
+            break;
+
+        case SEP:
+        default:
+            start = SEP;
+    }
+
+    return start+args.flatMap(s=>s.split(SEP))
         .filter(s=>s).join(SEP);
 }
 
