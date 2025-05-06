@@ -3,19 +3,20 @@
  * @author Alex Malotky
  */
 import History from "./History";
-import System, { Process, HelpFunction, MainFunction, validateCall } from ".";
+import { Process, HelpFunction, MainFunction } from ".";
 
 export default class App implements Process{
     private _call: string;
     private _description: string;
     #main: MainFunction|undefined;
     #help: HelpFunction|undefined;
-    readonly history: History<string>;
+    readonly history: boolean;
+    
 
-    constructor(call: string, description: string){
+    constructor(call: string, description: string, history:boolean = false){
         this._call = call.toLowerCase();
         this._description = description;
-        this.history = new History(this._call);
+        this.history = history;
     }
 
     set main(value:MainFunction){

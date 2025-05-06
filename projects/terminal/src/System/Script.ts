@@ -70,7 +70,7 @@ export function fromFile(data:Record<string, string>, skipValidation?:boolean):P
     
     return {
         call, description, main, help,
-        history: history === "true" || history === "1"? new History(call): undefined,
+        history: history === "true" || history === "1",
     }
 }
 

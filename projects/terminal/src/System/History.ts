@@ -2,50 +2,44 @@
  * 
  * @author Alex Malotky
  */
-import { Destroyable, addToCleanup } from "@/CleanUp";
+import fs from "./Files";
+import {join} from "./Files/Path";
 
-export default class History<T> implements Destroyable{
-    private list:T[];
+export default class History {
+    private list:string[];
     private _index:number;
-    private _id:string;
+    private _path:string;
 
     constructor(id:string) {
-        this._id = "History:"+id;
-
-        try {
-            this.list = JSON.parse(localStorage.getItem(this._id) || "");
-
-            if(!Array.isArray(this.list))
-                throw "Not a list!";
-
-            this._index = this.list.length;
-        } catch (e){
-            this.list = [];
-            this._index = -1;
-        }
-
-        addToCleanup(this);
+        this._path = join("~", ".history", id);
+        fs.mkfile(this._path, {recursive: true, soft: true});
+        this.list = [];
+        this._index = -1;
+        this.init();
     }
 
-    destroy() {
-        localStorage.setItem(this._id, JSON.stringify(this.list));
+    async init() {
+        this.list = (await fs.readfile(this._path)).split("\n");
+        this._index = this.list.length;
     }
 
     clear() {
         this.list = [];
         this._index = -1;
+        fs.writefile(this._path, "", {type: "Override"});
     }
 
-    add(value:T) {
+    add(value:string) {
         this.list.push(value);
         this._index = this.list.length;
+        fs.writefile(this._path, value+"\n", {type: "Append"});
     }
 
-    at(index:number):T|undefined{
+    at(index:number):string|undefined{
         return this.list[index];
     }
 
-    get current():T{
+    get current():string{
         return this.list[this._index];
     }
 

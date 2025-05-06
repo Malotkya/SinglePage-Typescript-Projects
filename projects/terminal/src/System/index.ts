@@ -11,7 +11,7 @@ import { UserView } from "./Terminal/View";
 import { currentLocation } from "./Files/Process";
 import { executable, InitData, parseExecutable } from "./Files";
 import SystemIterator from "./Iterator";
-import { init } from "./User";
+import { init as initUsers } from "./User";
 import { extract } from "../Initalize";
 
 export {App};
@@ -20,20 +20,20 @@ export type MainFunction = (a:Arguments)=>Promise<unknown>|unknown;
 export type HelpFunction = ()=>Promise<unknown>|unknown;
 
 export interface Process {
-    readonly history?: History<string>
+    readonly history: boolean
     readonly call: string
     readonly description?:string
     readonly help?: HelpFunction
     readonly main: MainFunction
 }
 
-export const SYSTEM_NAME = "Terminal System";
+export const SYSTEM_NAME = "Terminal";
 export const SYSTEM_PROMPT = "$ ";
 
 ///// Private Attributes of System ///////
 const systemProcess:Map<string, Process> = new Map();
 const loadedProcess:Map<string, Process> = new Map();
-const history: History<string> = new History("System");
+const history:Record<string, History> = {}; 
 const callstack: Process[] = [];
 const stdin = new InputStream();
 const stdout = new OutputStream();
@@ -87,7 +87,8 @@ const System = {
 
         systemProcess.set(call, {
             call, description,
-            main: callback
+            main: callback,
+            history: false
         });
     },
 
@@ -104,9 +105,6 @@ const System = {
             throw new TypeError("Not a process!");
 
         if(data.description && typeof data.description !== "string")
-            throw new TypeError("Not a process!");
-
-        if(data.history && !(data.history instanceof History))
             throw new TypeError("Not a process!");
 
         loadedProcess.set(call, data);
@@ -219,8 +217,8 @@ const System = {
     /** System History
      * 
      */
-    get history():History<string> {
-        return history;
+    get history():History {
+        return history[SYSTEM_NAME];
     },
 
     /** System Call Name
@@ -236,7 +234,6 @@ const System = {
      */
     async run(cmd:string):Promise<void>{
         const args = new Arguments(cmd);
-        history.add(cmd);
     
         let exe:Process|null = null;
         try {
@@ -253,6 +250,9 @@ const System = {
 
         stdin.flush();
         callstack.push(exe);
+        if(exe.history){
+            history[exe.call] = new History(exe.call);
+        }
 
         try {
             const e = await exe.main(args);
@@ -281,8 +281,8 @@ export default System;
  * 
  * @returns {History<string>|null}
  */
-export function getHistory():History<string>|null{
-    return callstack[callstack.length-1].history || null;
+export function getHistory():History|null{
+    return history[callstack[callstack.length-1].call] || null;
 }
 
 /** Validate System Call
@@ -344,12 +344,12 @@ export async function start(){
     stdin.flush();
     running = true;
 
-    await init();
+    await initUsers();
+    history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 
     while(running) {
-        let string = await System.prompt(SYSTEM_PROMPT);
-        System.println(SYSTEM_PROMPT+string);
-       
+        const string = await System.prompt(SYSTEM_PROMPT);
+        System.history.add(string);
         System.run(string);
     }
 }
@@ -366,7 +366,7 @@ export async function initSystem(...args:(InitData|Record<string, MainFunction>)
                 case "function":
                     systemProcess.set(
                         validateCall(name, true),
-                        {call: name, main: value as MainFunction }
+                        {call: name, main: value as MainFunction, history: false}
                     );
                     break;
 
@@ -384,9 +384,8 @@ export async function initSystem(...args:(InitData|Record<string, MainFunction>)
  */
 export function clear(modifier:string) {
     if(modifier === "-a") {
-        stdout.flush();
-        history.clear();
-        localStorage.clear();
+        stdout.clear();
+        //History.clear();
     } else {
         stdout.clear();
     }
