@@ -4,6 +4,10 @@
  */
 import { ROOT_USER_ID, UserId } from "../User";
 
+export const DEFAULT_DRIECTORY_MODE = 775;
+export const DEFAULT_FILE_MODE = 664;
+export const DEFAULT_ROOT_MODE = 755;
+
 type GroupValue = 1|10|100;
 type OperationValue = 0|1|2|3|4|5|6|7;
 
@@ -15,8 +19,17 @@ type OperationValue = 0|1|2|3|4|5|6|7;
  * @returns {boolean}
  */
 function _validate(value:number, group:GroupValue, operation:OperationValue):boolean {
-    value = Math.floor(value / group);
+    value = Math.floor(value / group) % 10;
     return (value & operation) === operation
+}
+
+function _format(value:number):number {
+    value = value % 10;
+    if(value < 0 || isNaN(value))
+        return 0;
+    if(value > 7)
+        return 7
+    return value;
 }
 
 const ValidOperations = [
@@ -45,9 +58,9 @@ export function validate(value:number, owner:UserId, user:UserId, operation:Oper
         return true;
     
     const group:GroupValue = user === null
-        ? 100
+        ? 1
         : owner === user
-            ? 1
+            ? 100
             : 10;
 
     const o:OperationValue|-1 = ValidOperations.indexOf(operation) as any;
@@ -55,4 +68,12 @@ export function validate(value:number, owner:UserId, user:UserId, operation:Oper
         throw new TypeError(`Invalid Operation: ${operation}!`);
 
     return _validate(value, group, o);
+}
+
+export function formatMode(value:number):number {
+    const user  = _format(Math.floor(value / 100));
+    const group = _format(Math.floor(value / 10));
+    const other = _format(Math.floor(value));
+
+    return (user * 100) + (group * 10) * other;
 }
