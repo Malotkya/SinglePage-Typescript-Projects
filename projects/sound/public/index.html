@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Sound Test</title>
+        <script src="./index.js"></script>
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            main {
+                display: flex;
+                flex-flow: row wrap;
+            }
+
+            h1 {
+                width: 50%;
+                margin: 0;
+                text-align: center;
+            }
+
+            main .volume {
+                width: 50%;
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+            }
+
+            main .options {
+                width: 100%;
+            }
+
+            main #frequency {
+                width: 100%;
+            }
+
+        </style>
+    </head>
+    <body>
+        <main>
+            <h1>Sound Test</h1>
+            <div class="volume">
+                <label for="numVolume">Volume:</label>
+                <input type="range" min="0" max="1" step="0.01" id="numVolume">
+                <span id="lblVolume"></span>
+            </div>
+            
+            <div>
+                <label for="selWaveType">Wave Type:</label>
+                <select id="selWaveType">
+                    <option value="sine">Sine</option>
+                    <option value="square">Square</option>
+                    <option value="sawtooth">Sawtooth</option>
+                    <option value="triangle">Triangle</option>
+                </select>
+            </div>
+            
+
+            <section id="frequency">
+                <button value="261.63">C Test</button>
+            </section>
+        </main>
+    </body>
+</html>

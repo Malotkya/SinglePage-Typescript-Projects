@@ -1,0 +1,14 @@
+{
+  "name": "sound",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Alex Malotky",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "watch": "npx webpack-cli --watch",
+    "build": "npx webpack-cli"
+  },
+  "devDependencies": {}
+}
