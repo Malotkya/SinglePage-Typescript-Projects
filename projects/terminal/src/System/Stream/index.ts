@@ -4,8 +4,7 @@
  */
 import Position, { comparePositions } from "../Terminal/Position";
 import { HighlighMap } from "../Terminal/Bios";
-import { sleep } from "..";
-import { betterToString } from "@";
+import { betterToString, sleep } from "@";
 
 export interface BufferReference {value:string}
 

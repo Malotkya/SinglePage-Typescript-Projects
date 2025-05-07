@@ -6,7 +6,7 @@ import { KeyboardData } from "./Keyboard";
 import { KeyboardType } from "./Keyboard";
 import { MouseButton, MouseType } from "./Mouse";
 import { HIGHLIGHT_OFFSET, PixelFunction } from "./Bios";
-import { sleep } from "..";
+import { sleep } from "@";
 import Color from "@/Color";
 
 interface ViewContext {

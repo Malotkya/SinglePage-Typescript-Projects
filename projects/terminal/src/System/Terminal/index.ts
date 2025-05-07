@@ -10,7 +10,8 @@ import { MouseButton } from "./Mouse";
 import { comparePositions } from "./Position";
 import { getHighlightedFromBuffer } from "../Stream";
 import { InputBuffer, OutputBuffer} from "../Stream/IO";
-import { getHistory, sleep, isRunning } from "..";
+import { getHistory, isRunning } from "..";
+import {sleep} from "@";
 
 const DEFAUTL_PROMPT = "";
 let prompt = DEFAUTL_PROMPT;
