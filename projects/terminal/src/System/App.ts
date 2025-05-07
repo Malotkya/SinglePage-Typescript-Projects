@@ -2,7 +2,6 @@
  * 
  * @author Alex Malotky
  */
-import History from "./History";
 import { Process, HelpFunction, MainFunction } from ".";
 
 export default class App implements Process{

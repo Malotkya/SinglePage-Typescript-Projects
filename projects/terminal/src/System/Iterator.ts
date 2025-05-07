@@ -3,20 +3,26 @@
  * @author Alex Malotky
  */
 
+//System Iterator
 interface SystemIterator<T> {
     next(): SystemIteratorValue<T>
 }
 
+//System Iterator Value
 interface SystemIteratorValue<T> {
     value: [string, T],
     done?: boolean
 }
 
-type StructIterator<T> = MapIterator<[string, T]>|ArrayIterator<T>;
+type StructIterator<T> = MapIterator<[string, T]>;
 
+/** System Iterator Constructor
+ * 
+ * @param {StructIterator[]} inputs 
+ * @returns {SystemIterator}
+ */
 export default function SystemIterator<T>(...inputs:StructIterator<T>[]):SystemIterator<T> {
     let it:StructIterator<T>|undefined = inputs.shift();
-    let i = 0;
     
     const next = ():SystemIteratorValue<T> => {
         //Stop if Done
@@ -33,19 +39,10 @@ export default function SystemIterator<T>(...inputs:StructIterator<T>[]):SystemI
         //Reset to next iterator
         if(done){
             it = inputs.shift();
-            i = 0;
             return next();
         }
 
-        //Map Iterator
-        if(Array.isArray(value)) {
-            return { value };
-        }
-
-        //Array Iterator
-        return {
-            value: [String(i++), value]
-        }
+        return { value };
     }
 
     return {next};
