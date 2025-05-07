@@ -23,6 +23,11 @@ function _validate(value:number, group:GroupValue, operation:OperationValue):boo
     return (value & operation) === operation
 }
 
+/** Formate Mode
+ * 
+ * @param {number} value 
+ * @returns {number}
+ */
 function _format(value:number):number {
     value = value % 10;
     if(value < 0 || isNaN(value))
@@ -32,6 +37,7 @@ function _format(value:number):number {
     return value;
 }
 
+//Valid Operations
 const ValidOperations = [
     "None",
     "ExecuteOnly",
@@ -70,6 +76,11 @@ export function validate(value:number, owner:UserId, user:UserId, operation:Oper
     return _validate(value, group, o);
 }
 
+/** Format Mode
+ * 
+ * @param {number} value 
+ * @returns {number}
+ */
 export function formatMode(value:number):number {
     const user  = _format(Math.floor(value / 100));
     const group = _format(Math.floor(value / 10));

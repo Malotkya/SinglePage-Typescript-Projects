@@ -2,10 +2,8 @@
  * 
  */
 import Stream, {getNext} from ".";
-import FileConnection from "../Files/Connection";
-import { WriteFileType } from "../Files/Database";
-import { betterToString } from "@";
-import { sleep } from "..";
+import { FsDb, FileConnection } from "../Files/Backend";
+import { betterToString, sleep } from "@";
 
 /** File Stream
  * 
@@ -26,9 +24,9 @@ export default class FileStream extends Stream {
  * 
  */
 export class WriteFileStream extends FileStream {
-    public mode:WriteFileType;
+    public mode:FsDb.WriteFileType;
 
-    constructor(value:FileConnection, mode:WriteFileType) {
+    constructor(value:FileConnection, mode:FsDb.WriteFileType) {
         super(value);
         this.mode = mode;
         if(mode === "Append")
@@ -110,11 +108,11 @@ export class ReadFileStream extends FileStream {
  * 
  */
 export class ReadWriteFileStream extends FileStream {
-    public mode:WriteFileType;
+    public mode:FsDb.WriteFileType;
     private _read:number;
     private _write:number;
 
-    constructor(value:FileConnection, mode:WriteFileType) {
+    constructor(value:FileConnection, mode:FsDb.WriteFileType) {
         super(value);
         this.mode = mode;
         this._read = 0;

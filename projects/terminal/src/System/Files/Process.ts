@@ -1,11 +1,11 @@
 /** /System/Files/Process
  * 
- * System calls to allow the user to access the file system.
+ *  Info and Deeper Access 
  * 
  * @author Alex Malotky
  */
 import System, {MainFunction, formatSystemDate} from "..";
-import {normalize, relative, join} from "./Path";
+import {relative, join} from "./Path";
 import fs, {SystemStats} from ".";
 import { currentLocation } from ".";
 

@@ -3,8 +3,7 @@
  * @author Alex Malotky
  */
 import {hashPassword, verifyPassword} from "@/Crypto";
-import { writeToFile, readFile, getInfo, createFile, createDirectory } from "../Files/Database";
-import { assertReady } from "../Files";
+import { Queue, FsDb } from "../Files/Backend";
 import { ROOT_USER_ID } from ".";
 import System, {formatSystemDate} from "..";
 import { assignRoles } from "./Role";
@@ -24,8 +23,8 @@ export interface UserData {
 }
 
 export async function init():Promise<UserData|null> {
-    const ref = await assertReady("readwrite");
-    const test = await getInfo(USER_FILE, (await ref.open()) as any)
+    const ref = Queue("readwrite");
+    const test = await FsDb.getInfo(USER_FILE, (await ref.open()) as any)
     ref.close();
 
     if(test) 
@@ -38,7 +37,7 @@ export async function init():Promise<UserData|null> {
     const id = crypto.randomUUID();
     const role = assignRoles(["Admin", "User"])
 
-    await createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID},  await ref.open(),
+    await FsDb.createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID},  await ref.open(),
         ROOT_USER_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"root"+"\n"
         + id+SEPERATOR+role+SEPERATOR+username
     );
@@ -46,12 +45,12 @@ export async function init():Promise<UserData|null> {
     const hash1 = await hashPassword(password);
     const hash2 = await hashPassword(password);
     const tx = await ref.open();
-    await createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
+    await FsDb.createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
         ROOT_USER_ID+SEPERATOR+hash1+"\n"
         +id+SEPERATOR+hash2
     )
     const home = "/home/"+username;
-    await createDirectory(home, {recursive: true, soft: true, user: id}, tx);
+    await FsDb.createDirectory(home, {recursive: true, soft: true, user: id}, tx);
     ref.close();
 
     return {
@@ -71,11 +70,11 @@ export async function addUser(username:string, password:string, role:number, id?
     id = id || crypto.randomUUID();
     const hash = await hashPassword(password); 
 
-    const ref = await assertReady("readwrite");
+    const ref = Queue("readwrite");
     const tx = await ref.open();
-    await writeToFile(USER_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+role+SEPERATOR+username, tx);
-    await writeToFile(HASH_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+hash, tx);
-    await createDirectory("/home/"+username, {recursive: true, soft: true, user: id}, tx);
+    await FsDb.writeToFile(USER_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+role+SEPERATOR+username, tx);
+    await FsDb.writeToFile(HASH_FILE, {type: "Append", user: ROOT_USER_ID}, "\n"+id+SEPERATOR+hash, tx);
+    await FsDb.createDirectory("/home/"+username, {recursive: true, soft: true, user: id}, tx);
     ref.close();
 
     return id;
@@ -110,10 +109,10 @@ interface UserUpdate {
  */
 export async function updateUser(username:string, data:UserUpdate):Promise<void> {
     const {role, password} = data;
-    const ref = await assertReady("readwrite");
+    const ref = Queue("readwrite");
     const tx = await ref.open();
 
-    const buffer = (await readFile(USER_FILE, ROOT_USER_ID, tx as any)).split("\n");
+    const buffer = (await FsDb.readFile(USER_FILE, ROOT_USER_ID, tx as any)).split("\n");
     let id:string|null = null;
     for(let i=0; i<buffer.length; ++i){
         const data = buffer[i].split(/\s+/);
@@ -130,10 +129,10 @@ export async function updateUser(username:string, data:UserUpdate):Promise<void>
         throw new Error("Unable to find user!");
 
     if(role)
-        await writeToFile(USER_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, buffer.join("\n"), tx);
+        await FsDb.writeToFile(USER_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, buffer.join("\n"), tx);
 
     if(typeof password === "string") {
-        const buffer = (await readFile(HASH_FILE, ROOT_USER_ID, tx as any)).split("\n");
+        const buffer = (await FsDb.readFile(HASH_FILE, ROOT_USER_ID, tx as any)).split("\n");
         let update:boolean = false;
         for(let i=0; i<buffer.length; i++){
             const data = buffer[i].split(/\s+/);
@@ -147,7 +146,7 @@ export async function updateUser(username:string, data:UserUpdate):Promise<void>
         if(!update)
             buffer.push(id+SEPERATOR+await hashPassword(password));
 
-        await writeToFile(HASH_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, buffer.join("\n"), tx);
+        await FsDb.writeToFile(HASH_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, buffer.join("\n"), tx);
     }
 
     ref.close();
@@ -159,10 +158,10 @@ export async function updateUser(username:string, data:UserUpdate):Promise<void>
  */
 export async function deleteUser(username:string):Promise<void> {
 
-    const ref = await assertReady("readwrite");
+    const ref = Queue("readwrite");
     const tx = await ref.open();
 
-    const users = (await readFile(USER_FILE, ROOT_USER_ID, tx as any)).split("\n");
+    const users = (await FsDb.readFile(USER_FILE, ROOT_USER_ID, tx as any)).split("\n");
     let id:string|null = null;
     for(let i=0; i<users.length; ++i){
         const data = users[i].split(/\s+/);
@@ -174,13 +173,13 @@ export async function deleteUser(username:string):Promise<void> {
     }
     
     if(id !== null){
-        await writeToFile(USER_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, users.join("\n"), tx);
-        const hashs = (await readFile(HASH_FILE, ROOT_USER_ID, tx as any)).split("\n");
+        await FsDb.writeToFile(USER_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, users.join("\n"), tx);
+        const hashs = (await FsDb.readFile(HASH_FILE, ROOT_USER_ID, tx as any)).split("\n");
         for(let i=0; i<hashs.length; ++i){
             const data = users[i].split(/\s+/);
             if(data[0] === id) {
                 hashs.splice(i, 1);
-                await writeToFile(HASH_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, hashs.join("\n"), tx);
+                await FsDb.writeToFile(HASH_FILE, {user:ROOT_USER_ID, type: "Rewrite"}, hashs.join("\n"), tx);
                 break;
             }
         }
@@ -196,17 +195,17 @@ export async function deleteUser(username:string):Promise<void> {
  * @returns {Promise<string|null>}
  */
 export async function validateUser(username:string, password:string):Promise<UserData|null> {
-    const ref = await assertReady("readonly");
+    const ref = Queue("readonly");
     const tx = await ref.open();
 
-    const buffer = await readFile(USER_FILE, ROOT_USER_ID, tx);
+    const buffer = await FsDb.readFile(USER_FILE, ROOT_USER_ID, tx);
     const user = _find(2, username, buffer);
     if(user === null){
         ref.close();
         return null;
     }
 
-    const hashes = await readFile(HASH_FILE, ROOT_USER_ID, tx);
+    const hashes = await FsDb.readFile(HASH_FILE, ROOT_USER_ID, tx);
     ref.close();
     for(const line of hashes.split("\n")){
         const data = line.split(/\s+/);
@@ -223,26 +222,26 @@ export async function login(username:string, password:string):Promise<UserData|n
     if(user === null || user === undefined)
         return null;
 
-    const ref = await assertReady("readwrite");
+    const ref = Queue("readwrite");
     const tx = await ref.open();
-    await writeToFile(WHO_ID, {user:ROOT_USER_ID, type: "Rewrite"}, user.id, tx);
+    await FsDb.writeToFile(WHO_ID, {user:ROOT_USER_ID, type: "Rewrite"}, user.id, tx);
     ref.close();
     return user;
 }
 
 export async function logout():Promise<void> {
-    const ref = await assertReady("readwrite");
+    const ref = Queue("readwrite");
     const tx = await ref.open();
-    await writeToFile(WHO_ID, {user:ROOT_USER_ID, type: "Rewrite"}, "", tx);
+    await FsDb.writeToFile(WHO_ID, {user:ROOT_USER_ID, type: "Rewrite"}, "", tx);
     ref.close();
 }
 
 export async function getUserById(id:string|null = null):Promise<UserData|null> {
 
-    const ref = await assertReady("readonly");
+    const ref = Queue("readonly");
     const tx = await ref.open();
     if(id === null) {
-        id = await readFile(WHO_ID, ROOT_USER_ID, tx);
+        id = await FsDb.readFile(WHO_ID, ROOT_USER_ID, tx);
     }
     
 
@@ -251,7 +250,7 @@ export async function getUserById(id:string|null = null):Promise<UserData|null> 
         return null;
     }
     
-    const buffer = await readFile(USER_FILE, ROOT_USER_ID, tx);
+    const buffer = await FsDb.readFile(USER_FILE, ROOT_USER_ID, tx);
     ref.close();
     
     return _find(0, id, buffer);
@@ -259,7 +258,7 @@ export async function getUserById(id:string|null = null):Promise<UserData|null> 
 
 export async function logUser(type:"Login"|"Logout", status:"Failed"|"Succeeded", username:string):Promise<void> {
     const string = `${formatSystemDate(new Date(), "DateTime")} ${type}-${status}: ${username}\n`;
-    const ref = await assertReady("readwrite");
-    await writeToFile("/var/log/user", {user:ROOT_USER_ID, type: "Append", force: true}, string, await ref.open());
+    const ref = Queue("readwrite");
+    await FsDb.writeToFile("/var/log/user", {user:ROOT_USER_ID, type: "Append", force: true}, string, await ref.open());
     ref.close();
 }

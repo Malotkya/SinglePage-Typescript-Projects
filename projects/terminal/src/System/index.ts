@@ -8,7 +8,8 @@ import History from "./History";
 import { initView, getView, setPrompt } from "./Terminal";
 import { InputStream, OutputStream } from "./Stream/IO";
 import { UserView } from "./Terminal/View";
-import { executable, InitData, parseExecutable, currentLocation } from "./Files";
+import { execute, FilestoreInitData, parseExecutable } from "./Files/Backend";
+import { currentLocation } from "./Files";
 import SystemIterator from "./Iterator";
 import { init as initUsers } from "./User";
 import { extract } from "../Initalize";
@@ -240,7 +241,7 @@ const System = {
     
         let exe:Process|null = null;
         try {
-            exe = System.getProcess(args[0]) || await executable(args[0], true);
+            exe = System.getProcess(args[0]) || await execute(args[0], true);
         } catch (e:any){
             System.println(e.message || e);
             return;
@@ -323,15 +324,6 @@ export function formatSystemDate(date:Date, format:"Date"|"Time"|"DateTime" = "D
     return output.trim();
 }
 
-/** Sleep
- *  
- * @param s 
- * @returns nothing
- */
-export function sleep(s:number = 100): Promise<void>{
-    return new Promise((r)=>window.setTimeout(r,s));
-}
-
 export function isRunning(){
     return running;
 }
@@ -358,13 +350,13 @@ export async function start(){
     }
 }
 
-export async function initSystem(...args:(InitData|Record<string, MainFunction>)[]):Promise<void> {
+export async function initSystem(...args:(FilestoreInitData|Record<string, MainFunction>)[]):Promise<void> {
     for(const bin of args){
         for(const name in bin) {
             const value = extract(bin[name]);
             switch(typeof value) {
                 case "object":
-                    initSystem(value as InitData)
+                    initSystem(value as FilestoreInitData)
                     break;
 
                 case "function":

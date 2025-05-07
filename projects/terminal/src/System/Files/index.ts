@@ -2,18 +2,11 @@
  * 
  * @author Alex Malotky
  */
+import Queue from "./Database/TransactionQueue";
 import * as db from "./Database";
-import Database, {QueueRef} from "../Database";
-import { InitData } from "./Database";
 import * as Path from "./Path";
-import FileSystem from "./Process";
-import {Process, sleep} from "..";
-import { fromFile } from "../Script";
-import { FileError } from "./Errors";
 import User, {getUserById} from "../User";
-
 import FileStream, {ReadFileStream, WriteFileStream, ReadWriteFileStream} from "../Stream/File";
-export {FileSystem, InitData};
 
 let location:string = "/";
 
@@ -23,14 +16,6 @@ let location:string = "/";
  */
 export function currentLocation():string {
     return location;
-}
-
-let ready:boolean = false;
-export async function assertReady<M extends IDBTransactionMode>(mode:M):Promise<QueueRef<M, "FileSystem">> {
-    while(!ready)
-        await sleep();
-
-    return Database("FileSystem", mode);
 }
 
 ///////////////////////////// Option Interfaces /////////////////////////////
@@ -59,53 +44,7 @@ export interface WriteFileOptions {
     force?: boolean
 }
 
-export async function init(data?:InitData) {
-    const ref = Database("FileSystem", "readwrite");
-    await db.init(data, await ref.open());
-    ref.close();
-    ready = true;
-}
 
-export function parseExecutable(buffer:string, name?:string, skip?:boolean):Process {
-    if(skip === undefined)
-        skip = name === undefined;
-
-    const data:Record<string, string> =  {name: name!};
-    let match:RegExpMatchArray|null = buffer.match(/^([a-z]+):/im);
-    let n:string = "*";
-
-    while(match !== null) {
-        const index = buffer.indexOf(match[0]);
-        const newName = match[1].toLocaleLowerCase();
-        const value = buffer.substring(0, index);
-        buffer = buffer.substring(index+match[0].length);
-
-        data[n.toLocaleLowerCase().trim()] = value;
-        name = newName;
-
-        match = buffer.match(/^([a-z]+):/im);
-    }
-
-    data[n] = buffer
-
-    return fromFile(data, skip);
-}
-
-export async function executable(file:string, skip?:boolean):Promise<Process|null> {
-    file = await Path.format(file);
-    const {base} = Path.parse(file);
-    const ref = await assertReady("readonly");
-    try {
-        return parseExecutable(await db.executable(file, await User.id(), await ref.open()), base, skip);
-    } catch (e){
-        if(e instanceof FileError)
-            return null;
-
-        throw e;
-    } finally {
-        ref.close();
-    }
-}
 
 /** Open File
  * 
@@ -118,7 +57,7 @@ async function openfile(path:string, type:"ReadWrite", mode?:db.WriteFileType):P
 async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode:db.WriteFileType = "Append"):Promise<FileStream>{
     path = await Path.format(path);
 
-    const ref = await assertReady("readwrite"); 
+    const ref = Queue("readwrite"); 
     const conn = await db.openFile(path, await User.id(), type, await ref.open());
     ref.close();
 
@@ -165,7 +104,7 @@ const fs = {
      * @param {LinkOptions} opts 
      */
     async link(from:string, to:string, opts:LinkOptions = {}):Promise<void> {
-        const ref = await assertReady("readwrite");
+        const ref = Queue("readwrite");
         await db.createLink(from, to, {
             ...opts,
             user: await User.id()
@@ -183,7 +122,7 @@ const fs = {
     async unlink(path:string, opts:UnlinkOptions = {}):Promise<void> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readwrite");
+        const ref = Queue("readwrite");
         db.unlink(path, {
             ...opts,
             user: await User.id()
@@ -199,7 +138,7 @@ const fs = {
     async rm(path:string, opts:RemoveOptions = {}):Promise<void> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readwrite");
+        const ref = Queue("readwrite");
         await db.remove(path, {
             ...opts,
             user: await User.id()
@@ -214,7 +153,7 @@ const fs = {
     async stats(path:string):Promise<SystemStats|null> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readonly");
+        const ref = Queue("readonly");
 
         const info  = await db.getInfo(path, await ref.open());
         const about = Path.parse(path);
@@ -278,7 +217,7 @@ const fs = {
     async size(path:string):Promise<number> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readonly");
+        const ref = Queue("readonly");
         const result =  await db.getSize(path, await ref.open());
         ref.close();
         return result;
@@ -292,7 +231,7 @@ const fs = {
     async exists(path:string):Promise<boolean>{
         path = await Path.format(path);
 
-        const ref = await assertReady("readonly");
+        const ref = Queue("readonly");
         const result = await db.getInfo(path, await ref.open());
         ref.close();
         return result !== undefined;
@@ -349,7 +288,7 @@ const fs = {
     async mkdir(path:string, opts:MakeDirectoryOptions = {}):Promise<void> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readwrite");
+        const ref = Queue("readwrite");
         await db.createDirectory(path, {
             ...opts,
             user: await User.id()
@@ -365,7 +304,7 @@ const fs = {
     async readdir(path:string):Promise<string[]> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readonly");
+        const ref = Queue("readonly");
         const results = await db.readDirectory(path, await User.id(), await ref.open());
         ref.close();
         return results;
@@ -377,7 +316,7 @@ const fs = {
     async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:string):Promise<void> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readwrite");
+        const ref = Queue("readwrite");
         await db.createFile(path, {
             ...opts,
             user: await User.id()
@@ -394,7 +333,7 @@ const fs = {
     async writefile(path:string, data:string, opts:WriteFileOptions = {}):Promise<void> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readwrite");
+        const ref = Queue("readwrite");
         const tx = await ref.open();
         if(undefined !== await db.getInfo(path, tx as any)) {
             await db.writeToFile(path, {
@@ -419,7 +358,7 @@ const fs = {
     async readfile(path:string):Promise<string> {
         path = await Path.format(path);
 
-        const ref = await assertReady("readonly");
+        const ref = Queue("readonly");
         const result = await db.readFile(path, await User.id(), await ref.open());
         ref.close();
         return result;

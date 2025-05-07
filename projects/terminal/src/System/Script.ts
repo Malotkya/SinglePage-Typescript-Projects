@@ -3,9 +3,8 @@
  * @author Alex Malotky
  */
 import System, {Process, validateCall, MainFunction, HelpFunction} from ".";
-import { parseExecutable, assertReady } from "./Files";
+import { parseExecutable, Queue, FilestoreTransaction, FsDb } from "./Files/Backend";
 import { join } from "./Files/Path";
-import { readFile, readDirectory, getInfo, FileSystemTransaction } from "./Files/Database";
 import fs from "./Files";
 import * as Path from "./Files/Path";
 import Arguments from "./Arguments";
@@ -83,11 +82,11 @@ export function fromFile(data:Record<string, string>, skipValidation?:boolean):P
  * @param {FileSystemTransaction} tx 
  * @returns {Promise<string[]>}
  */
-async function loadDirectory(path:string, tx:FileSystemTransaction<"readonly">):Promise<string[]>{
+async function loadDirectory(path:string, tx:FilestoreTransaction<"readonly">):Promise<string[]>{
     return (await Promise.all(
-        (await readDirectory(path, ROOT_USER_ID, tx)).map(async(name)=>{
+        (await FsDb.readDirectory(path, ROOT_USER_ID, tx)).map(async(name)=>{
             const file = join(path, name);
-            const info = await getInfo(file, tx);
+            const info = await FsDb.getInfo(file, tx);
             if(info === undefined)
                 return [] as string[];
 
@@ -96,7 +95,7 @@ async function loadDirectory(path:string, tx:FileSystemTransaction<"readonly">):
             }
 
             return [
-                await readFile(file, ROOT_USER_ID, tx)
+                await FsDb.readFile(file, ROOT_USER_ID, tx)
             ]
         })
     )).flat();
@@ -108,7 +107,7 @@ async function loadDirectory(path:string, tx:FileSystemTransaction<"readonly">):
  * @returns {Promise<Process[]>}
  */
 export async function loadScripts(path:string):Promise<Process[]> {
-    const ref = await assertReady("readonly");
+    const ref = Queue("readonly");
     const tx = await ref.open();
     const list:Process[] = (await loadDirectory(path, tx)).map(buffer=>parseExecutable(buffer))
     ref.close();

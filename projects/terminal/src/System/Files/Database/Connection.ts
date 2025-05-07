@@ -2,8 +2,8 @@
  * 
  * @author Alex Malotky
  */
-import {writeToFile, closeFile} from "./Database";
-import Database from "../Database";
+import {writeToFile, closeFile} from ".";
+import Queue from "./TransactionQueue";
 
 //Write Message Interface
 interface WriteMessage {
@@ -49,7 +49,7 @@ export default class FileConnection {
 
     set value(v:string){
         this._v = v;
-        const ref = Database("FileSystem", "readwrite");
+        const ref = Queue("readwrite");
         ref.open().then(async(tx)=>{
             try {
                 if(this.bc !== null) {
@@ -69,7 +69,7 @@ export default class FileConnection {
 
     async close() {
         if(this.bc !== null) {
-            const ref = Database("FileSystem", "readwrite");
+            const ref = Queue("readwrite");
             await closeFile(this, await ref.open());
             ref.close();
         }  

@@ -3,10 +3,9 @@
  * @author Alex Malotky
  */
 import {ReadStream, WriteStream, BufferReference} from "../Stream";
-import { writeToFile, createFile, readFile } from "../Files/Database";
-import { assertReady } from "../Files";
+import { Queue, FsDb } from "../Files/Backend";
 import { ROOT_USER_ID } from "../User";
-import { sleep } from "..";
+import { sleep } from "@";
 
 //File Locations
 const STDIN_FILE = "/sys/stdin";
@@ -18,21 +17,24 @@ let output:string = "";
 let ready:boolean = false;
 
 //Load values from the System
-assertReady("readwrite").then(async(ref)=>{
-    const tx = await ref.open();
+const queueRef = Queue("readwrite");
+queueRef.open().then(async(tx)=>{
     try {
-        await createFile(STDIN_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
-        await createFile(STDOUT_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
+        await FsDb.createFile(STDIN_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
+        await FsDb.createFile(STDOUT_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
         ready = true;
-        const start = await readFile(STDOUT_FILE, ROOT_USER_ID, tx as any);
+        const start = await FsDb.readFile(STDOUT_FILE, ROOT_USER_ID, tx as any);
         if(start)
             OutputBuffer.value = start + output;
     } catch (e){
         console.error(e)
     }  finally {
-        ref.close();
+        queueRef.close();
     }
-}).catch(console.error);
+}).catch(e=>{
+    console.warn(e);
+    queueRef.close();
+});
 
 /** Save Helper Function
  * 
@@ -40,9 +42,8 @@ assertReady("readwrite").then(async(ref)=>{
 async function save(file:string, value:string) {
     while(!ready)
         await sleep();
-    const ref = await assertReady("readwrite");
-    await writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, value, await ref.open());
-    ref.close();
+    await FsDb.writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, value, await queueRef.open());
+    queueRef.close();
 }
 
 //Cursor private value
