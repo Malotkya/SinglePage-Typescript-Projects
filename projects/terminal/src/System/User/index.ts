@@ -4,6 +4,7 @@
  */
 import * as db from "./Database";
 import Role, {assignRoles, hasRole} from "./Role";
+import { isSecure } from "@/Crypto";
 import System from "..";
 import fs from "../Files";
 
@@ -16,10 +17,13 @@ export const ROOT_USER = "root";
 
 /** Init User System
  * 
- * @param {string} username 
- * @param {string} password 
  */
 export async function init():Promise<void> {
+    if(!isSecure()){
+        System.println("Warining! The Crypto library is unavailable!\nCan only be logged in as a guest!");
+        return;
+    }
+
     const start = await db.init();
     if(start){
         user = start;
@@ -67,6 +71,11 @@ export async function getUserById(id:string|null):Promise<db.UserData|null> {
  * @param {Role|Role[]} role 
  */
 export async function addUser(username:string, password:string, role:Role[]|Role = "User"):Promise<void> {
+    if(!isSecure()){
+        System.println("Unable to add user when Crypto library is unavailable!");
+        return;
+    }
+
     const roles = assignRoles(role);
     if(hasRole(roles, "Admin"))
         await User.assertRoot();
@@ -81,6 +90,11 @@ export async function addUser(username:string, password:string, role:Role[]|Role
  * @param {string} username 
  */
 export async function deleteUser(username:string):Promise<void> {
+    if(!isSecure()){
+        System.println("Unable to delete user when Crypto library is unavailable!");
+        return;
+    }
+
     if((username !== await User.username()) && !(await User.isRole("Admin"))){
         await User.assertRoot();
     }
@@ -99,6 +113,11 @@ export interface UpdateUserOptions {
  * @param {UpdateUserOptions} opts 
  */
 export async function updateUser(username:string, opts:UpdateUserOptions):Promise<void> {
+    if(!isSecure()){
+        System.println("Unable to update user when Crypto library is unavailable!");
+        return;
+    }
+
     if((username !== await User.username()) && !(await User.isRole("Admin"))) {
         await User.assertRoot();
     }
@@ -116,6 +135,11 @@ export async function updateUser(username:string, opts:UpdateUserOptions):Promis
  * @returns {Promise<boolean>}
  */
 export async function login(username:string, password:string):Promise<boolean> {
+    if(!isSecure()){
+        System.println("Unable to login when Crypto library is unavailable!");
+        return false;
+    }
+
     if(user !== NO_USER || await db.getUserById()) {
         await db.logUser("Login", "Failed", username);
         throw new Error("User is already logged in!");
@@ -135,6 +159,11 @@ export async function login(username:string, password:string):Promise<boolean> {
  * 
  */
 export async function logout() {
+    if(!isSecure()){
+        System.println("Unable to logout when Crypto library is unavailable!");
+        return;
+    }
+
     await db.logout();
     await db.logUser("Logout", "Succeeded", user?.username || "guest");
     user = null;
@@ -193,6 +222,9 @@ const User = {
      * @returns {Promise<boolean>}
      */
     async isRoot(password?:string):Promise<boolean> {
+        if(!isSecure())
+            return false;
+        
         if( (await currentUser())?.username === ROOT_USER)
             return true;
 
