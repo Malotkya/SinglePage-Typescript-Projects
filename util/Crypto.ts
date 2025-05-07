@@ -106,3 +106,11 @@ export function simpleHash(value:any):number {
 
     return hash;
 }
+
+/** Window is Secure
+ * 
+ * @returns {boolean}
+ */
+export function isSecure():boolean {
+    return crypto.subtle !== undefined;
+}
