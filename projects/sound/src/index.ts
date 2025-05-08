@@ -1,4 +1,5 @@
-
+import Piano from "./Piano";
+import {customFloat} from "@";
 
 window.onload = () => {
     const context = new AudioContext();
@@ -8,6 +9,11 @@ window.onload = () => {
     const numVolume = document.querySelector<HTMLInputElement>("#numVolume")!;
     const lblVolume = document.querySelector("#lblVolume")!;
     gain.gain.value = Number(numVolume.value);
+
+    const wave = new PeriodicWave(context, {
+        real: Piano.real,
+        imag: Piano.imag
+    });
 
     lblVolume.textContent = `${Math.floor(Number(numVolume.value) * 100)}%`;
     numVolume.addEventListener("input", ()=>{
@@ -38,4 +44,20 @@ window.onload = () => {
         node.start();
         window.setTimeout(()=>node.stop(), 500);
     });
+
+    const btnPeriodic = document.querySelector("#periodic")!;
+    btnPeriodic.addEventListener("click", ()=>{
+        const node = new OscillatorNode(context, {
+            frequency: 300,
+            type: "custom",
+            periodicWave: wave
+        });
+        node.connect(gain);
+        node.start();
+        window.setTimeout(()=>node.stop(), 100);
+    });
+
 }
+
+
+
