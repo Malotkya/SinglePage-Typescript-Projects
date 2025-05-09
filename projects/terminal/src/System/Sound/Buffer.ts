@@ -2,7 +2,7 @@
  * 
  * @author Alex Malotky
  */
-import { BeatIndex, calculateDurationFromIndex } from "./Beats";
+import { BeatIndex, calculateDuration, calculateDurationFromIndex } from "./Beats";
 import { WaveName, WaveNameMap, CustomWave } from "./Wave";
 import { customFloat } from "@";
 import { getNoteFromIndex, NoteIndex } from "./Note";
@@ -148,17 +148,19 @@ export default function ReadAudioBufferFile(array:Uint16Array):SoundData{
 function ReadAudioBuffer(array:Uint16Array, timingLength:number, tempo:number, limit?:number, offset:number = 0):BufferData {
     let buffer:BufferData = [];
     limit = limit? Math.min(limit, MeasureLength): MeasureLength;
-    let start:number = 0;
-
+    const sampleRate = calculateDuration(1 / limit, tempo, timingLength);
+    const measureRate = sampleRate * length;
+    
+    let baseStart:number = 0;
     while(offset < array.length){
         
         const measure:Measure = {};
         for(let m=0; m<limit; ++m) {
-            
+            let start:number = baseStart;
+
             const sample:Sample = {};
             for(let c=0; c<4; c++){
                 const data = _sample(array[++offset]);
-                //Increase Start By an Amound Here?
 
                 if(data === null)
                     break;
@@ -166,13 +168,17 @@ function ReadAudioBuffer(array:Uint16Array, timingLength:number, tempo:number, l
                     sample[data.index] = [start, data.value];
                 else
                     sample[data.index] = [start, getNoteFromIndex(data.note), start+calculateDurationFromIndex(data.beat, tempo, timingLength)];
-                
+
+                if(!data.cont)
+                    break;
             }
 
             measure[m as keyof Measure] = Object.keys(sample).length === 0? null: sample;
+            start += sampleRate;
         }
 
         buffer.push(measure);
+        baseStart += measureRate;
     }
 
     return buffer;
