@@ -30,6 +30,10 @@ export interface UnlinkOptions {
     recursive?:boolean
 }
 
+export interface MoveOptions {
+    force?: boolean
+}
+
 export interface MakeDirectoryOptions {
     recursive?: boolean
     soft?: boolean
@@ -38,40 +42,12 @@ export interface MakeDirectoryOptions {
 
 export interface RemoveOptions {
     recursive?:boolean
+    force?:boolean
 }
 
 export interface WriteFileOptions {
     type?: db.WriteFileType
     force?: boolean
-}
-
-
-
-/** Open File
- * 
- * @param {string} path 
- * @returns {Promise<stream>}
- */
-async function openfile(path:string, type:"ReadOnly"):Promise<ReadFileStream>
-async function openfile(path:string, type:"WriteOnly", mode?:db.WriteFileType):Promise<WriteFileStream>
-async function openfile(path:string, type:"ReadWrite", mode?:db.WriteFileType):Promise<ReadWriteFileStream>
-async function openfile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode:db.WriteFileType = "Append"):Promise<FileStream>{
-    path = await Path.format(path);
-
-    const ref = Queue("readwrite"); 
-    const conn = await db.openFile(path, await User.id(), type, await ref.open());
-    ref.close();
-
-    switch(type){
-        case "ReadOnly":
-            return new ReadFileStream(conn);
-
-        case "WriteOnly":
-            return new WriteFileStream(conn, mode);
-
-        case "ReadWrite":
-            return new ReadWriteFileStream(conn, mode);
-    }
 }
 
 //////////////////////////// File System Interface ///////////////////////////////
@@ -243,11 +219,16 @@ const fs = {
      * @param {string} from 
      * @param {string} to 
      */
-    async move(from:string, to:string):Promise<void> {
+    async move(from:string, to:string, opts:MoveOptions = {}):Promise<void> {
         from = await Path.format(from);
         to   = await Path.format(to);
 
-        throw new Error("Move is not yet implemented!");
+        const ref = Queue("readwrite");
+        await db.move(from, to, {
+            force: opts.force,
+            user: await User.id()
+        }, await ref.open());
+        ref.close();
     },
 
     /** Copy Directory or File
@@ -255,11 +236,16 @@ const fs = {
      * @param {string} from 
      * @param {string} to 
      */
-    async copy(from:string, to:string):Promise<void> {
+    async copy(from:string, to:string, opts:MoveOptions = {}):Promise<void> {
         from = await Path.format(from);
         to   = await Path.format(to);
 
-        throw new Error("Copy is not yet implemented!");
+        const ref = Queue("readwrite");
+        await db.copy(from, to, {
+            force: opts.force,
+            user: await User.id()
+        }, await ref.open());
+        ref.close();
     },
 
     /** Rename Directory or File
@@ -267,8 +253,16 @@ const fs = {
      * @param {string} from 
      * @param {string} to 
      */
-    async rename(from:string, to:string):Promise<void> {
-        throw new Error("Rename is not yet implemented!");
+    async rename(from:string, to:string, opts:MoveOptions = {}):Promise<void> {
+        from = await Path.format(from);
+        to   = await Path.format(to);
+
+        const ref = Queue("readwrite");
+        await db.move(from, to, {
+            force: opts.force,
+            user: await User.id()
+        }, await ref.open());
+        ref.close();
     },
 
     /** Change Mode
@@ -278,7 +272,12 @@ const fs = {
     async chmod(path:string, value:number){
         path = await Path.format(path);
 
-        throw new Error("Change Mode is not yet implemented!")
+        const ref = Queue("readwrite");
+        db.changeMode(path, {
+            value,
+            user: await User.id()
+        }, await ref.open());
+        ref.close();
     },
 
     /** Make Directory
@@ -365,7 +364,33 @@ const fs = {
         return new Encoding(result);
     },
 
-    openfile
+    /** Open File
+     * 
+     * @param {string} path 
+     * @returns {Promise<stream>}
+     */
+    openfile: async function openFile(path:string, type:"ReadOnly"|"WriteOnly"|"ReadWrite", mode:db.WriteFileType = "Append"):Promise<FileStream>{
+        path = await Path.format(path);
+    
+        const ref = Queue("readwrite"); 
+        const conn = await db.openFile(path, await User.id(), type, await ref.open());
+        ref.close();
+    
+        switch(type){
+            case "ReadOnly":
+                return new ReadFileStream(conn);
+    
+            case "WriteOnly":
+                return new WriteFileStream(conn, mode);
+    
+            case "ReadWrite":
+                return new ReadWriteFileStream(conn, mode);
+        }
+    }  as {
+        (path:string, type:"ReadOnly"):Promise<ReadFileStream>
+        (path:string, type:"WriteOnly", mode?:db.WriteFileType):Promise<WriteFileStream>
+        (path:string, type:"ReadWrite", mode?:db.WriteFileType):Promise<ReadWriteFileStream>
+    }
 }
 export default fs;
 

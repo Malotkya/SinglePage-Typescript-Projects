@@ -4,7 +4,7 @@
  */
 import { FilestoreTransaction } from "./TransactionQueue";
 import { dirname, join, normalize, parse, parrent } from "../Path";
-import { validate, DEFAULT_DRIECTORY_MODE, DEFAULT_FILE_MODE } from "../Mode";
+import { validate, DEFAULT_DRIECTORY_MODE, DEFAULT_FILE_MODE, formatMode } from "../Mode";
 import { FileError, UnauthorizedError } from "../Errors";
 import { UserId } from "../../User";
 import FileConnection from "./Connection";
@@ -28,11 +28,25 @@ interface DirectoryOptions {
     soft?: boolean
 }
 
+//Move Anything Options
+interface MoveOptions {
+    user: UserId,
+    force?: boolean,
+}
+
 /** Remove Anything Options
  * 
  */
 interface RemoveOptions {
     recursive?:boolean
+    user: UserId
+}
+
+/** Change Mode Options
+ * 
+ */
+interface ChangeModeOptions {
+    value:number
     user: UserId
 }
 
@@ -112,6 +126,68 @@ async function _remove(path:string, opts:RemoveOptions, tx:FilestoreTransaction<
     return files;
 }
 
+/** Move Directory Helper Function
+ * 
+ * @param {string} from 
+ * @param {string} to 
+ * @param {boolean} clone - true for copy
+ * @param {UserId} user 
+ * @param {boolean} force 
+ * @param {FilestoreTransaction} tx 
+ * @returns {Promise<string[]>}
+ */
+async function _move(from:string, to:string, clone:boolean, user:UserId, force:boolean, tx:FilestoreTransaction<"readwrite">):Promise<string[]> {
+    const dir = tx.objectStore("Directory");
+    const file = tx.objectStore("File");
+
+    const data = await dir.get(from);
+    if(data === undefined)
+        return [];
+
+    if(!validate(data.mode, data.owner, user, "ReadWrite"))
+        throw new UnauthorizedError(from, "ReadWrite");
+
+    const target = await dir.get(to);
+    if(target){
+        if(!force)
+            throw new FileError("Create", `${to} already exists!`);
+
+        if(!validate(target.mode, target.owner, user, "ReadWrite"))
+            throw new UnauthorizedError(to, "ReadWrite");
+
+        if(target.type === "File") 
+            file.delete(to);
+    }
+
+    let files:string[] = [];
+    switch(data.type) {
+        case "File":
+            const buffer = await file.get(from);
+            if(buffer)
+                file.put(buffer, to);
+            if(!clone)
+                files.push(from);
+            data.updated = new Date();
+            break;
+
+        case "Directory":
+            for(const file of await _dir(from, tx)) {
+                files = files.concat(
+                    await _move(join(from, file), join(from, to), clone, user, force, tx)
+                );
+            }
+    }
+
+    data.created = new Date();
+    data.owner = user;
+
+    dir.put(data, to);
+    if(!clone)
+        dir.delete(from);
+
+    return files;
+}
+
 
 ////////////////////////// Global Operations //////////////////////////////////////
 
@@ -185,6 +261,62 @@ export async function remove(path:string, opts:RemoveOptions, tx:FilestoreTransa
     for(const f of files){
         await store.delete(f);
     }
+}
+
+/** Copy File or Directory
+ * 
+ * @param {string} from 
+ * @param {string} to 
+ * @param {MoveOptions} opts 
+ * @param {FilestoreTransaction} tx 
+ */
+export async function copy(from:string, to:string, opts:MoveOptions, tx:FilestoreTransaction<"readwrite">):Promise<void> {
+    from = normalize(from);
+    to = normalize(to);
+    await _move(from, to, true, opts.user, opts.force || false, tx);
+}
+
+/** Move File or Directory
+ * 
+ * @param {string} from 
+ * @param {string} to 
+ * @param {MoveOptions} opts 
+ * @param {FileSystem} tx 
+ */
+export async function move(from:string, to:string, opts:MoveOptions, tx:FilestoreTransaction<"readwrite">):Promise<void> {
+    from = normalize(from);
+    to = normalize(to);
+    const store = tx.objectStore("File")
+    for(const file of await _move(from, to, false, opts.user, opts.force || false, tx))
+        store.delete(file);
+}
+
+/** Change Mode
+ * 
+ * @param {string} path 
+ * @param {ChangeModeOptions} opts 
+ * @param {FilestoreTransaction} 
+ */
+export async function changeMode(path:string, opts:ChangeModeOptions, tx:FilestoreTransaction<"readwrite">):Promise<void> {
+    const {user, value} = opts;
+    if(typeof value !== "number")
+        throw new TypeError("Mode must be a number!");
+
+    path = normalize(path);
+    const store = tx.objectStore("Directory");
+
+    const data = await store.get(path);
+    if(data === undefined)
+        throw new FileError("Write", `${path} does not exsist!`);
+
+    if(!validate(data.mode, data.owner, user, "WriteOnly"))
+        throw new UnauthorizedError(path, "Write");
+
+    data.mode = formatMode(value);
+    if(data.type === "File")
+        data.updated = new Date();
+    
+    store.put(data, path);
 }
 
 ////////////////////////// Directory Operations //////////////////////////////////////
