@@ -5,19 +5,22 @@
 import { BeatName, calculateDurationFromName } from "./Beats";
 import { NoteName, Note, getNoteFromName } from "./Note";
 import { CustomWave, WaveName } from "./Wave";
+import {SampleLength} from "./Buffer";
 
 /** Sound Context Interface
  * 
  */
-export default interface SoundContext extends AudioContext {
+export default interface SoundContext extends AudioContext, BaseSoundInterface {};
+
+export type BaseSoundInterface = {
     timing: Signature,
     readonly tempo: number,
     setTempo:(v:number)=>void
     channel: {
-        0: Channel,
-        1: Channel,
-        2: Channel,
-        3: Channel
+        readonly 0: Channel,
+        readonly 1: Channel,
+        readonly 2: Channel,
+        readonly 3: Channel
     }
 }
 
@@ -27,6 +30,7 @@ export default interface SoundContext extends AudioContext {
  */
 export default function SoundContext(ctr:typeof AudioContext):SoundContext {
     let tempo:number = 0.5;
+    let channels:Channel[] = [];
 
     const ctx = (new ctr()) as SoundContext;
     Object.defineProperty(ctx, 'tempo', {
@@ -36,12 +40,14 @@ export default function SoundContext(ctr:typeof AudioContext):SoundContext {
         tempo = calculateTempo(value);
     };
     ctx.timing = Signature();
-    ctx.channel = {
-        0: Channel(ctx),
-        1: Channel(ctx),
-        2: Channel(ctx),
-        3: Channel(ctx)
-    }
+    ctx.channel = <any>{};
+
+    for(let i=0; i<SampleLength; i++){
+        channels.push(Channel(ctx));
+        Object.defineProperty(ctx.channel, i, {
+            get: function(){return channels[i]}
+        });
+    };
 
     return ctx;
 }
@@ -122,10 +128,10 @@ function Signature(top:number = 4, bottom:number = 4):Signature {
  * 
  */
 export interface Channel {
-    play:(
-        ((frequency?:number, start?:number, end?:number)=>void)
-        | ((note:NoteName|Note, beat:BeatName)=>void)
-    )
+    play:{
+        (frequency?:number, start?:number, end?:number): void,
+        (note:NoteName|Note, beat:BeatName): void
+    }
     set:(value:CustomWave|WaveName)=>void
     stop:()=>void
 }
