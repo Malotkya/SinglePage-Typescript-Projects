@@ -83,6 +83,7 @@ export function fromFile(data:Record<string, string>, skipValidation?:boolean):P
  * @returns {Promise<string[]>}
  */
 async function loadDirectory(path:string, tx:FilestoreTransaction<"readonly">):Promise<string[]>{
+    const decoder = new TextDecoder("utf-8");
     return (await Promise.all(
         (await FsDb.readDirectory(path, ROOT_USER_ID, tx)).map(async(name)=>{
             const file = join(path, name);
@@ -95,7 +96,7 @@ async function loadDirectory(path:string, tx:FilestoreTransaction<"readonly">):P
             }
 
             return [
-                await FsDb.readFile(file, ROOT_USER_ID, tx)
+                decoder.decode(await FsDb.readFile(file, ROOT_USER_ID, tx))
             ]
         })
     )).flat();

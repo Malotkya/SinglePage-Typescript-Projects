@@ -1,5 +1,6 @@
 import System, {start as startSystem, clear, initSystem} from "./System";
-import { init as initFS, FileSystem, InitData } from "./System/Files";
+import { FilestoreInitData, initFilestoreDatabase } from "./System/Files/Backend";
+import FileSystem from "./System/Files/Process"
 import { merge, SystemDirectory } from "./Initalize";
 import {login, logout} from "./System/User";
 import SystemFiles from "./Operations";
@@ -38,10 +39,10 @@ export function init(files?:SystemDirectory):StartFunction {
 
     const data = merge(SystemFiles, files);
     const ready = Promise.all([
-        initFS(data),
+        initFilestoreDatabase(data),
         initSystem(
             FileSystem,
-            data["bin"][1] as InitData
+            data["bin"][1] as FilestoreInitData
         )
     ]);
 

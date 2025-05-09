@@ -1,4 +1,4 @@
-import { InitData as FSInitData } from "./System/Files";
+import { FilestoreInitData } from "./System/Files/Backend";
 import { functionToString } from "./System/Script";
 import { DEFAULT_FILE_MODE, DEFAULT_DRIECTORY_MODE } from "./System/Files/Mode";
 
@@ -15,7 +15,7 @@ export type SystemDirectory = {
  * @param {SystemFile|SystemDirectory} optional 
  * @returns {SystemFile|SystemDirectory}
  */
-function compare(required:SystemDirectory|SystemFile, optional?:SystemDirectory|SystemFile):string|FSInitData {
+function compare(required:SystemDirectory|SystemFile, optional?:SystemDirectory|SystemFile):string|FilestoreInitData {
     switch(typeof required){
         case "function":
             return functionToString(required);
@@ -71,8 +71,8 @@ export function extract(value:SystemFile|SystemDirectory|[number, SystemFile|Sys
  * @param {InitialFiles} optional 
  * @returns {FSInitData}
  */
-export function merge(required:SystemDirectory, optional:SystemDirectory = {}):FSInitData {
-    const output:FSInitData = {};
+export function merge(required:SystemDirectory, optional:SystemDirectory = {}):FilestoreInitData {
+    const output:FilestoreInitData = {};
 
     for(const name of new Set(Object.keys(required).concat(Object.keys(optional)))) {
         if(required[name]) {

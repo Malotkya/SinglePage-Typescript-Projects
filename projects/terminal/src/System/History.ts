@@ -20,7 +20,7 @@ export default class History {
 
     async init() {
         try {
-            this.list = (await fs.readfile(this._path)).split("\n");
+            this.list = (await fs.readfile(this._path)).Text("utf-8").split("\n");
             this._index = this.list.length;
         } catch (e){
             //Do Nothing
