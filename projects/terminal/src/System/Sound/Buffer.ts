@@ -145,7 +145,7 @@ export default function ReadAudioBufferFile(array:Uint16Array):SoundData{
     }
 }
 
-function ReadAudioBuffer(array:Uint16Array, timingLength:number, tempo:number, limit?:number, offset:number = 0):BufferData {
+export function ReadAudioBuffer(array:Uint16Array, timingLength:number, tempo:number, limit?:number, offset:number = 0):BufferData {
     let buffer:BufferData = [];
     limit = limit? Math.min(limit, MeasureLength): MeasureLength;
     const sampleRate = calculateDuration(1 / limit, tempo, timingLength);
@@ -154,7 +154,7 @@ function ReadAudioBuffer(array:Uint16Array, timingLength:number, tempo:number, l
     let baseStart:number = 0;
     while(offset < array.length){
         
-        const measure:Measure = {};
+        const measure:Measure = [];
         for(let m=0; m<limit; ++m) {
             let start:number = baseStart;
 
@@ -173,7 +173,9 @@ function ReadAudioBuffer(array:Uint16Array, timingLength:number, tempo:number, l
                     break;
             }
 
-            measure[m as keyof Measure] = Object.keys(sample).length === 0? null: sample;
+            if(Object.keys(sample).length > 0)
+                measure.push(sample);
+            
             start += sampleRate;
         }
 
@@ -193,56 +195,7 @@ export type SoundData = {
 
 export type BufferData = Measure[];
 
-export interface Measure {
-     0?: Sample|null
-     1?: Sample|null
-     2?: Sample|null
-     3?: Sample|null
-     4?: Sample|null
-     5?: Sample|null
-     6?: Sample|null
-     7?: Sample|null
-     8?: Sample|null
-     9?: Sample|null
-    10?: Sample|null
-    11?: Sample|null
-    12?: Sample|null
-    13?: Sample|null
-    14?: Sample|null
-    15?: Sample|null
-    16?: Sample|null
-    17?: Sample|null
-    18?: Sample|null
-    19?: Sample|null
-    20?: Sample|null
-    21?: Sample|null
-    22?: Sample|null
-    23?: Sample|null
-    24?: Sample|null
-    25?: Sample|null
-    26?: Sample|null
-    27?: Sample|null
-    28?: Sample|null
-    29?: Sample|null
-    30?: Sample|null
-    31?: Sample|null
-    32?: Sample|null
-    33?: Sample|null
-    34?: Sample|null
-    35?: Sample|null
-    36?: Sample|null
-    37?: Sample|null
-    38?: Sample|null
-    39?: Sample|null
-    40?: Sample|null
-    41?: Sample|null
-    42?: Sample|null
-    43?: Sample|null
-    44?: Sample|null
-    45?: Sample|null
-    46?: Sample|null
-    47?: Sample|null
-}
+export type Measure = Sample[];
 export const MeasureLength = 48;
 
 export interface Sample {
