@@ -37,10 +37,10 @@ export default function SoundContext(ctr:typeof AudioContext):SoundContext {
     };
     ctx.timing = Signature();
     ctx.channel = {
-        0: Channel(ctx as SoundContext),
-        1: Channel(ctx as SoundContext),
-        2: Channel(ctx as SoundContext),
-        3: Channel(ctx as SoundContext)
+        0: Channel(ctx),
+        1: Channel(ctx),
+        2: Channel(ctx),
+        3: Channel(ctx)
     }
 
     return ctx;
