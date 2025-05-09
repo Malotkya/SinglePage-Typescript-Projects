@@ -16,14 +16,14 @@ const STDOUT_FILE = "/sys/stdout";
 let input:string = "";
 let output:string = "";
 let ready:boolean = false;
+const queueRef = Queue("readwrite");
 
 //Load values from the System
-const queueRef = Queue("readwrite");
-queueRef.open().then(async(tx)=>{
+export async function initStdIO() {
+    const tx = await queueRef.open();
     try {
         await FsDb.createFile(STDIN_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
         await FsDb.createFile(STDOUT_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
-        ready = true;
         const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, ROOT_USER_ID, tx as any));
         if(start)
             OutputBuffer.value = start + output;
@@ -31,11 +31,9 @@ queueRef.open().then(async(tx)=>{
         console.error(e)
     }  finally {
         queueRef.close();
+        ready = true;
     }
-}).catch(e=>{
-    console.warn(e);
-    queueRef.close();
-});
+};
 
 /** Save Helper Function
  * 

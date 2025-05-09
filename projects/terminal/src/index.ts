@@ -1,5 +1,6 @@
 import System, {start as startSystem, clear, initSystem} from "./System";
 import { FilestoreInitData, initFilestoreDatabase } from "./System/Files/Backend";
+import { initStdIO } from "./System/Stream/IO";
 import FileSystem from "./System/Files/Process"
 import { merge, SystemDirectory } from "./Initalize";
 import {login, logout} from "./System/User";
@@ -8,8 +9,6 @@ import Help from "./Help";
 import Snake from "./Snake";
 
 export type StartFunction = ()=>Promise<void>
-
-
 
 /** Initalize Terminal Operating System
  * 
@@ -40,6 +39,7 @@ export function init(files?:SystemDirectory):StartFunction {
     const data = merge(SystemFiles, files);
     const ready = Promise.all([
         initFilestoreDatabase(data),
+        initStdIO(),
         initSystem(
             FileSystem,
             data["bin"][1] as FilestoreInitData
