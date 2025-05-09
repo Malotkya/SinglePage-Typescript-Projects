@@ -24,7 +24,7 @@ queueRef.open().then(async(tx)=>{
         await FsDb.createFile(STDIN_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
         await FsDb.createFile(STDOUT_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
         ready = true;
-        const start = await FsDb.readFile(STDOUT_FILE, ROOT_USER_ID, tx as any);
+        const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, ROOT_USER_ID, tx as any));
         if(start)
             OutputBuffer.value = start + output;
     } catch (e){
