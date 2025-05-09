@@ -5,17 +5,29 @@
 import Position, { comparePositions } from "../Terminal/Position";
 import { HighlighMap } from "../Terminal/Bios";
 import { betterToString, sleep } from "@";
+import Encoding from "../Files/Encoding";
 
-export interface BufferReference {value:string}
+
+type BufferReference<T extends any> = T extends Encoding
+    ? {value: Encoding}
+    : T extends string
+        ? {value: string}
+        : {value: T[]}
+
+export type BufferValue<T> = T extends Encoding
+    ? Encoding
+    : T extends string
+        ? string
+        : T[]
 
 /** Base Stream Class
  * 
  */
-export default class Stream {
-    protected _ref:BufferReference;
+export default class Stream<T> {
+    protected _ref:BufferReference<T>;
     protected _pos:number;
 
-    constructor(buffer:BufferReference){
+    constructor(buffer:BufferReference<T>){
         this._ref = buffer;
         this._pos = 0;
     }
@@ -24,17 +36,17 @@ export default class Stream {
         this._pos = this.buffer.length;
     }
 
-    get buffer():string {
-        return this._ref.value;
+    get buffer():BufferValue<T> {
+        return this._ref.value as any;
     }
 }
 
 /** Read Stream
  * 
  */
-export class ReadStream extends Stream {
+export class ReadStream extends Stream<string> {
 
-    constructor(ref:BufferReference) {
+    constructor(ref:BufferReference<string>) {
         super(ref);
     }
 
@@ -71,9 +83,9 @@ export class ReadStream extends Stream {
 /** Write Stream
  * 
  */
-export class WriteStream extends Stream {
+export class WriteStream extends Stream<string> {
 
-    constructor(ref:BufferReference) {
+    constructor(ref:BufferReference<string>) {
         super(ref);
     }
 

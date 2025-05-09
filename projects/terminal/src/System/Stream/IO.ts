@@ -2,9 +2,10 @@
  * 
  * @author Alex Malotky
  */
-import {ReadStream, WriteStream, BufferReference} from "../Stream";
+import {ReadStream, WriteStream} from "../Stream";
 import { Queue, FsDb } from "../Files/Backend";
 import { ROOT_USER_ID } from "../User";
+import { encodeValue } from "../Files/Encoding";
 import { sleep } from "@";
 
 //File Locations
@@ -42,7 +43,7 @@ queueRef.open().then(async(tx)=>{
 async function save(file:string, value:string) {
     while(!ready)
         await sleep();
-    await FsDb.writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, value, await queueRef.open());
+    await FsDb.writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, encodeValue(value), await queueRef.open());
     queueRef.close();
 }
 
@@ -125,7 +126,7 @@ export class InputStream extends ReadStream {
 }
 
 //stdout Buffer
-export const OutputBuffer:BufferReference = {
+export const OutputBuffer = {
     get value(){
         return output;
     },

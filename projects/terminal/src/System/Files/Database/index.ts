@@ -153,7 +153,7 @@ export async function getSize(path:string, tx:FilestoreTransaction<"readonly">):
         throw new FileError("Read", `${path} does not exist!`);
 
     if(data.type === "File") {
-        const file:string|undefined = await tx.objectStore("File").get(path);
+        const file = await tx.objectStore("File").get(path);
         if(file){
             return file.length;
         }
@@ -376,7 +376,7 @@ export async function unlink(path:string, opts:UnlinkOptions, tx:FilestoreTransa
  * @param {DirectoryOptions} opts 
  * @param {string} data 
  */
-export async function createFile(path:string, opts:DirectoryOptions, tx:FilestoreTransaction<"readwrite">, data?:string):Promise<void> {
+export async function createFile(path:string, opts:DirectoryOptions, tx:FilestoreTransaction<"readwrite">, data?:FileData):Promise<void> {
     const {user, mode = DEFAULT_FILE_MODE, soft = false} = opts;
     if(typeof mode !== "number")
         throw new TypeError("Mode must be a number!");
@@ -437,7 +437,7 @@ export async function createFile(path:string, opts:DirectoryOptions, tx:Filestor
  * @param {FileOptions} opts 
  * @param {string} data 
  */
-export async function writeToFile(path:string, opts:FileOptions, data:string, tx:FilestoreTransaction<"readwrite">):Promise<void> {
+export async function writeToFile(path:string, opts:FileOptions, data:FileData, tx:FilestoreTransaction<"readwrite">):Promise<void> {
     const {user, type, force} = opts;
     
     path = normalize(path);
@@ -467,23 +467,29 @@ export async function writeToFile(path:string, opts:FileOptions, data:string, tx
 
     const file = tx.objectStore("File");
 
-    let buffer:string;
+    let buffer:Uint8Array;
     if(type === "Rewrite"){
         buffer = data;
     } else {
-        buffer = await file.get(path) || "";
+        const content = await file.get(path) || new Uint8Array();
         switch(type){
             case "Override":
-                buffer = data + buffer.substring(data.length);
+            case "Insert":
+                buffer = new Uint8Array(Math.max(data.length,content.length));
+                buffer.set(data);
+                buffer.set(content.slice(data.length), data.length);
                 break;
     
             case "Prepend":
-            case "Insert":
-                buffer = data + buffer;
+                buffer = new Uint8Array(data.length+content.length);
+                buffer.set(data);
+                buffer.set(content, data.length);
                 break;
     
             case "Append":
-                buffer += data;
+                buffer = new Uint8Array(data.length+content.length);
+                buffer.set(content);
+                buffer.set(data, content.length);
                 break;
     
             default:
@@ -516,7 +522,7 @@ export async function readFile(path:string, user:UserId, tx:FilestoreTransaction
     if(!validate(info.mode, info.owner, user, "ReadOnly"))
         throw new UnauthorizedError(path, "Read");
 
-    return await await tx.objectStore("File").get(path) || "";
+    return await tx.objectStore("File").get(path) || new Uint8Array();
 }
 
 export async function openFile(path:string, user:UserId, mode:"ReadOnly"|"WriteOnly"|"ReadWrite", tx:FilestoreTransaction<"readwrite">):Promise<FileConnection> {
@@ -535,7 +541,7 @@ export async function openFile(path:string, user:UserId, mode:"ReadOnly"|"WriteO
     info.links += 1;
     await tx.objectStore("Directory").put(info, path);
 
-    return new FileConnection(path, await tx.objectStore("File").get(path) || "");
+    return new FileConnection(path, await tx.objectStore("File").get(path) || new Uint8Array());
 }
 
 export async function closeFile(conn:FileConnection, tx:FilestoreTransaction<"readwrite">):Promise<void> {
@@ -558,7 +564,7 @@ export async function closeFile(conn:FileConnection, tx:FilestoreTransaction<"re
  * @param {UserId} user 
  * @returns {Promise<FileData>}
  */
-export async function executable(path:string, user:UserId, tx:FilestoreTransaction<"readonly">):Promise<FileData> {
+export async function executable(path:string, user:UserId, tx:FilestoreTransaction<"readonly">):Promise<string> {
     path = normalize(path);
 
     const info = await tx.objectStore("Directory").get(path);
@@ -571,5 +577,9 @@ export async function executable(path:string, user:UserId, tx:FilestoreTransacti
     if(!validate(info.mode, info.owner, user, "ExecuteOnly"))
         throw new UnauthorizedError(path, "Execute");
 
-    return await tx.objectStore("File").get(path) || "";
+    const data = await tx.objectStore("File").get(path);
+    if(data)
+        return new TextDecoder("utf-8").decode(data);
+
+    return "";
 }

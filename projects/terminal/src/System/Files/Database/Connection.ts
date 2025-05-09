@@ -3,12 +3,14 @@
  * @author Alex Malotky
  */
 import {writeToFile, closeFile} from ".";
+import { FileData } from "./Schema";
 import Queue from "./TransactionQueue";
+import Encoding from "../Encoding";
 
 //Write Message Interface
 interface WriteMessage {
     name:FileConnection,
-    value: string
+    value: FileData
 }
 
 //Auto Close Connections 
@@ -19,19 +21,19 @@ const AutoCloseRegistry = new FinalizationRegistry<Function>((value)=>value());
  */
 export default class FileConnection {
     private bc:BroadcastChannel|null;
-    private _v:string;
-    private _l:((s:string)=>any)|undefined;
+    private _v:Encoding;
+    private _l:((s:Encoding)=>any)|undefined;
 
-    constructor(path:string, value:string) {
+    constructor(path:string, value:FileData) {
         this.bc = new BroadcastChannel(path);
-        this._v = value;
+        this._v = new Encoding(value);
 
         const ref = new WeakRef(this);
         AutoCloseRegistry.register(ref, ()=>ref.deref()?.close());
 
         this.bc.addEventListener("message", (ev:MessageEvent<WriteMessage>)=>{
             if(ev.data.name !== this) {
-                this._v = ev.data.value;
+                this._v = new Encoding(value);
                 if(this._l)
                     this._l(this._v);
             }
@@ -39,21 +41,21 @@ export default class FileConnection {
         });
     }
 
-    onUpdate(listener:(s:string)=>any){
+    onUpdate(listener:(s:Encoding)=>any){
         this._l = listener;
     }
 
-    get value():string {
-        return this._v
+    get value():Encoding {
+        return this._v;
     }
 
-    set value(v:string){
+    set value(v:Encoding){
         this._v = v;
         const ref = Queue("readwrite");
         ref.open().then(async(tx)=>{
             try {
                 if(this.bc !== null) {
-                    await writeToFile(this.bc.name, {user: this, type: "Override"}, v, tx);
+                    await writeToFile(this.bc.name, {user: this, type: "Override"}, v.data, tx);
                 }
             } catch (e){
                 console.error(e);

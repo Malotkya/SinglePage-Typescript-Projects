@@ -10,13 +10,14 @@ import * as FsDb from "./Database";
 import Queue, {FilestoreInitData, initFilestoreDatabase, FilestoreTransaction} from "./Database/TransactionQueue";
 import FileConnection from "./Database/Connection";
 import { executable } from "./Database";
+import {FileData, DirectoryData} from "./Database/Schema"
 import {Process} from "..";
 import { fromFile } from "../Script";
 import { FileError } from "./Errors";
 import User from "../User";
 
 export {Queue, initFilestoreDatabase, FsDb, FileConnection};
-export type {FilestoreInitData, FilestoreTransaction};
+export type {FilestoreInitData, FilestoreTransaction, FileData, DirectoryData};
 
 export function parseExecutable(buffer:string, name?:string, skip?:boolean):Process {
     if(skip === undefined)

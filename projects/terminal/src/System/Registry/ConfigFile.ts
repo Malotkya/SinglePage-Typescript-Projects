@@ -170,7 +170,7 @@ export class ConfigFile<T extends GlobalConfig> {
     }
 
     init(){
-        const lines = regexSplit(this._file.buffer, /\n/);
+        const lines = regexSplit(this._file.buffer.Text("utf-8"), /\n/);
         let [start, name] = nextSection(lines);
         this._value = start.map(parseLine);
 

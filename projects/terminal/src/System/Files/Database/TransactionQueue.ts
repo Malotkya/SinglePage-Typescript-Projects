@@ -7,6 +7,7 @@ import FileDatabaseSchema, {FileDirectoryData, FolderDirectoryData} from "./Sche
 import {DEFAULT_ROOT_MODE, formatMode} from "../Mode";
 import { ROOT_USER_ID } from "../../User";
 import {join} from "../Path";
+import { encodeValue } from "../Encoding";
 import { sleep } from "@";
 
 // Current Database Version
@@ -59,7 +60,7 @@ async function _build(path:string, init:FilestoreInitData, tx:FilestoreTransacti
 
                 //Save
                 await dir.put(info, filePath);
-                await file.put(data, filePath);
+                await file.put(encodeValue(data), filePath);
             }
 
         //Build Directory

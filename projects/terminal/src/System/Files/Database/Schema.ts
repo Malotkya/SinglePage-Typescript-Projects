@@ -38,7 +38,7 @@ interface LinkDirectoryData{
     path: string
 }
 
-export type FileData = string;
+export type FileData = Uint8Array;
 export type DirectoryData = FolderDirectoryData|FileDirectoryData|LinkDirectoryData;
 
 export type FileValue = StoreValue<FileDatabaseSchema, "File">;

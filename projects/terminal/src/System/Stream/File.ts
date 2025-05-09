@@ -2,13 +2,14 @@
  * 
  */
 import Stream, {getNext} from ".";
-import { FsDb, FileConnection } from "../Files/Backend";
+import { FsDb, FileConnection, FileData } from "../Files/Backend";
 import { betterToString, sleep } from "@";
+import Encoding from "../Files/Encoding";
 
 /** File Stream
  * 
  */
-export default class FileStream extends Stream {
+export default class FileStream extends Stream<Encoding> {
     declare _ref:FileConnection;
 
     constructor(conn:FileConnection) {
@@ -40,28 +41,30 @@ export class WriteFileStream extends FileStream {
                 this._pos = 0;
 
             case "Insert": {
-                const buffer = this._ref.value;
-                this._ref.value = buffer.substring(0, this._pos) + s + buffer.substring(this._pos);
+                const buffer = this._ref.value.Text();
+                this._ref.value = new Encoding(buffer.substring(0, this._pos) + s + buffer.substring(this._pos));
                 this._pos += s.length;
                 break;
             }
             
             case "Override": {
-                const buffer = this._ref.value;
-                this._ref.value = buffer.substring(0, this._pos) + s
-                                + buffer.substring(this._pos += s.length);
+                const buffer = this._ref.value.Text();
+                this._ref.value = new Encoding(buffer.substring(0, this._pos) + s
+                                + buffer.substring(this._pos += s.length));
                 break;
             }
 
             case "Rewrite":
-                this._ref.value = s;
-                this._pos = s.length;
+                this._ref.value = new Encoding(s);
+                this._pos = this._ref.value.length;
                 break;
 
             case "Append":
-            default:
-                this._ref.value += s;
+            default: {
+                const buffer = this._ref.value.Text() + s;
+                this._ref.value = new Encoding(buffer);
                 this._pos = this._ref.value.length;
+            }
         }
     }
 }
@@ -76,7 +79,7 @@ export class ReadFileStream extends FileStream {
             pattern = new RegExp(`^(.*?)${pattern}`);
 
         while(true) {
-            const {value, pos} = getNext(this.buffer, 0, pattern);
+            const {value, pos} = getNext(this.buffer.Text(), 0, pattern);
 
             if(value){
                 this._pos += pos;
@@ -129,28 +132,30 @@ export class ReadWriteFileStream extends FileStream {
                 this._write = 0;
 
             case "Insert": {
-                const buffer = this._ref.value;
-                this._ref.value = buffer.substring(0, this._write) + s + buffer.substring(this._pos);
+                const buffer = this._ref.value.Text();
+                this._ref.value = new Encoding(buffer.substring(0, this._write) + s + buffer.substring(this._write));
                 this._write += s.length;
                 break;
             }
             
             case "Override": {
-                const buffer = this._ref.value;
-                this._ref.value = buffer.substring(0, this._write) + s
-                                + buffer.substring(this._write += s.length);
+                const buffer = this._ref.value.Text();
+                this._ref.value = new Encoding(buffer.substring(0, this._write) + s
+                                + buffer.substring(this._write += s.length));
                 break;
             }
 
             case "Rewrite":
-                this._ref.value = s;
-                this._write = s.length;
+                this._ref.value = new Encoding(s);
+                this._write = this._ref.value.length;
                 break;
 
             case "Append":
-            default:
-                this._ref.value += s;
+            default: {
+                const buffer = this._ref.value.Text() + s;
+                this._ref.value = new Encoding(buffer);
                 this._write = this._ref.value.length;
+            }
         }
     }
 
@@ -160,7 +165,7 @@ export class ReadWriteFileStream extends FileStream {
             pattern = new RegExp(`^(.*?)${pattern}`);
         
         while(true) {
-            const {value, pos} = getNext(this.buffer, this._read, pattern);
+            const {value, pos} = getNext(this.buffer.Text(), this._read, pattern);
         
             if(value){
                 this._read = pos;

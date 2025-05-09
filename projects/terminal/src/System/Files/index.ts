@@ -7,6 +7,7 @@ import * as db from "./Database";
 import * as Path from "./Path";
 import User, {getUserById} from "../User";
 import FileStream, {ReadFileStream, WriteFileStream, ReadWriteFileStream} from "../Stream/File";
+import Encoding, {encodeValue} from "./Encoding";
 
 let location:string = "/";
 
@@ -313,14 +314,14 @@ const fs = {
     /** Make File
      * 
      */
-    async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:string):Promise<void> {
+    async mkfile(path:string, opts:MakeDirectoryOptions = {}, data?:any):Promise<void> {
         path = await Path.format(path);
 
         const ref = Queue("readwrite");
         await db.createFile(path, {
             ...opts,
             user: await User.id()
-        }, await ref.open(), data);
+        }, await ref.open(), encodeValue(data));
         ref.close();
     },
 
@@ -330,7 +331,7 @@ const fs = {
      * @param {string} data 
      * @param {WriteFileOptions} opts 
      */
-    async writefile(path:string, data:string, opts:WriteFileOptions = {}):Promise<void> {
+    async writefile(path:string, data:any, opts:WriteFileOptions = {}):Promise<void> {
         path = await Path.format(path);
 
         const ref = Queue("readwrite");
@@ -339,7 +340,7 @@ const fs = {
             await db.writeToFile(path, {
                 user: await User.id(),
                 type: opts.type || "Override"
-            }, data, tx);
+            }, encodeValue(data), tx);
 
         } else if(opts.force){
             await db.createFile(path, {
@@ -355,13 +356,13 @@ const fs = {
      * @param {string} path 
      * @returns {Promise<string>}
      */
-    async readfile(path:string):Promise<string> {
+    async readfile(path:string):Promise<Encoding> {
         path = await Path.format(path);
 
         const ref = Queue("readonly");
         const result = await db.readFile(path, await User.id(), await ref.open());
         ref.close();
-        return result;
+        return new Encoding(result);
     },
 
     openfile
