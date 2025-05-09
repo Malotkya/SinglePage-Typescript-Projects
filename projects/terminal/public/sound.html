@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Sound File Layout</title>
+    </head>
+    <body>
+        <table>
+            <tr>
+                <th><!--Empty Square --></th>
+                <th>0</th>
+                <th>1</th>
+                <th>2</th>
+                <th>3</th>
+                <th>4</th>
+                <th>5</th>
+                <th>6</th>
+                <th>7</th>
+                <th>8</th>
+                <th>9</th>
+                <th>10</th>
+                <th>11</th>
+                <th>12</th>
+                <th>13</th>
+                <th>14</th>
+                <th>15</th>
+            </tr>
+            <tr>
+                <th>Init Header 1</th>
+                <td colspan="6">
+                    <a href="#Rate">Sample Rate</a>
+                </td>
+                <td colspan="2">
+                    <a href="#Channels">Number of Channels</a>
+                </td>
+                <td colspan="8">
+                    <a href="#Tempo">Song Tempo</a>
+                </td>
+            </tr>
+            <tr>
+                <th>Init Header 2</th>
+                <td colspan="5">
+                    <a href="#Signature">Signature Top</a>
+                </td>
+                <td colspan="5">
+                    <a href="#Signature">Signature Bottom</a>
+                </td>
+                <td colspan="6" class="unused"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <th colspan="16" class="sep">Channel Data</th>
+            </tr>
+            <tr>
+                <th>Channel Header</th>
+                <td><a href="#ChannelType">Type</a></td>
+                <td colspan="2"><a href="#ChannelIndex">Index</a></td>
+                <td colspan="2"><a href="#ChannelName">Name</a></td>
+                <td colspan="11"><a href="#WaveTableCount">Table Count</a></td>
+            </tr>
+            <tr>
+                <th>Custom Channel Ex.</th>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td colspan="2" class="unused"></td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>0</td>
+                <td>1</td>
+                <td>0</td>
+                <td>0</td>
+            </tr>
+            <tr>
+                <td>256 real float Values</td>
+                <td>I</td>
+                <td colspan="4">E</td>
+                <td colspan="11">M</td>
+            </tr>
+            <tr>
+                <td>256 imag float Values</td>
+                <td>I</td>
+                <td colspan="4">E</td>
+                <td colspan="11">M</td>
+            </tr>
+            <tr>
+                <th>Named Channel Ex.</th>
+                <td>1</td>
+                <td>1</td>
+                <td>0</td>
+                <td>0</td>
+                <td>1</td>
+                <td colspan="11" class="empty"></td>
+            </tr>
+            <tr>
+                <td></td>
+                <th colspan="16" class="sep">Sample Sound Data</th>
+            </tr>
+            <tr>
+                <th><a href="#EmptySample">Empty Sample</a></th>
+                <td colspan="16" class="empty">0</td>
+            </tr>
+            <tr>
+                <th><a href="#NoteSample">Note Sample</a></th>
+                <td>1</td>
+                <td colspan="2"><a href="#ChannelIndex">Index</a></td>
+                <td colspan="4"><a href="#Beat">Beat Type Index</a></td>
+                <td colspan="8"><a href="#Beat">Note Index</a></td>
+                <td><a href="#Continue">C</a></td>
+            </tr>
+            <tr>
+                <th><a href="#FreqSample">Frequency Sample</a></th>
+                <td>0</td>
+                <td colspan="2"><a href="#ChannelIndex">Index</a></td>
+                <td colspan="12"><a href="#FreqFloat">12 bit Unsigned Frequency Float</a></td>
+                <td><a href="#Continue">C</a></td>
+            </tr>
+        </table>
+    </body>
+</html>
