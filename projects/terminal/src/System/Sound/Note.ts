@@ -1,13 +1,13 @@
 /** Note
  * 
  * Stored in 8bits
+ * Index is 1 based to match Beat.
  * 
  * @author Alex Malotky
  */
 
 //Max Size: 256
 const NoteMap = {
-    'BLANK': 0,
     'C0': 16.35,
     'C#0': 17.32,
     'Db0': 17.32,
@@ -150,17 +150,32 @@ const NoteMap = {
 //@ts-ignore
 const NoteIndex:NoteName[] = Object.keys(NoteMap);
 
-export type Note = typeof NoteMap[NoteName];
+//Valid Note Values
+export type Note = (typeof NoteMap[NoteName])|0;
+
+//Note Names
 export type NoteName = keyof typeof NoteMap;
+
+//Note Map Index (Starts at 1)
 export type NoteIndex = (keyof typeof NoteIndex)&number;
 
+/** Get Note From Name
+ * 
+ * @param {NoteName} name 
+ * @returns {Note}
+ */
 export function getNoteFromName(name:NoteName):Note {
     return NoteMap[name];
 }
 
+/** Get Note From Index
+ * 
+ * @param {NoteIndex} index 1 - 137
+ * @returns {Note}
+ */
 export function getNoteFromIndex(index:NoteIndex):Note {
-    if(index < 0 || index > NoteIndex.length)
+    if(index < 1 || index > NoteIndex.length)
         return 0;
 
-    return NoteMap[NoteIndex[index]]
+    return NoteMap[NoteIndex[index-1]]
 }

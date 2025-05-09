@@ -1,6 +1,7 @@
 /** Note Beat
  * 
  * Stored in 4bits
+ * Index is 1 based to match 1 to whole.
  * 
  * @author Alex Malotky
  */
@@ -28,31 +29,67 @@ const BeatMap = {
 //@ts-ignore
 const BeatIndex:BeatName[] = Object.keys(BeatMap);
 
+//Valid Beat Values
 export type Beat = (typeof BeatMap[BeatName])|0;
+
+//Beat Names
 export type BeatName = keyof typeof BeatMap;
+
+//Beat Map Index (Starts at 1)
 export type BeatIndex = (keyof typeof BeatIndex)&number;
 
+/**Get Beat From Name
+ * 
+ * @param {BeatName} name 
+ * @returns {Beat}
+ */
 export function getBeatFromName(name:BeatName):Beat {
     return BeatMap[name] || 0;
 }
 
+/** Get Beat From Index
+ * 
+ * @param {BeatIndex} index 1 - 16
+ * @returns {Beat}
+ */
 export function getBeatFromIndex(index:BeatIndex):Beat {
-    if(index < 0 || index >= BeatIndex.length)
+    if(index < 1 || index > BeatIndex.length)
         return 0;
 
-    return BeatMap[BeatIndex[index]];
+    return BeatMap[BeatIndex[index-1]];
 }
 
-export function getDurationFromName(name:BeatName, tempo:number, length:number):number {
+/** Calculate Duration From Beat Name
+ * 
+ * @param {BeatName} name 
+ * @param {number} tempo 
+ * @param {number} length 
+ * @returns {number}
+ */
+export function calculateDurationFromName(name:BeatName, tempo:number, length:number):number {
     const b = getBeatFromName(name);
     return _calculateDuration(b, tempo, length)
 }
 
-export function getDurationFromIndex(index:BeatIndex, tempo:number, length:number):number {
+/** Calculate Duration From Index
+ * 
+ * @param {BeatIndex} index 1 - 16
+ * @param {number} tempo 
+ * @param {number} length 
+ * @returns {number}
+ */
+export function calculateDurationFromIndex(index:BeatIndex, tempo:number, length:number):number {
     const b = getBeatFromIndex(index);
     return _calculateDuration(b, tempo, length)
 }
 
+/** Calculate Duration Helper Function
+ * 
+ * @param {Beat} beat 
+ * @param {number} tempo 
+ * @param {number} length 
+ * @returns {number}
+ */
 function _calculateDuration(beat:Beat, tempo:number, length:number):number {
     return beat * tempo / length * 10;
 }
