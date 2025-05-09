@@ -427,7 +427,7 @@ export async function createFile(path:string, opts:DirectoryOptions, tx:Filestor
     }
 
     if(data){
-        await tx.objectStore("File").add(data, path);
+        await tx.objectStore("File").put(data, path);
     }
 }
 
