@@ -68,7 +68,7 @@ export function getBeatFromIndex(index:BeatIndex):Beat {
  */
 export function calculateDurationFromName(name:BeatName, tempo:number, length:number):number {
     const b = getBeatFromName(name);
-    return _calculateDuration(b, tempo, length)
+    return calculateDuration(b, tempo, length)
 }
 
 /** Calculate Duration From Index
@@ -80,16 +80,16 @@ export function calculateDurationFromName(name:BeatName, tempo:number, length:nu
  */
 export function calculateDurationFromIndex(index:BeatIndex, tempo:number, length:number):number {
     const b = getBeatFromIndex(index);
-    return _calculateDuration(b, tempo, length)
+    return calculateDuration(b, tempo, length)
 }
 
 /** Calculate Duration Helper Function
  * 
- * @param {Beat} beat 
+ * @param {number} beat 
  * @param {number} tempo 
  * @param {number} length 
  * @returns {number}
  */
-function _calculateDuration(beat:Beat, tempo:number, length:number):number {
+export function calculateDuration(beat:number, tempo:number, length:number):number {
     return beat * tempo / length * 10;
 }
