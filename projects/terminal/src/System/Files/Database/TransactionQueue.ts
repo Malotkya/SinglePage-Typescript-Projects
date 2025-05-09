@@ -2,7 +2,7 @@
  * 
  * @author Alex Malotky
  */
-import {openDB, IDBPDatabase, IDBPTransaction} from "idb";
+import {openDB, IDBPDatabase, IDBPTransaction, IDBPObjectStore} from "idb";
 import FileDatabaseSchema, {FileDirectoryData, FolderDirectoryData} from "./Schema";
 import {DEFAULT_ROOT_MODE, formatMode} from "../Mode";
 import { ROOT_USER_ID } from "../../User";
@@ -16,6 +16,8 @@ const Stores = ["File", "Directory"] as const;
 
 //Database Transaction
 export type FilestoreTransaction<M extends IDBTransactionMode> = IDBPTransaction<FileDatabaseSchema, typeof Stores, M>;
+type DirectoryInitStore = IDBPObjectStore<FileDatabaseSchema, typeof Stores, "Directory", "versionchange">
+type FileInitStore      = IDBPObjectStore<FileDatabaseSchema, typeof Stores, "File", "versionchange">
 
 //Init Data For Directory Structure
 export interface FilestoreInitData {
@@ -30,9 +32,7 @@ let db:IDBPDatabase<FileDatabaseSchema>|null|undefined;
  * @param {string} path 
  * @param {InitData} init 
  */
-async function _build(path:string, init:FilestoreInitData, tx:FilestoreTransaction<"readwrite">) {
-    const dir  = tx.objectStore("Directory");
-    const file = tx.objectStore("File");
+async function _build(path:string, init:FilestoreInitData, dir:DirectoryInitStore, file:FileInitStore) {
     for(const name in init){
         const filePath = join(path, name);
         let info = await dir.get(filePath);
@@ -80,7 +80,7 @@ async function _build(path:string, init:FilestoreInitData, tx:FilestoreTransacti
             }
 
             //Populate Directory
-            await _build(filePath, data, tx);
+            await _build(filePath, data, dir, file);
         }
     }
 }
@@ -90,38 +90,48 @@ async function _build(path:string, init:FilestoreInitData, tx:FilestoreTransacti
  * @param {FilestoreInitData} data 
  */
 export async function initFilestoreDatabase(data:FilestoreInitData) {
-    db = await openDB("Terminal:FileStore", DatabaseVersion, {
-        upgrade: async(db)=>{
-            const dir = db.createObjectStore("Directory");
-            db.createObjectStore("File");
-
-            await dir.put({
-                type: "Directory",
-                owner: ROOT_USER_ID,
-                mode: DEFAULT_ROOT_MODE,
-                links: 0,
-                created: new Date(),
-                base: "",
-                path: "/"
-            } satisfies FolderDirectoryData, "/");
-
-            await _build("/", data, db.transaction(Stores, "readwrite"));
-        }
-    })
+    try {
+        db = await openDB("Terminal:FileStore", DatabaseVersion, {
+            upgrade: async(db)=>{
+                const dir:DirectoryInitStore = db.createObjectStore("Directory");
+                const file:FileInitStore = db.createObjectStore("File");
+    
+                await dir.put({
+                    type: "Directory",
+                    owner: ROOT_USER_ID,
+                    mode: DEFAULT_ROOT_MODE,
+                    links: 0,
+                    created: new Date(),
+                    base: "",
+                    path: "/"
+                } satisfies FolderDirectoryData, "/");
+    
+                await _build("/", data, dir, file);
+            }
+        });
+    } catch (e){
+        console.error(e);
+        db = null;
+    }
 }
 
 //Queue Reference
 interface QueueRef<M extends IDBTransactionMode>{
     readonly index:number
     tx?:FilestoreTransaction<M>
+    stack:string[]
     open:()=>Promise<FilestoreTransaction<M>>
-    close:()=>Promise<void>;
+    close:()=>void;
 }
 
 //Close Queue Reference When Garbage Collected!
-const AutoCloseQueue = new FinalizationRegistry<QueueRef<any>>((value)=>{
-    console.debug("Dangling Connection Closed!", value.index);
-    value.close()
+const AutoCloseQueue = new FinalizationRegistry<QueueRef<any>>(async(value)=>{
+    if(value.tx){
+        console.error("Dangling Connection Closed!", value);
+        value.tx = undefined;
+        value.close()
+    }
+    
 });
 
 //Database Transaction Queue
@@ -135,10 +145,10 @@ let count:number = 0;
  */
 export default function TransactionQueue<M extends IDBTransactionMode = "readonly">(mode:M = "readonly" as M):QueueRef<M> {
     const index = ++count;
-    //console.trace(index);
+    const trace = new Error();
     return {
         index,
-
+        stack: trace.stack? trace.stack.split("\n"): [],
         /** Wait for Opening the Transaction
          * 
          * @returns {Promise<FilestoreTransaction>}
@@ -171,13 +181,12 @@ export default function TransactionQueue<M extends IDBTransactionMode = "readonl
          * 
          * Allows the queue to continue.
          */
-        async close():Promise<void>{
-            AutoCloseQueue.unregister(this.tx!);
+        close():void{
             const i = queue.indexOf(this);
             if(i >= 0)
                 queue.splice(i, 1);
             if(this.tx){
-                await this.tx.done
+                AutoCloseQueue.unregister(this.tx);
                 this.tx = undefined;
             }
         }
