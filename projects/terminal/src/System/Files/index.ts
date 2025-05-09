@@ -321,7 +321,7 @@ const fs = {
         await db.createFile(path, {
             ...opts,
             user: await User.id()
-        }, await ref.open(), encodeValue(data));
+        }, await ref.open(), data? encodeValue(data): undefined);
         ref.close();
     },
 
