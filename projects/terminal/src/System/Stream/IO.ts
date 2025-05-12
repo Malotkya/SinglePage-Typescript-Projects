@@ -4,9 +4,10 @@
  */
 import {ReadStream, WriteStream} from "../Stream";
 import { Queue, FsDb } from "../Files/Backend";
-import { ROOT_USER_ID } from "../User";
 import { encodeValue } from "../Files/Encoding";
 import { sleep } from "@";
+import { SYSTEM_ID } from "..";
+import { startingFiles } from "../Initalize";
 
 //File Locations
 const STDIN_FILE = "/sys/stdin";
@@ -15,16 +16,21 @@ const STDOUT_FILE = "/sys/stdout";
 //IO Values
 let input:string = "";
 let output:string = "";
-let ready:boolean = false;
 const queueRef = Queue("readwrite");
+let ready:boolean = false;
+
+startingFiles(SYSTEM_ID, {
+    "sys": {
+        stdin: "",
+        stdout: ""
+    }
+});
 
 //Load values from the System
 export async function initStdIO() {
     const tx = await queueRef.open();
     try {
-        await FsDb.createFile(STDIN_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
-        await FsDb.createFile(STDOUT_FILE, {recursive: true, soft: true, user: ROOT_USER_ID}, tx);
-        const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, ROOT_USER_ID, tx as any));
+        const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, SYSTEM_ID, tx as any));
         if(start)
             OutputBuffer.value = start + output;
     } catch (e){
@@ -41,7 +47,7 @@ export async function initStdIO() {
 async function save(file:string, value:string) {
     while(!ready)
         await sleep();
-    await FsDb.writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, encodeValue(value), await queueRef.open());
+    await FsDb.writeToFile(file, {user:SYSTEM_ID, type: "Rewrite"}, encodeValue(value), await queueRef.open());
     queueRef.close();
 }
 
