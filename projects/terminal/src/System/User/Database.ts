@@ -36,6 +36,11 @@ export interface UserData {
 export async function init(rootPassword:string|undefined):Promise<void> {
     const ref = Queue("readwrite");
 
+    const test = await FsDb.getInfo(USER_FILE, (await ref.open()) as any);
+    ref.close();
+    if(test)
+        return;
+
     if(rootPassword){
         await FsDb.createFile(USER_FILE, {recursive: true, soft: true, user: ROOT_USER_ID},  await ref.open(),
             encoder.encode(
@@ -80,7 +85,13 @@ export async function start():Promise<UserData|null> {
         System.println("Invalid username!");
         username = await System.prompt("Username: ");
     }
-    const password = await System.prompt("Password: ", true);
+    let password1 = await System.prompt("Password: ", true);
+    let password2 = await System.prompt("Confirm Password: ", true);
+    while(password1 !== password2) {
+        System.println("Passwords do not match!");
+        password1 = await System.prompt("Password: ", true);
+        password2 = await System.prompt("Confirm Password: ", true);
+    }
     const id = crypto.randomUUID();
     const role = assignRoles(["Admin", "User"])
 
@@ -90,8 +101,8 @@ export async function start():Promise<UserData|null> {
     );
     ref.close();
 
-    const hash1 = await hashPassword(password);
-    const hash2 = await hashPassword(password);
+    const hash1 = await hashPassword(password1);
+    const hash2 = await hashPassword(password2);
     const tx = await ref.open();
     await FsDb.createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, tx,
         encoder.encode(ROOT_USER_ID+SEPERATOR+hash1+"\n"
@@ -99,6 +110,8 @@ export async function start():Promise<UserData|null> {
     )
     const home = "/home/"+username;
     await FsDb.createDirectory(home, {recursive: true, soft: true, user: id}, tx);
+
+    await FsDb.writeToFile(WHO_ID, {user: ROOT_USER_ID, type: "Rewrite"}, encoder.encode(id), tx);
     ref.close();
 
     return {
@@ -326,6 +339,58 @@ export async function getUserById(id:string|null = null):Promise<UserData|null> 
     ref.close();
     
     return _find(0, id, buffer);
+}
+
+export interface LogOptions {
+    type?:"Login"|"Logout"
+    status?:"Failed"|"Succeeded"
+    username?:string
+    before?:Date
+    after?:Date
+}
+
+export type Log = {
+    date: Date
+    type: "Login"|"Logout"
+    status: "Failed"|"Succeeded"
+    username: string
+}
+
+export async function readLogs(opts:LogOptions = {}):Promise<Log[]> {
+    const ref = Queue("readonly");
+    let lines:Log[] = decoder.decode(await FsDb.readFile("/var/log/user", USER_SYSTEM_ID, await ref.open())).split("\n").map(s=>{
+        const [start, end] = s.split("-");
+        let index = start.lastIndexOf(" ");
+        const date = new Date(start.substring(0, index).trim());
+        const type = start.substring(index+1).trim() as "Login"|"Logout";
+
+        index = end.indexOf(":");
+        const status = end.substring(0, index) as "Failed"|"Succeeded";
+        const username = end.substring(index+1).trim();
+
+        return {
+            date, type, status, username
+        };
+    });
+    ref.close();
+
+    const {type, status, username, before, after} = opts;
+    if(type)
+        lines = lines.filter(log=>log.type === type);
+
+    if(status)
+        lines = lines.filter(log=>log.status === status);
+
+    if(username)
+        lines = lines.filter(log=>log.username === username);
+
+    if(before)
+        lines = lines.filter(log=>log.date.getTime() < before.getTime());
+
+    if(after)
+        lines = lines.filter(log=>log.date.getTime() > after.getTime());
+
+    return lines;
 }
 
 export async function logUser(type:"Login"|"Logout", status:"Failed"|"Succeeded", username:string):Promise<void> {
