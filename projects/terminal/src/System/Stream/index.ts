@@ -7,6 +7,18 @@ import { HighlighMap } from "../Terminal/Bios";
 import { betterToString, sleep } from "@";
 import Encoding from "../Files/Encoding";
 
+export interface Readable {
+    get:{
+        (char?:string|RegExp, empty?:boolean):Promise<string>
+        ():Promise<string>
+    }
+    next:()=>Promise<string>
+    getln:(empty?:boolean)=>Promise<string>
+}
+
+export interface Writeable {
+    write:(chunk:any)=>void
+}
 
 type BufferReference<T extends any> = T extends Encoding
     ? {value: Encoding}
@@ -44,7 +56,7 @@ export default class Stream<T> {
 /** Read Stream
  * 
  */
-export class ReadStream extends Stream<string> {
+export class ReadStream extends Stream<string> implements Readable {
 
     constructor(ref:BufferReference<string>) {
         super(ref);
@@ -54,7 +66,7 @@ export class ReadStream extends Stream<string> {
         return this._ref.value.substring(this._pos);
     }
 
-    async get(pattern?:string|RegExp):Promise<string> {
+    async get(pattern?:string|RegExp, empty?:boolean):Promise<string> {
         //Convert String Pattern into Regex capture everything before.
         if(typeof pattern === "string")
             pattern = new RegExp(`^(.*?)${pattern}`);
@@ -62,10 +74,12 @@ export class ReadStream extends Stream<string> {
         while(true) {
             const {value, pos} = getNext(this.buffer, 0, pattern);
 
-            if(value){
+            if(!isNaN(pos))
                 this._pos += pos;
+
+            if(value || (value === "" && empty))
                 return value;
-            }
+
 
             await sleep();
         }
@@ -75,15 +89,15 @@ export class ReadStream extends Stream<string> {
         return this.get(/^(.*?)\s+/);
     }
 
-    getln(): Promise<string>{
-        return this.get(/^(.*?)[\n\r]+/);
+    getln(empty?:boolean): Promise<string>{
+        return this.get(/^(.*?)[\n\r]+/, empty);
     }
 }
 
 /** Write Stream
  * 
  */
-export class WriteStream extends Stream<string> {
+export class WriteStream extends Stream<string> implements Writeable{
 
     constructor(ref:BufferReference<string>) {
         super(ref);

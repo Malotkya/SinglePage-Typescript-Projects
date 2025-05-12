@@ -1,8 +1,8 @@
 /** /System/Stream/File
  * 
  */
-import Stream, {getNext} from ".";
-import { FsDb, FileConnection, FileData } from "../Files/Backend";
+import Stream, {getNext, Readable, Writeable} from ".";
+import { FsDb, FileConnection } from "../Files/Backend";
 import { betterToString, sleep } from "@";
 import Encoding from "../Files/Encoding";
 
@@ -24,7 +24,7 @@ export default class FileStream extends Stream<Encoding> {
 /** Write File Stream
  * 
  */
-export class WriteFileStream extends FileStream {
+export class WriteFileStream extends FileStream implements Writeable{
     public mode:FsDb.WriteFileType;
 
     constructor(value:FileConnection, mode:FsDb.WriteFileType) {
@@ -72,8 +72,8 @@ export class WriteFileStream extends FileStream {
 /** Read File Stream
  * 
  */
-export class ReadFileStream extends FileStream {
-    async get(pattern?:string|RegExp):Promise<string> {
+export class ReadFileStream extends FileStream implements Readable{
+    async get(pattern?:string|RegExp, empty?:boolean):Promise<string> {
         //Convert String Pattern into Regex capture everything before.
         if(typeof pattern === "string")
             pattern = new RegExp(`^(.*?)${pattern}`);
@@ -81,10 +81,11 @@ export class ReadFileStream extends FileStream {
         while(true) {
             const {value, pos} = getNext(this.buffer.Text(), 0, pattern);
 
-            if(value){
+            if(!isNaN(pos))
                 this._pos += pos;
+
+            if(value || (value === "" && empty))
                 return value;
-            }
 
             await sleep();
         }
@@ -94,8 +95,8 @@ export class ReadFileStream extends FileStream {
         return this.get(/^(.*?)\s+/);
     }
 
-    getln(): Promise<string>{
-        return this.get(/^(.*?)[\n\r]+/);
+    getln(empty?:boolean): Promise<string>{
+        return this.get(/^(.*?)[\n\r]+/, empty);
     }
 
     reset(){
@@ -110,7 +111,7 @@ export class ReadFileStream extends FileStream {
 /** Read Write File Stream
  * 
  */
-export class ReadWriteFileStream extends FileStream {
+export class ReadWriteFileStream extends FileStream implements Readable, Writeable{
     public mode:FsDb.WriteFileType;
     private _read:number;
     private _write:number;
@@ -159,7 +160,7 @@ export class ReadWriteFileStream extends FileStream {
         }
     }
 
-    async get(pattern?:string|RegExp):Promise<string> {
+    async get(pattern?:string|RegExp, empty?:boolean):Promise<string> {
         //Convert String Pattern into Regex capture everything before.
         if(typeof pattern === "string")
             pattern = new RegExp(`^(.*?)${pattern}`);
@@ -167,10 +168,12 @@ export class ReadWriteFileStream extends FileStream {
         while(true) {
             const {value, pos} = getNext(this.buffer.Text(), this._read, pattern);
         
-            if(value){
-                this._read = pos;
+            if(!isNaN(pos))
+                this._read += pos;
+
+            if(value || (value === "" && empty))
                 return value;
-            }
+            
         
             await sleep();
         }
@@ -180,8 +183,8 @@ export class ReadWriteFileStream extends FileStream {
         return this.get(/^(.*?)\s+/);
     }
     
-    getln(): Promise<string>{
-        return this.get(/^(.*?)[\n\r]+/);
+    getln(empty?:boolean): Promise<string>{
+        return this.get(/^(.*?)[\n\r]+/, empty);
     }
 
     flush(){
