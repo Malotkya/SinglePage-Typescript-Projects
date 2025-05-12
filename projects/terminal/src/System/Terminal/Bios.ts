@@ -8,6 +8,7 @@ import Color from "@/Color";
 import Position, { normalizePositions, Dimensions } from "./Position";
 import {BiosView, ViewTemplate} from "./View";
 import PixelMatrix from "./PixelMatrix";
+import Encoding from "../Files/Encoding";
 
 const RATIO = 0.6;
 export const Y_OFFSET = 5;
@@ -63,7 +64,7 @@ export function claimBios(target:HTMLElement, data:BiosInitData) {
     const canvas = document.createElement("canvas");
     canvas.tabIndex = 1;
 
-    const gl = canvas.getContext("2d", {alpha: false});
+    const gl = canvas.getContext("2d", {alpha: false}) as RenderContext;
     if(gl === null)
         throw new Error("Unable to Initalize 2D Context!");
 
@@ -108,22 +109,22 @@ export function claimBios(target:HTMLElement, data:BiosInitData) {
 
     
     (gl as any).interface = target;
-    (gl as RenderContext).char = char;
-    (gl as RenderContext).width = width;
-    (gl as RenderContext).height = height;
-    (gl as RenderContext).backgroundColor = backgroundColor;
-    (gl as RenderContext).fontColor = fontColor;
-    (gl as RenderContext).fontSize = fontSize;
-    (gl as RenderContext).fontFace = `${fontSize-1}px monospace`;
+    gl.char = char;
+    gl.width = width;
+    gl.height = height;
+    gl.backgroundColor = backgroundColor;
+    gl.fontColor = fontColor;
+    gl.fontSize = fontSize;
+    gl.fontFace = `${fontSize-1}px monospace`;
 
     const w = width * char.width;
     const h = height * char.height+Y_OFFSET;
-    (gl as RenderContext).interface.style.width = `${w}px`;
-    (gl as RenderContext).canvas.width = w;
-    (gl as RenderContext).interface.style.height = `${h+INTERFACE_OFFSET}px`;
-    (gl as RenderContext).canvas.height = h;
+    gl.interface.style.width = `${w}px`;
+    gl.canvas.width = w;
+    gl.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+    gl.canvas.height = h;
 
-    ctx = (gl as RenderContext);
+    ctx = gl;
 
     target.appendChild(canvas);
     canvas.focus();
@@ -402,10 +403,10 @@ export function scroll(targetHeight:number = y, override:boolean = scrollLocked)
     if(targetHeight < 0 || targetHeight >= growHeight || override === false)
         return;
 
-    const top    = Math.floor((ctx.interface.scrollTop) / ctx!.char.height);
-    const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / ctx!.char.height)-2;
+    const top    = Math.floor((ctx.interface.scrollTop) / ctx.char.height);
+    const bottom = Math.floor((ctx.interface.scrollTop + ctx.interface.clientHeight) / ctx.char.height)-2;
     if(targetHeight < top || targetHeight > bottom){
-        ctx.interface.scrollTop = ((targetHeight - ctx!.height + 2) * ctx!.char.height) + Y_OFFSET;
+        ctx.interface.scrollTop = ((targetHeight - ctx.height + 2) * ctx.char.height) + Y_OFFSET;
     }
     scrollLocked = true;
 }
@@ -440,14 +441,14 @@ export function viewTemplate(w:number = ctx!.width * ctx!.char.width, h:number =
     return {
         init:(v:BiosView|null)=>{
             view = v
-            if(v === null){
-                const w = ctx!.width * ctx!.char.width;
-                const h = (ctx!.height * ctx!.char.height)+Y_OFFSET;
+            if(v === null && ctx){
+                const w = ctx.width * ctx.char.width;
+                const h = (growHeight * ctx.char.height)+Y_OFFSET;
 
-                ctx!.canvas.width = w;
-                ctx!.canvas.height = h;
-                ctx!.interface.style.width = `${w}px`;
-                ctx!.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+                ctx.canvas.width = w;
+                ctx.canvas.height = h;
+                ctx.interface.style.width = `${w}px`;
+                ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
             }
         },
         template: {
@@ -579,6 +580,22 @@ export function viewTemplate(w:number = ctx!.width * ctx!.char.width, h:number =
                 }, 
                 strokeText(text:string, x:number, y:number, maxWidth?:number){
                     ctx!.strokeText(text, x, y, maxWidth);
+                },
+                drawImage(x:number, y:number, image:Uint8Array|Encoding){
+                    if(image instanceof Encoding)
+                        image = image.Array(8);
+        
+                    const width:number  = (image[0] << 8) + image[1];
+                    const height:number = (image[2] << 8)+ image[3];
+
+                    this.accessPixels(x, y, width, height, (m)=>{
+                        let offset = 4;
+                        for(const p of m){
+                            p.red = image[++offset];
+                            p.green = image[++offset];
+                            p.blue = image[++offset];
+                        }
+                    });
                 },
                 accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction):void {
                     if(typeof x !== "number") {

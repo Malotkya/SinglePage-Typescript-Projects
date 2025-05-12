@@ -6,6 +6,7 @@ import { KeyboardData } from "./Keyboard";
 import { KeyboardType } from "./Keyboard";
 import { MouseButton, MouseType } from "./Mouse";
 import { HIGHLIGHT_OFFSET, PixelFunction } from "./Bios";
+import Encoding from "../Files/Encoding";
 import { sleep } from "@";
 import Color from "@/Color";
 
@@ -35,6 +36,7 @@ interface ViewContext {
     stroke:()=>void
     strokeRect:(x:number, y:number, width:number, height:number)=>void
     strokeText:(text:string, x:number, y:number, maxWidth?:number)=>void
+    drawImage:(x:number, y:number, image:Uint8Array|Encoding)=>void
     accessPixels:{
         (func: PixelFunction): void;
         (width: number, height: number, func: PixelFunction): void;
