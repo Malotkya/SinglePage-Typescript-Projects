@@ -3,12 +3,14 @@
  * @author Alex Malotky
  */
 import {openDB, IDBPDatabase, IDBPTransaction, IDBPObjectStore} from "idb";
-import FileDatabaseSchema, {FileDirectoryData, FolderDirectoryData} from "./Schema";
+import FileDatabaseSchema, {FileDirectoryData, FolderDirectoryData, FileData} from "./Schema";
 import {DEFAULT_ROOT_MODE, formatMode} from "../Mode";
 import { ROOT_USER_ID } from "../../User";
 import {join} from "../Path";
 import { encodeValue } from "../Encoding";
 import { sleep } from "@";
+import { InitIterator } from "../../Initalize";
+import { UserId } from "../../User";
 
 // Current Database Version
 const DatabaseVersion = 3;
@@ -21,7 +23,7 @@ type FileInitStore      = IDBPObjectStore<FileDatabaseSchema, typeof Stores, "Fi
 
 //Init Data For Directory Structure
 export interface FilestoreInitData {
-    [name:string]:[number, string|FilestoreInitData]
+    [name:string]:[number, string|FileData|FilestoreInitData]
 }
 
 //Database Connection
@@ -32,7 +34,7 @@ let db:IDBPDatabase<FileDatabaseSchema>|null|undefined;
  * @param {string} path 
  * @param {InitData} init 
  */
-async function _build(path:string, init:FilestoreInitData, dir:DirectoryInitStore, file:FileInitStore) {
+async function _build(path:string, init:FilestoreInitData, user:UserId, dir:DirectoryInitStore, file:FileInitStore) {
     for(const name in init){
         const filePath = join(path, name);
         let info = await dir.get(filePath);
@@ -40,14 +42,14 @@ async function _build(path:string, init:FilestoreInitData, dir:DirectoryInitStor
         mode = isNaN(mode)? DEFAULT_ROOT_MODE: formatMode(mode);
 
         //Build File
-        if(typeof data === "string") {
+        if(data instanceof Uint8Array || typeof data === "string") {
             
             //Create
             if(info  === undefined) {
                 const [base, ext = ""] = name.split(".");
                 info = {
                     type: "File",
-                    owner: ROOT_USER_ID,
+                    owner: user,
                     mode: mode,
                     base: base,
                     ext: ext,
@@ -70,7 +72,7 @@ async function _build(path:string, init:FilestoreInitData, dir:DirectoryInitStor
             if(info === undefined){
                 await dir.add({
                     type: "Directory",
-                    owner: ROOT_USER_ID,
+                    owner: user,
                     mode: mode,
                     links: 0,
                     created: new Date(),
@@ -80,7 +82,7 @@ async function _build(path:string, init:FilestoreInitData, dir:DirectoryInitStor
             }
 
             //Populate Directory
-            await _build(filePath, data, dir, file);
+            await _build(filePath, data, user, dir, file);
         }
     }
 }
@@ -89,7 +91,7 @@ async function _build(path:string, init:FilestoreInitData, dir:DirectoryInitStor
  * 
  * @param {FilestoreInitData} data 
  */
-export async function initFilestoreDatabase(data:FilestoreInitData) {
+export async function initFilestoreDatabase() {
     try {
         db = await openDB("Terminal:FileStore", DatabaseVersion, {
             upgrade: async(db)=>{
@@ -106,7 +108,12 @@ export async function initFilestoreDatabase(data:FilestoreInitData) {
                     path: "/"
                 } satisfies FolderDirectoryData, "/");
     
-                await _build("/", data, dir, file);
+                
+
+                for(const [user, data] of InitIterator()){
+                    await _build("/", data, user, dir, file);
+                }
+                
             }
         });
     } catch (e){
