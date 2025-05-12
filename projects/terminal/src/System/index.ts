@@ -11,7 +11,7 @@ import { UserView } from "./Terminal/View";
 import { execute, FilestoreInitData, parseExecutable } from "./Files/Backend";
 import { currentLocation } from "./Files";
 import SystemIterator from "./Iterator";
-import { init as initUsers } from "./User";
+import { start as startUsers } from "./User";
 import { extract } from "./Initalize";
 import { loadScripts } from "./Script";
 
@@ -340,7 +340,7 @@ export async function start(){
     stdin.flush();
     running = true;
 
-    await initUsers(SYSTEM_ID);
+    await startUsers();
     await System.resetProcess();
     history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 
@@ -379,7 +379,7 @@ export async function initSystem(...args:(FilestoreInitData|Record<string, MainF
 /** Clear Output
  * 
  */
-export function clear(modifier:string) {
+export function clear(modifier?:string) {
     if(modifier === "-a") {
         stdout.clear();
         history[SYSTEM_NAME].clear();
