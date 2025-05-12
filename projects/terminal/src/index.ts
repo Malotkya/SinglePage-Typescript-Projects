@@ -1,19 +1,26 @@
 import System, {start as startSystem, clear, initSystem} from "./System";
-import { FilestoreInitData, initFilestoreDatabase } from "./System/Files/Backend";
+import { initFilestoreDatabase } from "./System/Files/Backend";
 import { initStdIO } from "./System/Stream/IO";
 import FileSystem from "./System/Files/Process"
-import { merge, SystemDirectory } from "./Initalize";
-import {login, logout} from "./System/User";
-import SystemFiles from "./Operations";
+import { SystemDirectory, startingFiles } from "./System/Initalize";
+import {logout, init as initUsers} from "./System/User";
 import Help from "./Help";
 import Snake from "./Snake";
 
-export type StartFunction = ()=>Promise<void>
+export type StartFunction = ()=>Promise<void>;
+
+export interface SystemInitOptions {
+    rootPassword?:string,
+    files?:SystemDirectory
+}
 
 /** Initalize Terminal Operating System
  * 
  */
-export function init(files?:SystemDirectory):StartFunction {
+export function init(opts:SystemInitOptions = {}):StartFunction {
+    const {files, rootPassword} = opts;
+    if(files)
+        startingFiles(rootPassword? "0": null, files);
 
     System.addFunction("about", "Displays more information about the terminal app.", ()=>{
         System.println("This is an attempt to see what I can create in this environement.");
@@ -36,13 +43,12 @@ export function init(files?:SystemDirectory):StartFunction {
     System.addApp(new Help());
     System.addApp(new Snake());
 
-    const data = merge(SystemFiles, files);
     const ready = Promise.all([
-        initFilestoreDatabase(data),
+        initFilestoreDatabase(),
         initStdIO(),
+        initUsers(rootPassword),
         initSystem(
-            FileSystem,
-            data["bin"][1] as FilestoreInitData
+            FileSystem
         )
     ]);
 
