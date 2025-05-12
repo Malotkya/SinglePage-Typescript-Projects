@@ -11,7 +11,7 @@ import { UserView } from "./Terminal/View";
 import { execute, FilestoreInitData, parseExecutable } from "./Files/Backend";
 import { currentLocation } from "./Files";
 import SystemIterator from "./Iterator";
-import { start as startUsers } from "./User";
+import { start as startUsers, logout as logoutUsers } from "./User";
 import { extract } from "./Initalize";
 import { loadScripts } from "./Script";
 
@@ -135,8 +135,8 @@ const System = {
      * @param {string} char 
      * @returns {Promise<string>}
      */
-    get(char?:string):Promise<string>{
-        return stdin.get(char);
+    get(char?:string, empty?:boolean):Promise<string>{
+        return stdin.get(char, empty);
     },
 
     /** Get Line
@@ -145,8 +145,8 @@ const System = {
      * 
      * @returns {Promise<string>}
      */
-    getln():Promise<string>{
-        return stdin.getln();
+    getln(empty?:boolean):Promise<string>{
+        return stdin.getln(empty);
     },
 
     /** Get Next Input
@@ -157,11 +157,11 @@ const System = {
         return stdin.next();
     },
 
-    async prompt(message:string, password:boolean = false):Promise<string> {
+    async prompt(message:string, password:boolean = false, empty?:boolean):Promise<string> {
         setPrompt(message);
         stdin.flush();
         stdin.hide = password;
-        const output = await stdin.getln();
+        const output = await stdin.getln(empty);
         this.println(message+(password?"":output));
         stdin.hide = false;
         return output;
@@ -349,6 +349,11 @@ export async function start(){
         System.history.add(string);
         System.run(string);
     }
+}
+
+export async function logout(){
+    logoutUsers();
+    await startUsers();
 }
 
 export async function initSystem(...args:(FilestoreInitData|Record<string, MainFunction>)[]):Promise<void> {
