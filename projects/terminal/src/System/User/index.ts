@@ -5,7 +5,7 @@
 import * as db from "./Database";
 import Role, {assignRoles, hasRole} from "./Role";
 import { isSecure } from "@/Crypto";
-import System, {clear} from "..";
+import System, {clear, formatSystemDate} from "..";
 import fs from "../Files";
 import { startingFiles } from "../Initalize";
 
@@ -46,16 +46,15 @@ export async function start():Promise<void> {
 
     const start = await db.start();
     if(start){
+        clear();
         user = start;
         await fs.cd(user.home);
+        System.println(`Welcome ${user.username} to System Emulator!`);
     } else {
         user = await db.getUserById();
         if(user === NO_USER){
-            clear("");
-            System.println("Welcome to the Terminal Interface:");
-
             let username = await System.prompt("Username: ");
-            let password = await System.prompt("Password: ", true);
+            let password = await System.prompt("Password: ", true, username === "guest");
     
             while((await login(username, password)) === false){
                 System.println("Incorect username or password!\n");
@@ -66,6 +65,7 @@ export async function start():Promise<void> {
 
             
         } else {
+            welcome(user.username);
             db.logUser("Login", "Succeeded", user.username);
             await fs.cd(user.home);
         }
@@ -161,23 +161,41 @@ export async function login(username:string, password:string):Promise<boolean> {
         System.println("Unable to login when Crypto library is unavailable!");
         return false;
     }
-
-    if(username.toLocaleLowerCase() === "guest")
-        return true;
-
+        
     if(user !== NO_USER || await db.getUserById()) {
         await db.logUser("Login", "Failed", username);
         throw new Error("User is already logged in!");
     }
 
+    if(username.toLocaleLowerCase() === "guest") {
+        await welcome(username);
+        await db.logUser("Login", "Succeeded", username);
+        await fs.cd(await User.home());
+        return true;
+    }
+
     user = await db.login(username, password);
     if(user){
+        await welcome(user.username);
         await db.logUser("Login", "Succeeded", username);
         await fs.cd(user.home);
     } else {
         await db.logUser("Login", "Failed", username);
     }
     return user !== NO_USER;
+}
+
+/** Welcome the user after logging in
+ * 
+ * @param {string} username 
+ */
+async function welcome(username:string){
+    clear();
+    const value = (await db.readLogs({username})).sort((a, b)=>b.date.getTime()-a.date.getTime());
+    if(value.length > 0)
+        System.println(`Welcome back ${username}.  Your last login was at: ${formatSystemDate(value[0].date)}.`);
+    else
+        System.println(`Welcome ${username}. This is your first time logging in!`);
 }
 
 /** Logout User
