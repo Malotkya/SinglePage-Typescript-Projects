@@ -1,9 +1,9 @@
-import System, {start as startSystem, clear, initSystem} from "./System";
+import System, {start as startSystem, clear, initSystem, logout} from "./System";
 import { initFilestoreDatabase } from "./System/Files/Backend";
 import { initStdIO } from "./System/Stream/IO";
 import FileSystem from "./System/Files/Process"
 import { SystemDirectory, startingFiles } from "./System/Initalize";
-import {logout, init as initUsers} from "./System/User";
+import {init as initUsers} from "./System/User";
 import Help from "./Help";
 import Snake from "./Snake";
 
@@ -34,6 +34,7 @@ export function init(opts:SystemInitOptions = {}):StartFunction {
         System.println("[ ]: Create Basic File System & User Seperation / Login (IDB)");
     });
     System.addFunction("clear", "Clears the terminal.", (args)=>clear(args[1]));
+    System.addFunction("logout", "", ()=>logout())
     System.addFunction("exit", "Closes the terminal.", ()=>{
         System.println("Good Bie!");
         logout();
