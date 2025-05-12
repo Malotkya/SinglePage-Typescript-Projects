@@ -63,10 +63,10 @@ export function validate(value:number, owner:UserId, user:UserId, operation:Oper
     if(user === ROOT_USER_ID)
         return true;
     
-    const group:GroupValue = user === null
-        ? 1
-        : owner === user
-            ? 100
+    const group:GroupValue = user === owner
+        ? 100
+        : user === null
+            ? 1
             : 10;
 
     const o:OperationValue|-1 = ValidOperations.indexOf(operation) as any;
