@@ -7,6 +7,7 @@ import Role, {assignRoles, hasRole} from "./Role";
 import { isSecure } from "@/Crypto";
 import System from "..";
 import fs from "../Files";
+import { startingFiles } from "../Initalize";
 
 export type UserId = string|null;
 
@@ -14,17 +15,24 @@ export type UserId = string|null;
 export const NO_USER = null;
 export const ROOT_USER_ID = "0";
 export const ROOT_USER = "root";
+export const RequestUserSystemId = db.requestSystemUserId;
+
+startingFiles(null, {
+    "home": {
+        "guest": {}
+    }
+})
 
 /** Init User System
  * 
  */
-export async function init():Promise<void> {
+export async function init(sysId:string):Promise<void> {
     if(!isSecure()){
         System.println("Warining! The Crypto library is unavailable!\nCan only be logged in as a guest!");
         return;
     }
 
-    const start = await db.init();
+    const start = await db.init(sysId);
     if(start){
         user = start;
         await fs.cd(user.home);
@@ -139,6 +147,9 @@ export async function login(username:string, password:string):Promise<boolean> {
         System.println("Unable to login when Crypto library is unavailable!");
         return false;
     }
+
+    if(username.toLocaleLowerCase() === "guest")
+        return true;
 
     if(user !== NO_USER || await db.getUserById()) {
         await db.logUser("Login", "Failed", username);
