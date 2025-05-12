@@ -19,7 +19,7 @@ let output:string = "";
 const queueRef = Queue("readwrite");
 let ready:boolean = false;
 
-startingFiles(SYSTEM_ID, {
+startingFiles(/*SYSTEM_ID*/"10", {
     "sys": {
         stdin: "",
         stdout: ""
