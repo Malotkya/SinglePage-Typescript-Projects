@@ -107,6 +107,16 @@ export async function initFilestoreDatabase() {
                     base: "",
                     path: "/"
                 } satisfies FolderDirectoryData, "/");
+
+                await dir.put({
+                    type: "Directory",
+                    owner: ROOT_USER_ID,
+                    mode: DEFAULT_ROOT_MODE,
+                    links: 0,
+                    created: new Date(),
+                    base: "root",
+                    path: "/"
+                } satisfies FolderDirectoryData, "/root");
     
                 
 
