@@ -12,7 +12,7 @@ import { execute, FilestoreInitData, parseExecutable } from "./Files/Backend";
 import { currentLocation } from "./Files";
 import SystemIterator from "./Iterator";
 import { init as initUsers } from "./User";
-import { extract } from "../Initalize";
+import { extract } from "./Initalize";
 import { loadScripts } from "./Script";
 
 export {App};
@@ -30,6 +30,7 @@ export interface Process {
 
 export const SYSTEM_NAME = "Terminal";
 export const SYSTEM_PROMPT = "$ ";
+export const SYSTEM_ID = "10";
 
 ///// Private Attributes of System ///////
 const systemProcess:Map<string, Process> = new Map();
@@ -339,7 +340,7 @@ export async function start(){
     stdin.flush();
     running = true;
 
-    await initUsers();
+    await initUsers(SYSTEM_ID);
     await System.resetProcess();
     history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 
