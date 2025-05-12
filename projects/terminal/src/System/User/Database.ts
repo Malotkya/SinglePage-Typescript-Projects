@@ -4,8 +4,8 @@
  */
 import {hashPassword, verifyPassword} from "@/Crypto";
 import { Queue, FsDb } from "../Files/Backend";
-import { ROOT_USER_ID } from ".";
-import System, {formatSystemDate} from "..";
+import { ROOT_USER, ROOT_USER_ID } from ".";
+import System, {formatSystemDate, SYSTEM_ID, clear} from "..";
 import { assignRoles } from "./Role";
 import { startingFiles } from "../Initalize";
 
@@ -33,28 +33,63 @@ export interface UserData {
     home:string
 }
 
-export async function init(sysId:string):Promise<UserData|null> {
+export async function init(rootPassword:string|undefined):Promise<void> {
     const ref = Queue("readwrite");
-    const test = await FsDb.getInfo(USER_FILE, (await ref.open()) as any)
+
+    if(rootPassword){
+        await FsDb.createFile(USER_FILE, {recursive: true, soft: true, user: ROOT_USER_ID},  await ref.open(),
+            encoder.encode(
+                ROOT_USER_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"root"+"\n"
+                +SYSTEM_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"System"+"\n"
+                +USER_SYSTEM_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"User-System"+"\n"
+            )
+        );
+        ref.close();
+
+        const hash = await hashPassword(rootPassword);
+        await FsDb.createFile(HASH_FILE, {recursive: true, user: ROOT_USER_ID}, await ref.open(),
+            encoder.encode(ROOT_USER_ID+SEPERATOR+hash)
+        );
+        ref.close();
+
+    } else {
+        await FsDb.createFile(USER_FILE, {recursive: true, soft: true, user: ROOT_USER_ID},  await ref.open(),
+            encoder.encode(
+                SYSTEM_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"System"+"\n"
+                +USER_SYSTEM_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"User-System"+"\n"
+            )
+        );
+        ref.close();
+    }
+}
+
+export async function start():Promise<UserData|null> {
+    const ref = Queue("readwrite");
+    const startTx = await ref.open();
+    const userData = decoder.decode(await FsDb.readFile(USER_FILE, USER_SYSTEM_ID, startTx as any));
+    const test = await FsDb.getInfo(HASH_FILE, startTx as any);
     ref.close();
 
     if(test) 
         return null;
-    
 
+    clear();
     System.println("Welcome to the terminal emulator.  Please create an account.");
-    const username = await System.prompt("Username: ");
+    let username = await System.prompt("Username: ");
+    while(username !== "" && _find(2, username, userData)) {
+        System.println("Invalid username!");
+        username = await System.prompt("Username: ");
+    }
     const password = await System.prompt("Password: ", true);
     const id = crypto.randomUUID();
     const role = assignRoles(["Admin", "User"])
 
-    await FsDb.createFile(USER_FILE, {recursive: true, user: ROOT_USER_ID},  await ref.open(),
+    await FsDb.writeToFile(USER_FILE, {user: ROOT_USER_ID, type: "Append"},
         encoder.encode(ROOT_USER_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"root"+"\n"
-        +sysId+SEPERATOR+assignRoles("None")+SEPERATOR+"System"+"\n"
-        +USER_SYSTEM_ID+SEPERATOR+assignRoles("None")+SEPERATOR+"User-System"+"\n"
-        +id+SEPERATOR+role+SEPERATOR+username)
+        +id+SEPERATOR+role+SEPERATOR+username), await ref.open()
     );
     ref.close();
+
     const hash1 = await hashPassword(password);
     const hash2 = await hashPassword(password);
     const tx = await ref.open();

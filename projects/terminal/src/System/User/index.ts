@@ -5,7 +5,7 @@
 import * as db from "./Database";
 import Role, {assignRoles, hasRole} from "./Role";
 import { isSecure } from "@/Crypto";
-import System from "..";
+import System, {clear} from "..";
 import fs from "../Files";
 import { startingFiles } from "../Initalize";
 
@@ -26,20 +26,34 @@ startingFiles(null, {
 /** Init User System
  * 
  */
-export async function init(sysId:string):Promise<void> {
+export async function init(rootPassword:string|undefined):Promise<void> {
     if(!isSecure()){
         System.println("Warining! The Crypto library is unavailable!\nCan only be logged in as a guest!");
         return;
     }
 
-    const start = await db.init(sysId);
+    await db.init(rootPassword);
+}
+
+/** Start User System
+ * 
+ */
+export async function start():Promise<void> {
+    if(!isSecure()){
+        System.println("Warining! The Crypto library is unavailable!\nCan only be logged in as a guest!");
+        return;
+    }
+
+    const start = await db.start();
     if(start){
         user = start;
         await fs.cd(user.home);
     } else {
         user = await db.getUserById();
         if(user === NO_USER){
-        
+            clear("");
+            System.println("Welcome to the Terminal Interface:");
+
             let username = await System.prompt("Username: ");
             let password = await System.prompt("Password: ", true);
     
