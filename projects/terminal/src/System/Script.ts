@@ -2,13 +2,12 @@
  * 
  * @author Alex Malotky
  */
-import System, {Process, validateCall, MainFunction, HelpFunction} from ".";
+import System, {Process, validateCall, MainFunction, HelpFunction, SYSTEM_ID} from ".";
 import { parseExecutable, Queue, FilestoreTransaction, FsDb } from "./Files/Backend";
 import { join } from "./Files/Path";
 import fs from "./Files";
 import * as Path from "./Files/Path";
 import Arguments from "./Arguments";
-import { ROOT_USER_ID } from "./User";
 
 /** Async Function Constructor
  * 
@@ -85,7 +84,7 @@ export function fromFile(data:Record<string, string>, skipValidation?:boolean):P
 async function loadDirectory(path:string, tx:FilestoreTransaction<"readonly">):Promise<string[]>{
     const decoder = new TextDecoder("utf-8");
     return (await Promise.all(
-        (await FsDb.readDirectory(path, ROOT_USER_ID, tx)).map(async(name)=>{
+        (await FsDb.readDirectory(path, SYSTEM_ID, tx)).map(async(name)=>{
             const file = join(path, name);
             const info = await FsDb.getInfo(file, tx);
             if(info === undefined)
@@ -96,7 +95,7 @@ async function loadDirectory(path:string, tx:FilestoreTransaction<"readonly">):P
             }
 
             return [
-                decoder.decode(await FsDb.readFile(file, ROOT_USER_ID, tx))
+                decoder.decode(await FsDb.readFile(file, SYSTEM_ID, tx))
             ]
         })
     )).flat();
