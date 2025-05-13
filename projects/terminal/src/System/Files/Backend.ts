@@ -9,12 +9,14 @@ import * as Path from "./Path";
 import * as FsDb from "./Database";
 import Queue, {FilestoreInitData, initFilestoreDatabase, FilestoreTransaction} from "./Database/TransactionQueue";
 import FileConnection from "./Database/Connection";
-import { executable } from "./Database";
+import { executable, createFile } from "./Database";
 import {FileData, DirectoryData} from "./Database/Schema"
 import {Process} from "..";
-import { fromFile } from "../Script";
+import { fromFile, toFile } from "../Script";
 import { FileError } from "./Errors";
-import User from "../User";
+import User, { UserId } from "../User";
+import { join } from "./Path";
+import { encodeValue } from "./Encoding";
 
 export {Queue, initFilestoreDatabase, FsDb, FileConnection};
 export type {FilestoreInitData, FilestoreTransaction, FileData, DirectoryData};
@@ -58,4 +60,38 @@ export async function execute(file:string, skip?:boolean):Promise<Process|null> 
     } finally {
         ref.close();
     }
+}
+
+interface WritingExecutableOptions {
+    user?: UserId
+    mode?: number
+    force?: boolean
+    soft?: boolean
+}
+
+export async function writeExecutable(path:string, process:Process, opts:WritingExecutableOptions = {}):Promise<void> {
+    const {user = await User.id(), mode, force:recursive, soft} = opts;
+    const [name, data] = toFile(process);
+    path = join(path, name);
+
+    let buffer:string;
+    if(data["*"]) {
+        buffer = data["*"];
+    } else {
+        buffer = "";
+        if(data["description"])
+            buffer += "description: "+data["description"]+"\n";
+
+        if(data["history"])
+            buffer += "history: "+data["history"]+"\n";
+        
+        if(data["help"])
+            buffer += "help:\n"+data["help"]+"\n";
+
+        buffer += "main:\n"+data["main"];
+    }
+
+    const ref = Queue("readwrite");
+    await createFile(path, {user, mode, recursive, soft}, await ref.open(), encodeValue(buffer));
+    ref.close();
 }

@@ -75,6 +75,40 @@ export function fromFile(data:Record<string, string>, skipValidation?:boolean):P
     }
 }
 
+/** To File
+ * 
+ * @param {Process} script 
+ * @returns {Record<string, string>}
+ */
+export function toFile(script:Process):[string, Record<string, string>] {
+    const {call, history, main, help, description} = script;
+    const output:Record<string, string> = {};
+    let userStar = true;
+
+    if(history) {
+        output["history"] = "true";
+        userStar = false;
+    }
+        
+
+    if(description) {
+        output["description"] = description;
+        userStar = false;
+    }
+
+    if(help) {
+        output["help"] = functionToString(help);
+        userStar = false;
+    }
+
+    if(userStar)
+        output["*"] = functionToString(main);
+    else
+        output["main"] = functionToString(main);
+
+    return [call, output];
+}
+
 /** Load Directory Help Function
  * 
  * @param {string} path 
