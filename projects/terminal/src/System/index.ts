@@ -8,7 +8,7 @@ import History from "./History";
 import { initView, getView, setPrompt } from "./Terminal";
 import { InputStream, OutputStream } from "./Stream/IO";
 import { UserView } from "./Terminal/View";
-import { execute, FilestoreInitData, parseExecutable } from "./Files/Backend";
+import { execute, FilestoreInitData, parseExecutable, writeExecutable } from "./Files/Backend";
 import { currentLocation } from "./Files";
 import SystemIterator from "./Iterator";
 import { start as startUsers, logout as logoutUsers } from "./User";
@@ -311,6 +311,12 @@ export function validateCall(value:string, skipValidation?:boolean):string{
     return value;
 }
 
+/** Format System Date
+ * 
+ * @param {Date} date 
+ * @param {string} format 
+ * @returns {string}
+ */
 export function formatSystemDate(date:Date, format:"Date"|"Time"|"DateTime" = "DateTime"):string {
     let output:string = "";
     if(format.includes("Date")) {
@@ -354,6 +360,9 @@ export async function start(){
 export async function logout(){
     logoutUsers();
     await startUsers();
+    for(const name in history)
+        delete history[name];
+    history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 }
 
 export async function initSystem(...args:(FilestoreInitData|Record<string, MainFunction>)[]):Promise<void> {
@@ -362,7 +371,7 @@ export async function initSystem(...args:(FilestoreInitData|Record<string, MainF
             const value = extract(bin[name]);
             switch(typeof value) {
                 case "object":
-                    initSystem(value as FilestoreInitData)
+                    await initSystem(value as FilestoreInitData)
                     break;
 
                 case "function":
@@ -378,6 +387,17 @@ export async function initSystem(...args:(FilestoreInitData|Record<string, MainF
                         parseExecutable(value))
             }
         }
+    }
+
+    await System.resetProcess();
+
+    for(let process of systemProcess.values()) {
+        await writeExecutable("/sys/bin", process, {
+            user: SYSTEM_ID,
+            force: true,
+            soft: true,
+            mode: 711
+        });
     }
 }
 
