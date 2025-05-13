@@ -39,10 +39,7 @@ export default class App implements Process{
         this.#help = value;
     }
 
-    get help():HelpFunction {
-        if(this.#help === undefined)
-            throw new Error(`Help funciton never set for ${this._call}!`);
-
+    get help():HelpFunction|undefined {
         return this.#help;
     }
 
