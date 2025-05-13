@@ -1,151 +1,146 @@
-/** /System/Stream/IO
+import { BufferReference, ReadStream, WriteStream } from ".";
+import { KeyCode } from "../Terminal/Keyboard";
+
+/** Input Buffer
  * 
- * @author Alex Malotky
+ * Wrapper around a buffer reference that allows for input manipultaion.
  */
-import {ReadStream, WriteStream} from "../Stream";
-import { Queue, FsDb } from "../Files/Backend";
-import { encodeValue } from "../Files/Encoding";
-import { sleep } from "@";
-import { SYSTEM_ID } from "..";
-import { startingFiles } from "../Initalize";
+export class InputBuffer implements BufferReference<string> {
+    private _ref:BufferReference<string>;
+    private _cursor:number;
+    public hide:boolean;
 
-//File Locations
-const STDIN_FILE = "/sys/stdin";
-const STDOUT_FILE = "/sys/stdout";
-
-//IO Values
-let input:string = "";
-let output:string = "";
-const queueRef = Queue("readwrite");
-let ready:boolean = false;
-
-startingFiles(/*SYSTEM_ID*/"10", {
-    "sys": {
-        stdin: "",
-        stdout: ""
+    constructor(ref:BufferReference<string>){
+        this._ref = ref;
+        this._cursor = 0;
+        this.hide = false;
     }
-});
 
-//Load values from the System
-export async function initStdIO() {
-    const tx = await queueRef.open();
-    try {
-        const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, SYSTEM_ID, tx as any));
-        if(start)
-            OutputBuffer.value = start + output;
-    } catch (e){
-        console.error(e)
-    }  finally {
-        queueRef.close();
-        ready = true;
-    }
-};
-
-/** Save Helper Function
- * 
- */
-async function save(file:string, value:string) {
-    while(!ready)
-        await sleep();
-    await FsDb.writeToFile(file, {user:SYSTEM_ID, type: "Rewrite"}, encodeValue(value), await queueRef.open());
-    queueRef.close();
-}
-
-//Cursor private value
-let cursor:number = 0;
-//stdin Buffer
-export const InputBuffer = {
-    hide: false,
-
-    /** Add at Cursor
-     * 
-     * @param {string} c 
-     */
     add(c:string){
-        input = input.substring(0, cursor) 
-            + c + input.substring(++cursor);
-        save(STDIN_FILE, input);
-    },
+        this._ref.value = this._ref.value.substring(0, this._cursor)
+            + c.charAt(0) + this._ref.value.substring(++this._cursor);
+    }
 
-    /** Delete at Cursor
-     * 
-     */
-    delete() {
-        if(cursor < 0 || cursor > input.length)
+    delete(){
+        if(this._cursor < 0 || this._cursor > this._ref.value.length)
             return;
-    
-        if(input.length > 0){
-            if(cursor === 0){
-                input = input.substring(1);
+
+        if(this._ref.value.length > 0){
+            if(this._cursor === 0){
+                this._ref.value = this._ref.value.substring(1);
             } else {
-                input = input.substring(0, cursor) + input.substring(cursor+1);
+                this._ref.value = this._ref.value.substring(0, this._cursor)
+                                + this._ref.value.substring(this._cursor+1);
             }
         }
-    },
+    }
 
     get value() {
-        return input;
-    },
+        return this._ref.value;
+    }
 
     set value(v:string) {
-        input = v;
-        cursor = v.length;
-        save(STDIN_FILE, input);
-    },
+        this._ref.value = v;
+        this._cursor = v.length;
+    }
 
-    set cursor(value:number){
-        cursor = value;
-    },
+    set cursor(v:number) {
+        this._cursor = v;
+    }
 
     get cursor():number {
-        if(cursor < 0)
+        if(this._cursor < 0)
             return 0;
-        else if(cursor > input.length)
-            return input.length;
-        return cursor;
+        else if(this._cursor > this._ref.value.length)
+            return this._ref.value.length;
+        return this._cursor;
+    }
+
+    keyboard(key:KeyCode, value:string) {
+        switch(key){
+            case "Backspace":
+                this.cursor -=1;
+                this.delete();
+                break;
+
+            case "Delete":
+                this.delete();
+                break;
+
+            case "ArrowLeft":
+                this.cursor--;
+                break;
+
+            case "ArrowRight":
+                this.cursor++;
+                break;
+            
+            case "Enter":
+            case "NumpadEnter":
+                this.value += "\n";
+                break;
+            
+            default:
+                this.add( value );
+                break;
+        }
     }
 }
+
 /** Input Stream
  * 
- * Wrapper around stdin Buffer
  */
 export class InputStream extends ReadStream {
-    constructor() {
-        super(InputBuffer);
+    declare _ref:InputBuffer;
+    
+
+    constructor(buffer:InputBuffer) {
+        super(buffer);
     }
 
     flush() {
         this._ref.value = "";
         this._pos = 0;
-        cursor = 0;
+        this._ref.cursor = 0;
+    }
+    
+    get hide():boolean {
+        return this._ref.hide;
     }
 
     set hide(v:boolean){
-        InputBuffer.hide = v;
-    }
-
-    get hide():boolean {
-        return InputBuffer.hide
+        this._ref.hide = v;
     }
 }
 
-//stdout Buffer
-export const OutputBuffer = {
-    get value(){
-        return output;
-    },
-    set value(v:string){
-        output = v;
-        save(STDOUT_FILE, output);
+/** Output Buffer
+ * 
+ * Wrapper around Buffer Reference for output maniputlation.
+ */
+export class OutputBuffer implements BufferReference<string> {
+    private _ref:BufferReference<string>;
+
+    constructor(ref:BufferReference<string>){
+        this._ref = ref;
     }
-};
+
+    get value():string {
+        return this._ref.value;
+    }
+
+    set value(v:string) {
+        this._ref.value = v;
+    }
+}
+
 /** Output Stream
  * 
- * Wrapper around stdout Buffer
  */
 export class OutputStream extends WriteStream {
-    constructor(){
-        super(OutputBuffer);
+    declare _ref:OutputBuffer;
+
+    constructor(buffer:OutputBuffer){
+        super(buffer);
     }
 
     clear(){

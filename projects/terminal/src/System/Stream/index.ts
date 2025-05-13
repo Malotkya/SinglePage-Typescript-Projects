@@ -20,7 +20,7 @@ export interface Writeable {
     write:(chunk:any)=>void
 }
 
-type BufferReference<T extends any> = T extends Encoding
+export type BufferReference<T extends any> = T extends Encoding
     ? {value: Encoding}
     : T extends string
         ? {value: string}
@@ -93,6 +93,8 @@ export class ReadStream extends Stream<string> implements Readable {
         return this.get(/^(.*?)[\n\r]+/, empty);
     }
 }
+
+
 
 /** Write Stream
  * 
