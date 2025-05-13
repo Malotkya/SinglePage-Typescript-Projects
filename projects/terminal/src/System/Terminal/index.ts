@@ -9,7 +9,7 @@ import { KeyboardData } from "./Keyboard";
 import { MouseButton } from "./Mouse";
 import { comparePositions } from "./Position";
 import { getHighlightedFromBuffer } from "../Stream";
-import { InputBuffer, OutputBuffer} from "../Stream/IO";
+import { StdInputBuffer, StdOutputBuffer} from "./StdIO";
 import { getHistory, isRunning } from "..";
 import {sleep} from "@";
 
@@ -17,6 +17,8 @@ const DEFAUTL_PROMPT = "";
 let prompt = DEFAUTL_PROMPT;
 
 let view: View|null = null;
+const input = new StdInputBuffer();
+const output = new StdOutputBuffer();
 
 /** Get Highlight String Helper
  * 
@@ -27,14 +29,14 @@ let view: View|null = null;
 function getTerminalHighlighted(map:HighlighMap, width:number):string {
     const [_, end] = map;
     const pos = {x:0, y:0};
-    let buffer = getHighlightedFromBuffer(OutputBuffer.value, map, pos, width);
+    let buffer = getHighlightedFromBuffer(output.value, map, pos, width);
 
     if(comparePositions(pos, end) < 0){
         buffer += getHighlightedFromBuffer(prompt, map, pos, width);
     }
 
     if(comparePositions(pos, end) < 0) {
-        buffer += getHighlightedFromBuffer(InputBuffer.value, map, pos, width);
+        buffer += getHighlightedFromBuffer(input.value, map, pos, width);
     }
 
     return buffer;
@@ -152,57 +154,34 @@ class TerminalInterface extends HTMLElement{
      */
     async keyboard(event:CustomEvent<KeyboardData>) {
         const bios = await this.assertReady();
-
         bios.scroll(undefined, true);
+
         const history = getHistory();
         const {key, value} = event.detail;
-
-        switch(key){
-            case "Backspace":
-                InputBuffer.cursor -=1;
-                InputBuffer.delete();
-                break;
-
-            case "Delete":
-                InputBuffer.delete();
-                break;
-                    
+    
+        switch(key){    
             case "ArrowUp":
                 if(history){
                     history.index -= 1;
-                    InputBuffer.value = history.current;
+                    input.value = history.current;
                 }
                 break;
-        
+            
             case "ArrowDown":
                 if(history){
                     history.index += 1;
-                    InputBuffer.value = history.current;
+                    input.value = history.current;
                 }
                 break;
-
-            case "ArrowLeft":
-                InputBuffer.cursor--;
-                break;
-
-            case "ArrowRight":
-                InputBuffer.cursor++;
-                break;
-
+    
             case "ControlLeft":
             case "ControlRight":
                 if(bios.Keyboard.isKeyPressed("KeyC"))
                     await this.copy(bios.highlight);
                 break;
-        
-            case "Enter":
-            case "NumpadEnter":
-                InputBuffer.value += "\n";
-                break;
-        
+            
             default:
-                InputBuffer.add( value );
-                break;
+                input.keyboard(key, value);
         }
     }
 
@@ -213,7 +192,7 @@ class TerminalInterface extends HTMLElement{
     async mouse(event: CustomEvent<MouseButton>) {
         if(event.detail === "Secondary") {
             navigator.clipboard.readText().then((string)=>{
-                InputBuffer.value = string;
+                input.value = string;
             });
         }
     }
@@ -224,14 +203,14 @@ class TerminalInterface extends HTMLElement{
     async render(event:Event) {
         const bios = await this.assertReady();
 
-        bios.print(OutputBuffer.value);
+        bios.print(output.value);
         
         bios.print(prompt);
-        if(!InputBuffer.hide) {
-            bios.print(InputBuffer.value);
+        if(!input.hide) {
+            bios.print(input.value);
         }
     
-        bios.cursor(InputBuffer.cursor-InputBuffer.value.length);
+        bios.cursor(input.cursor-input.value.length);
         bios.scroll();
     }
 

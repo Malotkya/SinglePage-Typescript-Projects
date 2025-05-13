@@ -1,6 +1,6 @@
 import System, {start as startSystem, clear, initSystem, logout} from "./System";
 import { initFilestoreDatabase } from "./System/Files/Backend";
-import { initStdIO } from "./System/Stream/IO";
+import { initStdIO } from "./System/Terminal/StdIO";
 import FileSystem from "./System/Files/Process"
 import { SystemDirectory, startingFiles } from "./System/Initalize";
 import {init as initUsers} from "./System/User";
