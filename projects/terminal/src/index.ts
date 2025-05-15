@@ -1,5 +1,7 @@
 import System, {start as startSystem, clear, initSystem, logout} from "./System";
 import { initFilestoreDatabase } from "./System/Files/Backend";
+import { relative } from "./System/Files/Path";
+import fs from "./System/Files";
 import { initStdIO } from "./System/Terminal/StdIO";
 import FileSystem from "./System/Files/Process"
 import { SystemDirectory, startingFiles } from "./System/Initalize";
@@ -43,6 +45,14 @@ export function init(opts:SystemInitOptions = {}):StartFunction {
 
     System.addApp(new Help());
     System.addApp(new Snake());
+
+    System.addFunction("print", "", async(args)=>{
+        if(args[1] === undefined)
+            throw new Error("No file specified!");
+
+        const buffer = await fs.readfile(relative(args[1]));
+        System.println(buffer.Text());
+    });
 
     const ready = Promise.all([
         initFilestoreDatabase(),
