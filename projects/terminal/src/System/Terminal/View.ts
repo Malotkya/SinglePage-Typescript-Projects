@@ -78,7 +78,10 @@ export interface SystemView {
 export interface UserView extends BiosView{
     on:<N extends keyof ViewEventMap>(name: N, handler:(e:ViewEventMap[N])=>void)=>void
     emit:<N extends keyof ViewEventMap>(e:ViewEventMap[N])=>void
-    print:(x:number, y:number, s:string)=>void
+    print:{
+        (x:number, y:number, s:string, cursor?:number):void
+        (x:number, y:number, s:string, textWrap:boolean):void
+    }
     flip:(x:number, y:number)=>void
     clear:()=>void
     wait:()=>Promise<void>
@@ -146,13 +149,44 @@ export default class View implements BiosView, SystemView, UserView{
             await this.callbacks["render"](event);
     }
 
-    print(x:number, y:number, text:string) {
+    print(x:number, y:number, text:string, cursor?:number|boolean) {
         this.ctx.fillColor = this.font.color;
         this.ctx.fontSize  = this.font.height;
 
-        y++;
-        for(const c of text)
-            this.ctx.fillText(c, (++x)*this.font.width, (y)*(this.font.height+1));
+        if(cursor){
+            if(typeof cursor === "number")
+                cursor -= text.length;
+            else
+                cursor = -1;
+
+            for(let i=0; i<text.length; ++i) {
+                const char = text.charAt(i);
+                if(char === '\n' || char === '\r') {
+                    if(i === cursor)
+                        this.flip(x, y);
+                    x = 0;
+                    y++;
+
+                } else {
+                    this.ctx.fillText(char, (x+1)*this.font.width, (y+1)*(this.font.height+1));
+                    if(i === cursor)
+                        this.flip(x, y);
+                    x++;
+
+                    if(x > this.width) {
+                        x = 0;
+                        y++;
+                    }
+                }
+
+                
+            }
+
+        } else {
+            y += 1;
+            for(const c of text)
+                this.ctx.fillText(c, (++x)*this.font.width, (y)*(this.font.height+1));
+        }
     }
 
     flip(x:number, y:number){
