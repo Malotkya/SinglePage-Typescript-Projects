@@ -359,19 +359,23 @@ export type Log = {
 export async function readLogs(opts:LogOptions = {}):Promise<Log[]> {
     const ref = Queue("readonly");
     let lines:Log[] = decoder.decode(await FsDb.readFile("/var/log/user", USER_SYSTEM_ID, await ref.open())).split("\n").map(s=>{
-        const [start, end] = s.split("-");
-        let index = start.lastIndexOf(" ");
-        const date = new Date(start.substring(0, index).trim());
-        const type = start.substring(index+1).trim() as "Login"|"Logout";
+        if (s){
+            const [start, end] = s.split("-");
+            let index = start.lastIndexOf(" ");
+            const date = new Date(start.substring(0, index).trim());
+            const type = start.substring(index+1).trim() as "Login"|"Logout";
 
-        index = end.indexOf(":");
-        const status = end.substring(0, index) as "Failed"|"Succeeded";
-        const username = end.substring(index+1).trim();
+            index = end.indexOf(":");
+            const status = end.substring(0, index) as "Failed"|"Succeeded";
+            const username = end.substring(index+1).trim();
 
-        return {
-            date, type, status, username
-        };
-    });
+            return {
+                date, type, status, username
+            };
+        }
+        
+        return null;
+    }).filter(l=>l !== null);
     ref.close();
 
     const {type, status, username, before, after} = opts;
