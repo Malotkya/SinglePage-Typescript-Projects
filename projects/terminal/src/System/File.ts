@@ -2,87 +2,12 @@
  * 
  * @author Alex Malotky
  */
-import Queue from "./Kernel/Files/TransactionQueue";
-import * as db from "./Kernel/Files";
+import Queue from "./Kernel/File/TransactionQueue";
+import * as db from "./Kernel/File";
 import {Path} from "./Kernel";
-import User, {getUserById, UserId} from "./User";
+import User, {getUserById} from "./User";
 import FileStream, {ReadFileStream, WriteFileStream, ReadWriteFileStream} from "./Kernel/Stream/File";
 import Encoding, {encodeValue} from "./Kernel/Encoding";
-
-export function parseExecutable(buffer:string, name?:string, skip?:boolean):Process {
-    if(skip === undefined)
-        skip = name === undefined;
-
-    const data:Record<string, string> =  {name: name!};
-    let match:RegExpMatchArray|null = buffer.match(/^([a-z]+):/im);
-    let n:string = "*";
-
-    while(match !== null) {
-        const index = buffer.indexOf(match[0]);
-        const newName = match[1].toLocaleLowerCase();
-        const value = buffer.substring(0, index);
-        buffer = buffer.substring(index+match[0].length);
-
-        data[n.toLocaleLowerCase().trim()] = value;
-        name = newName;
-
-        match = buffer.match(/^([a-z]+):/im);
-    }
-
-    data[n] = buffer
-
-    return fromFile(data, skip);
-}
-
-export async function execute(file:string, skip?:boolean):Promise<Process|null> {
-    file = await Path.format(file);
-    const {base} = Path.parse(file);
-    const ref = Queue("readonly");
-    try {
-        return parseExecutable(await db.executable(file, User.id, await ref.open()), base, skip);
-    } catch (e){
-        if(e instanceof FileError)
-            return null;
-
-        throw e;
-    } finally {
-        ref.close();
-    }
-}
-
-interface WritingExecutableOptions {
-    user?: UserId
-    mode?: number
-    force?: boolean
-    soft?: boolean
-}
-
-export async function writeExecutable(path:string, process:Process, opts:WritingExecutableOptions = {}):Promise<void> {
-    const {user = User.id, mode, force:recursive, soft} = opts;
-    const [name, data] = toFile(process);
-    path = join(path, name);
-
-    let buffer:string;
-    if(data["*"]) {
-        buffer = data["*"];
-    } else {
-        buffer = "";
-        if(data["description"])
-            buffer += "description: "+data["description"]+"\n";
-
-        if(data["history"])
-            buffer += "history: "+data["history"]+"\n";
-        
-        if(data["help"])
-            buffer += "help:\n"+data["help"]+"\n";
-
-        buffer += "main:\n"+data["main"];
-    }
-
-    const ref = Queue("readwrite");
-    await createFile(path, {user, mode, recursive, soft}, await ref.open(), encodeValue(buffer));
-    ref.close();
-}
 
 let location:string = "/";
 
