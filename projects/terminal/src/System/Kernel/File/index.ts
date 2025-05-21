@@ -696,10 +696,15 @@ export async function closeFile(conn:FileConnection, tx:FilestoreTransaction<"re
  * @param {UserId} user 
  * @returns {Promise<FileData>}
  */
-export async function executable(path:string, user:UserId, tx:FilestoreTransaction<"readonly">):Promise<string> {
+export async function executable(path:string, user:UserId, tx:FilestoreTransaction<"readonly">):Promise<FileData> {
     path = normalize(path);
 
-    const info = await tx.objectStore("Directory").get(path);
+    let info = await tx.objectStore("Directory").get(path);
+
+    while(info && info.type === "Link"){
+        path = info.target;
+        info = await tx.objectStore("Directory").get(path);
+    }
     if(info === undefined)
         throw new FileError("Execute", `'${path}' does not Exist!`);
 
@@ -709,9 +714,41 @@ export async function executable(path:string, user:UserId, tx:FilestoreTransacti
     if(!validate(info.mode, info.owner, user, "ExecuteOnly"))
         throw new UnauthorizedError(path, "Execute");
 
-    const data = await tx.objectStore("File").get(path);
-    if(data)
-        return new TextDecoder("utf-8").decode(data);
+    return (await tx.objectStore("File").get(path)) || new Uint8Array();
+}
 
-    return "";
+/** Load Executable Directory
+ * 
+ */
+export async function executableDirectory(path:string, user:UserId, tx:FilestoreTransaction<"readonly">):Promise<Record<string, FileData>> {
+    path = normalize(path);
+    const output:Record<string, FileData> = {};
+
+    const info = await tx.objectStore("Directory").get(path);
+    if(info === undefined)
+        throw new FileError("Execute", `'${path}' does not Exist!`);
+
+    if(info.type !== "Directory")
+        throw new FileError("Execute", `${path} is not a directory!`);
+
+    if(!validate(info.mode, info.owner, user, "ExecuteRead"))
+        throw new UnauthorizedError(path, "Execute");
+
+    for(const file of await _dir(path, tx)) {
+        try {
+             output[file] = await executable(join(path, file), user, tx);
+        } catch (e){
+            try {
+                const dir = await executableDirectory(join(path, file), user, tx);
+                for(const name in dir){
+                    if(output[name] === undefined)
+                        output[name] = dir[name];
+                }
+            } catch (e) {
+                //Skip any followup errors
+            }
+        }
+    }
+
+    return output;
 }
