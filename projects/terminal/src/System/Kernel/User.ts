@@ -3,8 +3,8 @@
  * @author Alex Malotky
  */
 import {hashPassword, verifyPassword, isSecure} from "@/Crypto";
-import Queue from "./Files/TransactionQueue";
-import * as FsDb from "./Files";
+import Queue from "./File/TransactionQueue";
+import * as FsDb from "./File";
 import {formatSystemDate, SYSTEM_ID} from "..";
 import { assignRoles } from "./Role";
 import { startingFiles, InitalizeResult, Success, Failure } from "./Initalize";
