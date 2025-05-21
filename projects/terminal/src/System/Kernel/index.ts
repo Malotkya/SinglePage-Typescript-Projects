@@ -4,8 +4,9 @@ import { hardInit as initUserSystem} from "./User";
 import { Success, Failure, InitalizeResult } from "./Initalize";
 import User from "./User";
 
+import Encoding from "./Encoding";
 import * as Path from "./Path";
-export {Path};
+export {Path, Encoding};
 
 export async function initKernal():Promise<InitalizeResult<undefined>> {
     try {
