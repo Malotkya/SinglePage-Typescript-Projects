@@ -1,4 +1,4 @@
-/** //System/Kernel/Files/Schema
+/** //System/Kernel/File/Schema
  * 
  * @author Alex Malotky
  */

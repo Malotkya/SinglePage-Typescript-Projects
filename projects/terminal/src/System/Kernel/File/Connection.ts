@@ -1,4 +1,4 @@
-/** /System/Kernel/Files/Connection
+/** /System/Kernel/File/Connection
  * 
  * @author Alex Malotky
  */
