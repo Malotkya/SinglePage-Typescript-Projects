@@ -3,8 +3,8 @@
  * @author Alex Malotky
  */
 import Stream, {getNext, Readable, Writeable} from ".";
-import FileConnection from "../Files/Connection"
-import { WriteFileType } from "../Files";
+import FileConnection from "../File/Connection"
+import { WriteFileType } from "../File";
 import { betterToString, sleep } from "@";
 import Encoding from "../Encoding";
 

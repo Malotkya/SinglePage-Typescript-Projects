@@ -1,4 +1,4 @@
-import { initFilestoreDatabase } from "./Files/TransactionQueue";
+import { initFilestoreDatabase } from "./File/TransactionQueue";
 import { initSound } from "./Sound";
 import { hardInit as initUserSystem} from "./User";
 import { Success, Failure, InitalizeResult } from "./Initalize";
@@ -37,8 +37,8 @@ export async function initKernal():Promise<InitalizeResult<undefined>> {
 
 import { getDisplay } from "./Display";
 import DisplayContext from "./Display/Context";
-import Queue from "./Files/TransactionQueue";
-import {getSize, getInfo, remove, copy, move, changeMode, createDirectory, readDirectory, createLink, unlink, createFile, writeToFile, readFile, openFile} from "./Files";
+import Queue from "./File/TransactionQueue";
+import {getSize, getInfo, remove, copy, move, changeMode, createDirectory, readDirectory, createLink, unlink, createFile, writeToFile, readFile, openFile} from "./File";
 import { getBeatFromName } from "./Sound/Beats";
 import { getNoteFromName } from "./Sound/Note";
 import ReadAudioBufferFile, { ReadAudioBuffer } from "./Sound/Buffer";

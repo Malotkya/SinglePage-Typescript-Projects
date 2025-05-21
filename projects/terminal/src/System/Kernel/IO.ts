@@ -4,8 +4,8 @@
  */
 import {BufferReference} from "./Stream";
 import {InputBuffer, OutputBuffer} from "./Stream/IO";
-import Queue from "./Files/TransactionQueue";
-import * as FsDb from "./Files";
+import Queue from "./File/TransactionQueue";
+import * as FsDb from "./File";
 import { encodeValue } from "./Encoding";
 import { sleep } from "@";
 import { SYSTEM_ID } from "..";

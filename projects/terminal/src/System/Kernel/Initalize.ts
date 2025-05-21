@@ -2,8 +2,8 @@
  * 
  * @author Alex Malotky
  */
-import { FileData } from "./Files/Schema";
-import { FilestoreInitData } from "./Files/TransactionQueue";
+import { FileData } from "./File/Schema";
+import { FilestoreInitData } from "./File/TransactionQueue";
 import { functionToString } from "./Script";
 import { DEFAULT_FILE_MODE, DEFAULT_DRIECTORY_MODE } from "./Mode";
 import { UserId } from "./User";
