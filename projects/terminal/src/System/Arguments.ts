@@ -4,19 +4,6 @@
  */
 import { regexSplit } from "@";
 
-/** Unescape Special Character
- * 
- * example: n => newline
- *          t => tab
- *          " => "
- * 
- * @param {string} value 
- * @returns {string}
- */
-function unescape(value:string):string {
-    return JSON.parse(`"\\${value.charAt(0)}"`);
-}
-
 /** Resolve string
  * 
  * @param {string} value 

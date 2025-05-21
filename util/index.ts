@@ -59,6 +59,19 @@ export function betterToString(value:any):string {
     return String(value);
 }
 
+/** Unescape Special Character
+ * 
+ * example: n => newline
+ *          t => tab
+ *          " => "
+ * 
+ * @param {string} value 
+ * @returns {string}
+ */
+function unescape(value:string):string {
+    return JSON.parse(`"\\${value.charAt(0)}"`);
+}
+
 export function regexSplit(value:string, seperator:RegExp):string[]{
     const output:string[] = [];
     let quotes:string|null = null;
