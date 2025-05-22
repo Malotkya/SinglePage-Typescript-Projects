@@ -1,8 +1,8 @@
 import System, { App } from "./System";
-import { FileError } from "./System/Files/Errors";
-import { relative } from "./System/Files/Path";
-import fs from "./System/Files";
-import { InputBuffer } from "./System/Stream/IO";
+import { FileError } from "./System/Kernel/Errors";
+import { relative } from "./System/Kernel/Path";
+import fs from "./System/File";
+import { InputBuffer } from "./System/Stream";
 
 export default class TextEditor extends App {
     constructor(){
