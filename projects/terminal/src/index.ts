@@ -82,6 +82,7 @@ class TerminalInterface extends HTMLElement{
     constructor(){
         super();
         this.bios = null;
+        this.style.height = "fit-content";
 
         this.addEventListener("keyboard", (event:CustomEventInit<KeyboardData>)=>{
             if(event.detail === undefined)
