@@ -3,7 +3,7 @@
  * @author Alex Malotky
  */
 export {WriteFileStream, ReadFileStream, ReadWriteFileStream} from "./Kernel/Stream/File";
-export {InputStream, OutputStream} from "./Kernel/Stream/IO";
+export {InputStream, OutputStream, InputBuffer, OutputBuffer} from "./Kernel/Stream/IO";
 export {ReadStream, WriteStream} from "./Kernel/Stream";
 import { comparePositions, HighlightMap, Position } from "./Display";
 import { BufferValue } from "./Kernel/Stream";
