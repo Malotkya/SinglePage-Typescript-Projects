@@ -2,15 +2,15 @@
  * 
  * @author Alex Malotky
  */
-import {BiosType, HighlighMap, claimBios, viewTemplate} from "./Bios";
-import OpenRegistry from "../Registry";
+import {BiosType, HighlighMap, claimBios, viewTemplate} from "./IO";
+import OpenRegistry from "./Registry";
 import View from "./View";
-import { KeyboardData } from "./Keyboard";
-import { MouseButton } from "./Mouse";
-import { comparePositions } from "./Position";
-import { getHighlightedFromBuffer } from "../Stream";
-import { StdInputBuffer, StdOutputBuffer} from "./StdIO";
-import { getHistory, isRunning } from "..";
+import { KeyboardData } from "./Kernel/Keyboard";
+import { MouseButton } from "./Kernel/Mouse";
+import { comparePositions } from "./Kernel/Display/Position";
+import { getHighlightedFromBuffer } from "./Stream";
+
+import { getHistory, isRunning } from ".";
 import {sleep} from "@";
 
 const DEFAUTL_PROMPT = "";
@@ -50,15 +50,7 @@ export function getView():View|null {
     return view;
 }
 
-export function initView(w?:number, h?:number): View {
-    const {template, init} = viewTemplate();
-    const clear = (v:View|null)=>{
-        view = v;
-        init(v);
-    }
 
-    return new View(template, clear);
-}
 
 /** Terminal Interface
  * 
