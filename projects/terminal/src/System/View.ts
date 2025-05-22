@@ -1,81 +1,28 @@
-/** /System/Terminal/View.ts
+/** /System/View.ts
  * 
  * @author Alex Malotky
  */
-import { KeyboardData } from "./Keyboard";
-import { KeyboardType } from "./Keyboard";
-import { MouseButton, MouseType } from "./Mouse";
-import { HIGHLIGHT_OFFSET, PixelFunction } from "./Bios";
-import Encoding from "../Files/Encoding";
+
+import { HIGHLIGHT_OFFSET } from "./Display";
+import PixelMatrix from "./Kernel/View/PixelMatrix";
+import { KernelView, ViewContext, KernelViewTemplate } from "./Kernel/View";
 import { sleep } from "@";
 import Color from "@/Color";
+import Keyboard, {KeyboardData} from "./Keybaord";
+import Mouse, {MouseButton} from "./Mouse";
 
-interface ViewContext {
-    fillColor: Color
-    fontSize: number
-    fontWidth: number
-    lineCap: "butt"|"round"|"square"
-    lineDashOffset:number
-    lineJoin: "round"|"bevel"|"miter"
-    lineWidth: number
-    miterLimit: number
-    strokeStyle: Color
-    arc:(x:number, y:number, radius:number, startAngle:number, endAngle:number, counterclockwise?:boolean)=>void
-    arcTo:(x1:number, y1:number, x2:number, y2:number, radius:number)=>void
-    beginPath:()=>void
-    clearRect:(x:number, y:number, width:number, height:number)=>void
-    closePath:()=>void
-    ellipse:(x:number, y:number, radiusX:number, radiusY:number, rotation:number, startAngle:number, endAngle:number, counterclockwise?:boolean)=>void
-    fillRect:(x:number, y:number, width:number, height:number)=>void
-    fillText:(text:string, x:number, y:number, maxWidth?:number)=>void
-    lineTo:(x:number, y:number)=>void
-    moveTo:(x:number, y:number)=>void
-    rect:(x:number, y:number, width:number, height:number)=>void
-    roundRect:(x:number, y:number, width:number, height:number, radii:number)=>void
-    setLineDash:(segments:number[])=>void
-    stroke:()=>void
-    strokeRect:(x:number, y:number, width:number, height:number)=>void
-    strokeText:(text:string, x:number, y:number, maxWidth?:number)=>void
-    drawImage:(x:number, y:number, image:Uint8Array|Encoding)=>void
-    accessPixels:{
-        (func: PixelFunction): void;
-        (width: number, height: number, func: PixelFunction): void;
-        (x: number, y: number, height: number, width: number, func: PixelFunction): void;
-    }
-} 
-
-interface SpacialData {
-    width: number
-    height: number
-    color: Color
-}
-
-type ViewEventMap = {
-    "keyboard": CustomEvent<KeyboardData>
-    "mouse":    CustomEvent<MouseButton>
-    "render":   CustomEvent<undefined>
-    "close":    CustomEvent<undefined>
-    [k:string]: CustomEvent<any> 
-}
-
-export interface BiosView {
-    readonly font: SpacialData
-    backgroundColor: Color
-    readonly width: number
-    readonly height: number
-    readonly Mouse: MouseType
-    readonly Keyboard: KeyboardType
-    close: ()=>void
-}
+export type {PixelMatrix}
 
 export interface SystemView {
+    readonly Mouse: typeof Mouse
+    readonly Keyboard: typeof Keyboard
     keyboard:(e:CustomEvent<KeyboardData>)=>Promise<void>
     mouse:(e:CustomEvent<MouseButton>)=>Promise<void>
     render:(e:Event)=>Promise<void>
     close: ()=>void
 }
 
-export interface UserView extends BiosView{
+export interface UserView extends KernelView{
     on:<N extends keyof ViewEventMap>(name: N, handler:(e:ViewEventMap[N])=>void)=>void
     emit:<N extends keyof ViewEventMap>(e:ViewEventMap[N])=>void
     print:{
@@ -88,30 +35,28 @@ export interface UserView extends BiosView{
     readonly ctx: ViewContext
 }
 
-export interface ViewTemplate {
-    font: SpacialData
-    background: SpacialData
-    ctx: ViewContext
-    mouse: MouseType
-    keyboard: KeyboardType
+type ViewEventMap = {
+    "keyboard": CustomEvent<KeyboardData>
+    "mouse":    CustomEvent<MouseButton>
+    "render":   CustomEvent<undefined>
+    "close":    CustomEvent<undefined>
+    [k:string]: CustomEvent<any> 
 }
 
-export default class View implements BiosView, SystemView, UserView{
-    readonly font: ViewTemplate["font"];
-    private _background: ViewTemplate["background"];
+export default class View implements KernelView, SystemView, UserView{
+    readonly font: KernelViewTemplate["font"];
+    private _background: KernelViewTemplate["background"];
     readonly ctx:ViewContext;
-    readonly Mouse: MouseType;
-    readonly Keyboard: KeyboardType;
+    readonly Mouse = Mouse;;
+    readonly Keyboard = Keyboard;
     private callbacks:Record<string, Function>;
     private _running:boolean;
 
-    constructor(template: ViewTemplate, callback:(v:View|null)=>void){
-        const {font, background, ctx, mouse, keyboard} = template;
+    constructor(template: KernelViewTemplate, callback:(v:View|null)=>void){
+        const {font, background, ctx} = template;
         this.font = font;
         this._background = background;
         this.ctx = ctx;
-        this.Mouse = mouse;
-        this.Keyboard = keyboard;
         this.callbacks = {};
         this.callbacks[""] = ()=>callback(null);
         this._running = true;

@@ -1,4 +1,4 @@
-/** /System/Terminal/PixelMatrix
+/** /System/Kernel/View/PixelMatrix
  * 
  * @author Alex Malotky
  */
@@ -36,6 +36,8 @@ interface PixelMatrixIterator {
         value: PixelReference
     }
 }
+
+export type PixelFunction = (m:PixelMatrix)=>void;
 
 /** Pixel Matrix
  * 
