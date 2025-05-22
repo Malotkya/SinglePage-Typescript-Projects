@@ -1,29 +1,28 @@
-import System, {start as startSystem, clear, initSystem, logout} from "./System";
-import { initFilestoreDatabase } from "./System/Files/Backend";
-import { relative } from "./System/Files/Path";
-import fs from "./System/Files";
-import { initStdIO } from "./System/Terminal/StdIO";
-import FileSystem from "./System/Files/Process"
-import { SystemDirectory, startingFiles } from "./System/Initalize";
-import {init as initUsers} from "./System/User";
+import System, {start as startSystem, clear, initSystem, logout, getHistory} from "./System";
+import {Path} from "./System/Kernel";
+import fs from "./System/File";
+import { Directory, Failure, InitalizeResult } from "./System/Initalize";
+import { claimBios, releaseBios, BiosContext } from "./System/IO";
 import Help from "./Help";
 import Snake from "./Snake";
+import { KeyboardData } from "./System/Keybaord";
+import { sleep } from "@";
+import { MouseButton } from "./System/Mouse";
+import { TerminalRegister } from "./System/Registry";
 
 export type StartFunction = ()=>Promise<void>;
 
 export interface SystemInitOptions {
-    rootPassword?:string,
-    files?:SystemDirectory
+    //rootPassword?:string,
+    files?:Directory
 }
+let ready:InitalizeResult<undefined>|null = null;
 
 /** Initalize Terminal Operating System
  * 
  */
 export function init(opts:SystemInitOptions = {}):StartFunction {
-    const {files, rootPassword} = opts;
-    if(files)
-        startingFiles(rootPassword? "0": null, files);
-
+    const {files} = opts;
     System.addFunction("about", "Displays more information about the terminal app.", ()=>{
         System.println("This is an attempt to see what I can create in this environement.");
         System.println("I plan to continue to expand the functionality of thie terminal");
@@ -50,26 +49,123 @@ export function init(opts:SystemInitOptions = {}):StartFunction {
         if(args[1] === undefined)
             throw new Error("No file specified!");
 
-        const buffer = await fs.readfile(relative(args[1]));
+        const buffer = await fs.readfile(Path.relative(args[1]));
         System.println(buffer.Text());
     });
 
-    const ready = Promise.all([
-        initFilestoreDatabase(),
-        initStdIO(),
-        initUsers(rootPassword),
-        initSystem(
-            FileSystem
-        )
-    ]);
+    initSystem(files).then(result=>{
+        ready = result;
+    }).catch(e=>{
+        console.error(e);
+        ready = Failure(new Error(`An unexpected error occured when initalizing the system!`));
+    });
 
-    /** Start Terminal
-     * 
-     */
-    return async function start() {
-        await ready;
-        await startSystem();
+    return async function start(){
+        while(ready === null)
+            await sleep();
+
+        if(ready.type === "Failure"){
+            console.error(ready.reason);
+        } else {
+            await startSystem();
+        }
+    };
+}
+
+/** Terminal Interface
+ * 
+ * Acts as the interface between the User and the System through the Bios.
+ */
+class TerminalInterface extends HTMLElement{
+    bios:BiosContext|null;
+
+    constructor(){
+        super();
+        this.bios = null;
+
+        this.addEventListener("keyboard", (event:CustomEventInit<KeyboardData>)=>{
+            if(event.detail === undefined)
+                throw new Error("Missing Keyboard Detail!");
+
+            if(this.bios){
+                if(this.bios.view !== null){
+                    this.bios.view.keyboard(event as CustomEvent<KeyboardData>);
+                } else {
+                    this.bios.keyboard(event as CustomEvent<KeyboardData>);
+                }
+            }
+        });
+
+        this.addEventListener("mouse", (event:CustomEventInit<MouseButton>)=>{
+            if(event.detail === undefined)
+                throw new Error("Missing Mouse Detail!");
+
+            if(this.bios){
+                if(this.bios.view !== null){
+                    this.bios.view.mouse(event as CustomEvent<MouseButton>);
+                } else {
+                    this.bios.mouse(event as CustomEvent<MouseButton>);
+                }
+            }
+        });
+        
+        /** Render Event Listener
+         * 
+         * Handles the render event
+         */
+        this.addEventListener("render", (event:Event)=>{
+            if(this.bios){
+                if(this.bios.view !== null){
+                    this.bios.view.render(event);
+                } else {
+                    this.bios.render(event);
+                }
+            }
+        });
+    }
+
+    async connectedCallback(){
+        this.innerHTML = "<p class='info'>System is initalizing, this may take a minute!</p>";
+
+        while(ready === null)
+            await sleep();
+
+        if(ready.type === "Failure"){
+            this.innerHTML = `<p class='error'>System failed with error:<br>${ready.reason.message}</p>`;
+            return;
+        }
+
+        let reg:TerminalRegister;
+        try {
+            reg = await System.getRegister("terminal");
+        } catch (e) {
+            console.error(e);
+            this.innerHTML = `<p class='error'>Failed to load the register!</p>`;
+            return;
+        }
+
+        const result = await claimBios(this, {
+            backgroundColor: reg.get("background").get("color"),
+            fontColor: reg.get("font").get("color"),
+            fontSize: reg.get("font").get("size"),
+            width: reg.get("width"),
+            height: reg.get("height"),
+            getHistory
+        });
+
+        if(result.type === "Failure") {
+            console.error(result.reason);
+            this.innerHTML = `<p class='error'>Bios failed with error:<br>${result.reason.message}</p>`;
+            return;
+        } else {
+            this.bios = result.value;
+        }
+    }
+
+    disconnectedCallback(){
+        releaseBios(this);
     }
     
 }
 
+customElements.define("terminal-interface", TerminalInterface);
