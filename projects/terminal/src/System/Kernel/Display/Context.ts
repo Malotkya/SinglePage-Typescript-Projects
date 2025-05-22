@@ -12,19 +12,27 @@ export const Y_OFFSET = 5;
 export const INTERFACE_OFFSET = 10;
 
 //Public Types
-export type HighlighMap = [Position, Position];
+export type HighlightMap = [Position, Position];
 
 export default interface DisplayContext extends CanvasRenderingContext2D, BaseDisplayInterface{
     readonly interface: HTMLElement
     char: Dimensions
+    fontFace: string
 }
 
-export interface BaseDisplayInterface extends Dimensions {
-    backgroundColor: Color
-    fontColor: Color
-    fontFace: string
+export interface BaseDisplayInterface extends DisplayInitInfo {
+    readonly x:number
+    readonly y:number
+    readonly highlight:HighlightMap|null
+    readonly scrollLocked:boolean
+}
+
+export interface DisplayInitInfo extends Dimensions {
+    backgroundColor: Color,
+    fontColor: Color,
     fontSize: number
 }
+
 
 /** Display Context
  * 
@@ -32,7 +40,7 @@ export interface BaseDisplayInterface extends Dimensions {
  * @param {BaseDisplayInterface} data 
  * @returns {DisplayContext}
  */
-export default function DisplayContext(target:HTMLElement, data:BaseDisplayInterface):DisplayContext{
+export default function DisplayContext(target:HTMLElement, data:DisplayInitInfo):DisplayContext{
     const canvas = document.createElement("canvas");
     canvas.tabIndex = 1;
 

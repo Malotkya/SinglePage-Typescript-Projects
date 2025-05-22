@@ -3,32 +3,38 @@
  * @author Alex Malotky
  */
 import { Success, Failure, InitalizeResult } from "../Initalize";
-import DisplayContext, {BaseDisplayInterface, HighlighMap, Y_OFFSET} from "./Context";
+import DisplayContext, {DisplayInitInfo, HighlightMap, Y_OFFSET, INTERFACE_OFFSET} from "./Context";
 import {normalizePositions} from "./Position";
+import { KernelView, KernelViewTemplate, KernelViewCallback } from "../View";
+import PixelMatrix, {PixelFunction} from "../View/PixelMatrix";
+import Encoding from "../Encoding";
+import Dimensions from "./Dimension";
+import Color from "@/Color";
 import * as Mouse from "../Mouse";
 import * as Keyboard from "../Keyboard";
 
-const HIGHLIGHT_OFFSET = 1;
+export const HIGHLIGHT_OFFSET = 1;
 
 //Display Context
 let ctx:DisplayContext|null = null;
+let view:KernelView|null = null;
 
 //Private Vairables
 let x:number = 0;
 let y:number = 0;
 let growHeight:number = 0;
 let scrollLocked:boolean = true;
-let highlightMap:HighlighMap|null = null;
+let highlightMap:HighlightMap|null = null;
 
 /** Initalize Display
  * 
  * Starts Render Loop
  * 
  * @param {HTMLElement} target 
- * @param {BaseDisplayInterface} data 
+ * @param {DisplayInitInfo} data 
  * @returns {InitalizeResult}
  */
-export function initDisplay(target:HTMLElement, data:BaseDisplayInterface):InitalizeResult<DisplayContext> {
+export function initDisplay(target:HTMLElement, data:DisplayInitInfo):InitalizeResult<DisplayContext> {
     try {
         ctx = DisplayContext(target, data);
     } catch (e: any){
@@ -37,6 +43,29 @@ export function initDisplay(target:HTMLElement, data:BaseDisplayInterface):Inita
 
         return Failure(e);
     }
+
+    Object.defineProperties(ctx, {
+            x: {
+                get():number {
+                    return x
+                }
+            },
+            y: {
+                get():number{
+                    return y;
+                }
+            },
+            scrollLocked: {
+                get():boolean {
+                    return scrollLocked
+                }
+            },
+            highlight: {
+                get():HighlightMap|null {
+                    return highlightMap;
+                }
+            }
+        });
 
     ctx.interface.addEventListener("keyup", (e)=>Keyboard.reportKeyUp(e));
     ctx.interface.addEventListener("keydown", (e)=>{
@@ -73,7 +102,10 @@ export function initDisplay(target:HTMLElement, data:BaseDisplayInterface):Inita
  * 
  * @param {HTMLElement} target 
  */
-export function releaseDisplay(target:HTMLElement) {
+export function releaseDisplay(target:HTMLElement):void {
+    if(view !== null)
+        throw new Error("Unable to release bios when View is being used!");
+
     if(ctx?.interface === target) {
         ctx = null;
     }
@@ -254,4 +286,212 @@ export function cursor(cx:number = 0, cy:number = 0):void {
     }
         
     _inverse(x, y);
+}
+
+/** Get View Data
+ * 
+ * @param {number} width
+ * @param {number} height
+ * @returns {Object}
+*/
+export function viewTemplate(): {template: KernelViewTemplate, init:KernelViewCallback}
+export function viewTemplate(width:number,  height:number): {template: KernelViewTemplate, init:KernelViewCallback}
+export function viewTemplate(w:number = ctx!.width * ctx!.char.width, h:number = ctx!.height * ctx!.char.height): {template: KernelViewTemplate, init:KernelViewCallback}{
+    if(ctx === null)
+        throw new Error("Bio is not yet claimed!");
+    
+    if(w >= document.body.clientWidth)
+        throw new Error("Width is to large!");
+
+    if(h >= document.body.clientHeight)
+        throw new Error("Height is to large!");
+
+    _clear();
+    ctx.canvas.width = w;
+    ctx.canvas.height = h;
+    ctx.interface.style.width = `${w}px`;
+    ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+
+    let size:Dimensions = JSON.parse(JSON.stringify(ctx!.char));
+    return {
+        init:(v:KernelView|null)=>{
+            view = v
+            if(v === null && ctx){
+                const w = ctx.width * ctx.char.width;
+                const h = (growHeight * ctx.char.height)+Y_OFFSET;
+
+                ctx.canvas.width = w;
+                ctx.canvas.height = h;
+                ctx.interface.style.width = `${w}px`;
+                ctx.interface.style.height = `${h+INTERFACE_OFFSET}px`;
+            }
+        },
+        template: {
+            font: {
+                width: ctx!.char.width,
+                height: ctx!.char.height,
+                color: ctx!.fontColor
+            },
+            background: {
+                color: ctx!.backgroundColor,
+                width: w,
+                height: h
+            },
+            ctx: {
+                get fillColor() {
+                    return Color.from(ctx!.fillStyle as string)
+                },
+                set fillColor(c:Color) {
+                    ctx!.fillStyle = c.toString();
+                },
+                get fontSize() {
+                    return size.height;
+                },
+                set fontSize(n:number){
+                    size.height = n;
+                    ctx!.font = `${n-1}px monospace`;
+                },
+                get fontWidth() {
+                    return size.width;
+                },
+                set fontWidth(n:number){
+                    size.width = n;
+                    ctx!.letterSpacing = `${n - (size.height / 2)}px`;
+                },
+                get lineCap() {
+                    return ctx!.lineCap
+                },
+                set lineCap(s:"butt"|"round"|"square") {
+                    ctx!.lineCap = s;
+                },
+                get lineDashOffset() {
+                    return ctx!.lineDashOffset
+                },
+                set lineDashOffset(n:number) {
+                    ctx!.lineDashOffset = n;
+                },
+                get lineJoin() {
+                    return ctx!.lineJoin
+                },
+                set lineJoin(s:"round"|"bevel"|"miter"){
+                    ctx!.lineJoin = s;
+                },
+                get lineWidth(){
+                    return ctx!.lineWidth;
+                },
+                set lineWidth(n:number){
+                    ctx!.lineWidth = n;
+                },
+                get miterLimit(){
+                    return ctx!.miterLimit;
+                },
+                set miterLimit(n:number){
+                    ctx!.miterLimit = n;
+                },
+                get strokeStyle() {
+                    return Color.from(ctx!.strokeStyle as string);
+                },
+                set strokeStyle(c:Color){
+                    ctx!.strokeStyle = c.toString();
+                },
+                arc(x:number, y:number, radius:number, startAngle:number, endAngle:number, counterclockwise?:boolean){
+                    ctx!.arc(x, y, radius, startAngle, endAngle, counterclockwise);
+                }, 
+                arcTo(x1:number, y1:number, x2:number, y2:number, radius:number){
+                    ctx!.arcTo(x1, y1, x2, y2, radius);
+                },
+                beginPath(){
+                    ctx!.beginPath();
+                },
+                clearRect(x:number, y:number, width:number, height:number){
+                    ctx!.clearRect(x, y, width, height);
+                }, 
+                closePath(){
+                    ctx!.closePath();
+                },
+                ellipse(x:number, y:number, radiusX:number, radiusY:number, rotation:number, startAngle:number, endAngle:number, counterclockwise?:boolean){
+                    ctx!.ellipse(x, y, radiusX, radiusY, rotation, startAngle, endAngle, counterclockwise);
+                },
+                fillRect(x:number, y:number, width:number, height:number){
+                    ctx!.fillRect(x, y, width, height);
+                }, 
+                fillText(text:string, x:number, y:number, maxWidth?:number){
+                    ctx!.fillText(text, x, y, maxWidth);
+                },
+                lineTo(x:number, y:number){
+                    ctx!.lineTo(x, y);
+                },
+                moveTo(x:number, y:number){
+                    ctx!.moveTo(x, y);
+                }, 
+                rect(x:number, y:number, width:number, height:number){
+                    ctx!.rect(x, y, width, height);
+                },
+                roundRect(x:number, y:number, width:number, height:number, radii:number){
+                    ctx!.roundRect(x, y, width, height, radii);
+                },
+                setLineDash(segments:number[]){
+                    ctx!.setLineDash(segments);
+                },
+                stroke(){
+                    ctx!.stroke();
+                },
+                strokeRect(x:number, y:number, width:number, height:number){
+                    ctx!.strokeRect(x, y, width, height);
+                }, 
+                strokeText(text:string, x:number, y:number, maxWidth?:number){
+                    ctx!.strokeText(text, x, y, maxWidth);
+                },
+                drawImage(x:number, y:number, image:Uint8Array|Encoding){
+                    if(image instanceof Encoding)
+                        image = image.Array(8);
+        
+                    const width:number  = (image[0] << 8) + image[1];
+                    const height:number = (image[2] << 8)+ image[3];
+
+                    this.accessPixels(x, y, width, height, (m)=>{
+                        let offset = 4;
+                        for(const p of m){
+                            p.red = image[++offset];
+                            p.green = image[++offset];
+                            p.blue = image[++offset];
+                        }
+                    });
+                },
+                accessPixels(x:number|PixelFunction, y?:number, h?:number|PixelFunction, w?:number, func?:PixelFunction):void {
+                    if(typeof x !== "number") {
+                        func = x;
+                        w = ctx!.canvas.width-1;
+                        h = ctx!.canvas.height-1;
+                        x = 0;
+                        y = 0;
+                    } else if(typeof h !== "number") {
+                        w = x;
+                        h = y;
+                        x = 0;
+                        y = 0;
+                    }
+                
+                    if(typeof w !== "number" || typeof h !== "number" || typeof func !== "function")
+                        throw new TypeError("Invaliad Arguments!");
+                
+                    if(x === undefined || x < 0 || x > w)
+                        throw new TypeError("X is out of bounds!");
+                
+                    if(y === undefined || y < 0 || y > h)
+                        throw new TypeError("Y is out of bounds!");
+                
+                    if(w < 1 || (w+x) > ctx!.canvas.width)
+                        throw new TypeError("Width is out of bounds!");
+                
+                    if(h < 1 || (h+y) > ctx!.canvas.height)
+                        throw new TypeError("Height is out of bounds!");
+                
+                    const image = ctx!.getImageData(x, y, w, h);
+                    func(new PixelMatrix(image));
+                    ctx!.putImageData(image, x, y);
+                }
+            }
+        }
+    };
 }
