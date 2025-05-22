@@ -71,6 +71,7 @@ export default function DisplayContext(target:HTMLElement, data:DisplayInitInfo)
     gl.interface.style.height = `${h+INTERFACE_OFFSET}px`;
     gl.canvas.height = h;
 
+    target.innerHTML = "";
     target.appendChild(canvas);
     canvas.focus();
 
