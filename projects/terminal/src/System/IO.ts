@@ -27,6 +27,7 @@ export interface BiosContext{
     keyboard:(e:CustomEvent<KeyboardData>)=>Promise<void>
     mouse:(e:CustomEvent<MouseButton>)=>Promise<void>
     render:(e:Event)=>Promise<void>
+    readonly view:SystemView|null
     setHeight:(value:number)=>void
     setWidth:(value:number)=>void
     setBackground:(value:Color)=>void
@@ -118,6 +119,10 @@ export async function claimBios(target:HTMLElement, data:BiosInitData):Promise<I
         
             cursor(InputBuffer.cursor-InputBuffer.value.length);
             scroll();
+        },
+
+        get view():SystemView|null {
+            return view;
         },
 
         setHeight(value:number) {
