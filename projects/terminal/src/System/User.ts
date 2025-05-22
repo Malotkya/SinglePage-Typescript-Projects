@@ -6,10 +6,11 @@ import * as db from "./Kernel/User";
 import Role, {assignRoles, hasRole} from "./Kernel/Role";
 import { isSecure } from "@/Crypto";
 import System, {clear, formatSystemDate} from ".";
-import fs from "./File";
 import { startingFiles } from "./Kernel/Initalize";
 
 export const RequestUserSystemId = db.requestSystemUserId;
+export const logout = db.logout;
+export default db.default;
 export type UserId = db.UserId;
 
 startingFiles(null, {
@@ -151,8 +152,6 @@ export async function updateUser(username:string, opts:UpdateUserOptions):Promis
     });
 }
 
-
-
 /** Welcome the user after logging in
  * 
  * @param {string} username 
@@ -165,5 +164,3 @@ async function welcome(username:string){
     else
         System.println(`Welcome ${username}. This is your first time logging in!`);
 }
-
-export default db.default;

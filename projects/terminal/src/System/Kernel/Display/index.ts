@@ -35,6 +35,9 @@ let highlightMap:HighlightMap|null = null;
  * @returns {InitalizeResult}
  */
 export function initDisplay(target:HTMLElement, data:DisplayInitInfo):InitalizeResult<DisplayContext> {
+    if(ctx !== null)
+        return Failure(new Error("Display is already claimed!"));
+    
     try {
         ctx = DisplayContext(target, data);
     } catch (e: any){
@@ -253,7 +256,7 @@ export function print(s:string):void {
  */
 export function scroll(targetHeight:number = y, override:boolean = scrollLocked):void {
     if(ctx === null)
-        throw new Error("Bios is not connected!");
+        throw new Error("Display is not connected!");
     
     if(targetHeight < 0 || targetHeight >= growHeight || override === false)
         return;
@@ -298,7 +301,7 @@ export function viewTemplate(): {template: KernelViewTemplate, init:KernelViewCa
 export function viewTemplate(width:number,  height:number): {template: KernelViewTemplate, init:KernelViewCallback}
 export function viewTemplate(w:number = ctx!.width * ctx!.char.width, h:number = ctx!.height * ctx!.char.height): {template: KernelViewTemplate, init:KernelViewCallback}{
     if(ctx === null)
-        throw new Error("Bio is not yet claimed!");
+        throw new Error("Display is not yet claimed!");
     
     if(w >= document.body.clientWidth)
         throw new Error("Width is to large!");

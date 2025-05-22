@@ -19,6 +19,7 @@ export interface SystemView {
     keyboard:(e:CustomEvent<KeyboardData>)=>Promise<void>
     mouse:(e:CustomEvent<MouseButton>)=>Promise<void>
     render:(e:Event)=>Promise<void>
+    wait:()=>Promise<void>
     close: ()=>void
 }
 
