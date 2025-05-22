@@ -8,9 +8,8 @@ import Queue from "./File/TransactionQueue";
 import * as FsDb from "./File";
 import { encodeValue } from "./Encoding";
 import { sleep } from "@";
-import { SYSTEM_ID } from "..";
 import { Failure, InitalizeResult, startingFiles, Success } from "./Initalize";
-
+import { ROOT_USER_ID } from "./User";
 //File Locations
 const STDIN_FILE  = "/sys/stdin";
 const STDOUT_FILE = "/sys/stdout";
@@ -21,7 +20,7 @@ let output:BufferReference<string> = {value: ""};
 const queueRef = Queue("readwrite");
 let ready:boolean = false;
 
-startingFiles(SYSTEM_ID, {
+startingFiles(ROOT_USER_ID, {
     "sys": {
         stdin: "",
         stdout: ""
@@ -32,7 +31,7 @@ startingFiles(SYSTEM_ID, {
 export async function initStdIO():Promise<InitalizeResult<undefined>>{
     const tx = await queueRef.open();
     try {
-        const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, SYSTEM_ID, tx as any));
+        const start = new TextDecoder("utf-8").decode(await FsDb.readFile(STDOUT_FILE, ROOT_USER_ID, tx as any));
         if(start)
             output.value = start + output.value;
     } catch (e:any){
@@ -55,7 +54,7 @@ export async function initStdIO():Promise<InitalizeResult<undefined>>{
 async function save(file:string, ref:BufferReference<string> ) {
     while(!ready)
         await sleep();
-    await FsDb.writeToFile(file, {user:SYSTEM_ID, type: "Rewrite"}, encodeValue(ref.value), await queueRef.open());
+    await FsDb.writeToFile(file, {user:ROOT_USER_ID, type: "Rewrite"}, encodeValue(ref.value), await queueRef.open());
     queueRef.close();
 }
 
