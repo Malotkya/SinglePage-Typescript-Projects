@@ -13,17 +13,20 @@ import Mouse, {MouseButton} from "./Mouse";
 
 export type {PixelMatrix}
 
-export interface SystemView {
+interface GlobalView {
     readonly Mouse: typeof Mouse
     readonly Keyboard: typeof Keyboard
-    keyboard:(e:CustomEvent<KeyboardData>)=>Promise<void>
-    mouse:(e:CustomEvent<MouseButton>)=>Promise<void>
-    render:(e:Event)=>Promise<void>
     wait:()=>Promise<void>
     close: ()=>void
 }
 
-export interface UserView extends KernelView{
+export interface SystemView extends GlobalView{
+    keyboard:(e:CustomEvent<KeyboardData>)=>Promise<void>
+    mouse:(e:CustomEvent<MouseButton>)=>Promise<void>
+    render:(e:Event)=>Promise<void>
+}
+
+export interface UserView extends KernelView, GlobalView {
     on:<N extends keyof ViewEventMap>(name: N, handler:(e:ViewEventMap[N])=>void)=>void
     emit:<N extends keyof ViewEventMap>(e:ViewEventMap[N])=>void
     print:{
@@ -32,7 +35,6 @@ export interface UserView extends KernelView{
     }
     flip:(x:number, y:number)=>void
     clear:()=>void
-    wait:()=>Promise<void>
     readonly ctx: ViewContext
 }
 
