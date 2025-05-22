@@ -13,8 +13,8 @@ import { getHighlightedFromBuffer } from "./Stream";
 import Color from "@/Color";
 
 let view:SystemView|null = null;
-const input = new StdInputBuffer();
-const output = new StdOutputBuffer();
+export const InputBuffer = new StdInputBuffer();
+export const OutputBuffer = new StdOutputBuffer();
 
 const DEFAUTL_PROMPT = "";
 let prompt = DEFAUTL_PROMPT;
@@ -71,14 +71,14 @@ export async function claimBios(target:HTMLElement, data:BiosInitData):Promise<I
                 case "ArrowUp":
                     if(history){
                         history.index -= 1;
-                        input.value = history.current;
+                        InputBuffer.value = history.current;
                     }
                     break;
                     
                 case "ArrowDown":
                     if(history){
                         history.index += 1;
-                        input.value = history.current;
+                        InputBuffer.value = history.current;
                     }
                     break;
             
@@ -89,7 +89,7 @@ export async function claimBios(target:HTMLElement, data:BiosInitData):Promise<I
                     break;
                     
                 default:
-                    input.keyboard(key, value);
+                    InputBuffer.keyboard(key, value);
             }
         },
 
@@ -100,7 +100,7 @@ export async function claimBios(target:HTMLElement, data:BiosInitData):Promise<I
         async mouse(event: CustomEvent<MouseButton>) {
             if(event.detail === "Secondary") {
                 navigator.clipboard.readText().then((string)=>{
-                    input.value = string;
+                    InputBuffer.value = string;
                 });
             }
         },
@@ -109,14 +109,14 @@ export async function claimBios(target:HTMLElement, data:BiosInitData):Promise<I
          * 
          */
         async render(event:Event) {
-            print(output.value);
+            print(OutputBuffer.value);
             
             print(prompt);
-            if(!input.hide) {
-                print(input.value);
+            if(!InputBuffer.hide) {
+                print(InputBuffer.value);
             }
         
-            cursor(input.cursor-input.value.length);
+            cursor(InputBuffer.cursor-InputBuffer.value.length);
             scroll();
         },
 
@@ -199,14 +199,14 @@ export function initalizeView(width?:number, height?:number):View {
 async function _copy(map:HighlightMap, width:number):Promise<void> {
     const [_, end] = map;
     const pos = {x:0, y:0};
-    let buffer = getHighlightedFromBuffer(output.value, map, pos, width);
+    let buffer = getHighlightedFromBuffer(OutputBuffer.value, map, pos, width);
 
     if(comparePositions(pos, end) < 0){
         buffer += getHighlightedFromBuffer(prompt, map, pos, width);
     }
 
     if(comparePositions(pos, end) < 0) {
-        buffer += getHighlightedFromBuffer(input.value, map, pos, width);
+        buffer += getHighlightedFromBuffer(InputBuffer.value, map, pos, width);
     }
 
     if(map){
