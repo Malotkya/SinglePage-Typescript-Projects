@@ -9,7 +9,7 @@ import OpenConfigFile, {GlobalConfig, ConfigFile, Section, ConfigSection} from "
 import {RegisterTypes, RegisterTypeMap, toRegesterType, ConfigTypeMap, fromRegertserType, isRegisterValue} from "./types";
 
 type ObjectFormat  = Record<string, RegisterTypes>;
-type RegisterFormat = Record<string, RegisterTypes|ObjectFormat>;
+export type RegisterFormat = Record<string, RegisterTypes|ObjectFormat>;
 
 type TypeFormat<T extends RegisterTypes> = ConfigTypeMap[T];
 type SectionFormat<OF extends ObjectFormat, K extends (keyof OF)&string>
@@ -69,3 +69,19 @@ export class Register<F extends RegisterFormat> {
 export default async function OpenRegister<F extends RegisterFormat>(value:string, format:F, mode:"ReadOnly"|"ReadWrite" = "ReadOnly") {
     return new Register(format, await OpenConfigFile<GlobalFormat<F, (keyof F)&string>>(`/etc/${value}.cf`, mode));
 }
+
+export const SystemRegistries = {
+    terminal: {
+        height: "number",
+        width: "number",
+        background: {
+            color: "color"
+        },
+        font: {
+            color: "color",
+            size: "number"
+        }
+    }
+} as const;
+
+export type TerminalRegister = Register<typeof SystemRegistries["terminal"]>;

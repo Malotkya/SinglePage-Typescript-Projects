@@ -14,6 +14,7 @@ import SystemIterator from "./Iterator";
 import { start as startUsers, logout as logoutUsers } from "./User";
 import { Directory, Failure, InitalizeResult, Success, startingFiles } from "./Initalize";
 import { initKernal } from "./Kernel";
+import OpenRegister, {Register, SystemRegistries, RegisterFormat} from "./Registry";
 
 export {App};
 
@@ -40,6 +41,8 @@ const callstack: Process[] = [];
 const stdin = new InputStream(InputBuffer);
 const stdout = new OutputStream(OutputBuffer);
 let running = false;
+
+type SystemRegisterMap = typeof SystemRegistries;
 
 /** System Interface
  * 
@@ -281,6 +284,25 @@ const System = {
      */
     get cwd():string {
         return currentLocation();
+    },
+
+    getRegister: function getRegister(name:string, key?:any, mode?:"ReadWrite"|"ReadOnly"):Promise<Register<any>> {
+        if(typeof key === "string"){
+            mode = key as "ReadWrite"|"ReadOnly";
+            key = undefined;
+        }
+
+        if(key === undefined){
+            key = SystemRegistries[name as keyof SystemRegisterMap];
+
+            if(key === undefined)
+                throw new TypeError("Missing key for register!");
+        }
+
+        return OpenRegister(name, key, mode);
+    } as {
+        <N extends keyof SystemRegisterMap>(name:N, mode?:"ReadWrite"|"ReadOnly"):Promise<Register<SystemRegisterMap[N]>>,
+        <K extends RegisterFormat>(name:string, key:K, mode?:"ReadWrite"|"ReadOnly"):Promise<Register<K>>
     }
 }
 export default System;
