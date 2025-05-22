@@ -48,6 +48,7 @@ export interface RemoveOptions {
 export interface WriteFileOptions {
     type?: db.WriteFileType
     force?: boolean
+    mode?: number
 }
 
 //////////////////////////// File System Interface ///////////////////////////////
@@ -335,18 +336,12 @@ const fs = {
 
         const ref = Queue("readwrite");
         const tx = await ref.open();
-        if(undefined !== await db.getInfo(path, tx as any)) {
-            await db.writeToFile(path, {
-                user: User.id,
-                type: opts.type || "Override"
-            }, encodeValue(data), tx);
-
-        } else if(opts.force){
-            await db.createFile(path, {
-                recursive: true,
-                user: User.id
-            }, tx, data);
-        }
+        await db.writeToFile(path, {
+            user: User.id,
+            type: opts.type || "Override",
+            force: opts.force,
+            mode: opts.mode
+        }, encodeValue(data), tx);
         ref.close();
     },
 

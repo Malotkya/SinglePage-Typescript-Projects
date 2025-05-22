@@ -7,7 +7,6 @@ import * as Path from "./Path";
 import { executable, executableDirectory, writeToFile } from "./File";
 import Encoding, {encodeValue} from "./Encoding";
 import User, {UserId} from "./User";
-import { FileError } from "./Errors";
 
 /** Function To String
  * 
@@ -96,6 +95,7 @@ export async function loadDirectory(path:string, id:UserId = User.id):Promise<Re
 export interface WritingExecutableOptions {
     user?: UserId
     force?: boolean
+    mode?: number
 }
 
 /** Write Script Data to File
@@ -105,7 +105,7 @@ export interface WritingExecutableOptions {
  * @param {WritingExecutableOptions} opts 
  */
 export async function writeScript(path:string, data:Record<string, string>, opts:WritingExecutableOptions = {}):Promise<void> {
-    const {user = User.id, force} = opts;
+    const {user = User.id, force, mode} = opts;
 
     let buffer:string;
     if(data["*"]) {
@@ -125,7 +125,7 @@ export async function writeScript(path:string, data:Record<string, string>, opts
     }
 
     const ref = Queue("readwrite");
-    await writeToFile(path, {user, force, type:"Rewrite"}, encodeValue(buffer), await ref.open());
+    await writeToFile(path, {user, force, mode, type:"Rewrite"}, encodeValue(buffer), await ref.open());
     ref.close();
 }
 

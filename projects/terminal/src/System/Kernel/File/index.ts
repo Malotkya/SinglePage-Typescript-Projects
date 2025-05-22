@@ -18,6 +18,7 @@ interface FileOptions {
     user: UserId|FileConnection,
     type: WriteFileType
     force?:boolean
+    mode?:number
 }
 
 //Create Directory Options
