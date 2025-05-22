@@ -48,15 +48,14 @@ export type InitalizeValue = {
     value:[UserId, FilestoreInitData]
 }
 
-const fileMap:Record<string, Directory> = {};
+const fileMap:Record<string, Directory[]> = {};
 
 export function startingFiles(user:UserId, dir:Directory) {
     const name = String(user);
-    if(fileMap[String(user)]) {
-        merge(fileMap[name], dir);
-    } else {
-        fileMap[name] = dir;
-    }
+    if(fileMap[name] === undefined)
+        fileMap[name] = [];
+
+    fileMap[name].push(dir);
 }
 
 export function InitIterator():InitalizeIterator{
@@ -76,8 +75,14 @@ export function InitIterator():InitalizeIterator{
         next() {
             const name = list.shift();
             if(name !== undefined){
-                return {value:[isNaN(Number(name))? null: name, convert(fileMap[name])]}
+                const map = fileMap[name];
+                const value = map.shift() || {};
+                while(map.length > 0)
+                    merge(value, map.shift())
+                
+                return {value:[isNaN(Number(name))? null: name, convert(value)]}
             }
+
             return {
                 done: true,
                 value: <any>[]
