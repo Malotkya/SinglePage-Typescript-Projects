@@ -5,16 +5,15 @@
 import App from "./App";
 import Arguments from "./Arguments";
 import History from "./History";
-import { initView, getView, setPrompt } from "./Terminal";
-import { InputStream, OutputStream } from "./Stream/IO";
-import { StdInputBuffer, StdOutputBuffer } from "./Terminal/StdIO";
-import { UserView } from "./Terminal/View";
-import { execute, FilestoreInitData, parseExecutable, writeExecutable } from "./Files/Backend";
-import { currentLocation } from "./Files";
+import { initalizeView, getView, setPrompt, InputBuffer, OutputBuffer } from "./IO";
+import { InputStream, OutputStream } from "./Stream";
+import { UserView } from "./View";
+import {execute, writeScript, loadDirectory} from "./Script";
+import { currentLocation } from "./File";
 import SystemIterator from "./Iterator";
 import { start as startUsers, logout as logoutUsers } from "./User";
-import { extract } from "./Initalize";
-import { loadScripts } from "./Script";
+import { Directory, Failure, InitalizeResult, Success, startingFiles } from "./Initalize";
+import { initKernal } from "./Kernel";
 
 export {App};
 
@@ -38,8 +37,8 @@ const systemProcess:Map<string, Process> = new Map();
 const loadedProcess:Map<string, Process> = new Map();
 const history:Record<string, History> = {}; 
 const callstack: Process[] = [];
-const stdin = new InputStream(new StdInputBuffer());
-const stdout = new OutputStream(new StdOutputBuffer());
+const stdin = new InputStream(InputBuffer);
+const stdout = new OutputStream(OutputBuffer);
 let running = false;
 
 /** System Interface
@@ -115,7 +114,7 @@ const System = {
 
     async resetProcess() {
         loadedProcess.clear();
-        for(const process of await loadScripts("/bin")){
+        for(const process of await loadDirectory("/bin")){
             this.loadProcess(process);
         }
     },
@@ -216,8 +215,11 @@ const System = {
      * 
      * @returns {UserView}
      */
-    getView(w?:number, h?:number): UserView{
-        return initView(w, h);
+    getView: function getView(w?:number, h?:number): UserView {
+        return initalizeView(w!, h!);
+    } as {
+        ():UserView,
+        (width:number, height:number):UserView
     },
 
     /** System History
@@ -348,7 +350,6 @@ export async function start(){
     running = true;
 
     await startUsers();
-    await System.resetProcess();
     history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 
     while(running) {
@@ -366,40 +367,35 @@ export async function logout(){
     history[SYSTEM_NAME] = new History(SYSTEM_NAME);
 }
 
-export async function initSystem(...args:(FilestoreInitData|Record<string, MainFunction>)[]):Promise<void> {
-    for(const bin of args){
-        for(const name in bin) {
-            const value = extract(bin[name]);
-            switch(typeof value) {
-                case "object":
-                    await initSystem(value as FilestoreInitData)
-                    break;
+export async function initSystem(files:Directory = {}):Promise<InitalizeResult<undefined>> {
+    startingFiles(SYSTEM_ID, files);
+    
+    const result = await initKernal();
+    if(result.type === "Failure")
+        return result;
 
-                case "function":
-                    systemProcess.set(
-                        validateCall(name, true),
-                        {call: name, main: value as MainFunction, history: false}
-                    );
-                    break;
+    try {
+        await System.resetProcess();
+    } catch (e:any){
+        if( !(e instanceof Error) )
+            e = new Error(String(e));
 
-                default:
-                    systemProcess.set(
-                        validateCall(name, true), 
-                        parseExecutable(value))
-            }
+        return Failure(e);
+    }
+
+    for(let process of systemProcess.values()) {
+        try {
+            await writeScript("/sys/bin", process, {
+                user: SYSTEM_ID,
+                force: true,
+                mode: 711
+            });
+        } catch (e){
+            console.warn(e);
         }
     }
 
-    await System.resetProcess();
-
-    for(let process of systemProcess.values()) {
-        await writeExecutable("/sys/bin", process, {
-            user: SYSTEM_ID,
-            force: true,
-            soft: true,
-            mode: 711
-        });
-    }
+    return Success();
 }
 
 /** Clear Output
