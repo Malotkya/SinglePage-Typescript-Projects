@@ -1,6 +1,11 @@
+/** /System/Stream
+ * 
+ * @author Alex Malotky
+ */
 export {WriteFileStream, ReadFileStream, ReadWriteFileStream} from "./Kernel/Stream/File";
 export {InputStream, OutputStream} from "./Kernel/Stream/IO";
 export {ReadStream, WriteStream} from "./Kernel/Stream";
+import { comparePositions, HighlightMap, Position } from "./Display";
 import { BufferValue } from "./Kernel/Stream";
 
 /** Get Highlighted Helper Function
@@ -11,7 +16,7 @@ import { BufferValue } from "./Kernel/Stream";
  * @param {number} width 
  * @returns {string}
  */
-export function getHighlightedFromBuffer(buffer:BufferValue<string>, map:HighlighMap, pos:Position, width:number):string {
+export function getHighlightedFromBuffer(buffer:BufferValue<string>, map:HighlightMap, pos:Position, width:number):string {
     const [start, end] = map;
     let output:string = "";
 

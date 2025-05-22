@@ -1,8 +1,8 @@
-/** /System/Register/ConfigFile.ts
+/** /System/Registry/ConfigFile.ts
  * 
  */
-import fs from "../Files";
-import { ReadFileStream, ReadWriteFileStream } from "../Stream/File";
+import fs from "../File";
+import { ReadFileStream, ReadWriteFileStream } from "../Stream";
 import { regexSplit } from "@";
 
 /** Config Parsing Error

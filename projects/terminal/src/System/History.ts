@@ -2,8 +2,8 @@
  * 
  * @author Alex Malotky
  */
-import fs from "./Files";
-import {join} from "./Files/Path";
+import fs from "./File";
+import {Path} from "./Kernel";
 
 export default class History {
     private list:string[];
@@ -11,7 +11,7 @@ export default class History {
     private _path:string;
 
     constructor(id:string) {
-        this._path = join("~", "history", id);
+        this._path = Path.join("~", "history", id);
         fs.mkfile(this._path, {recursive: true, soft: true});
         this.list = [];
         this._index = -1;
